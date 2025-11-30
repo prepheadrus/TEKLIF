@@ -40,6 +40,7 @@ function CreateQuoteTab() {
     
     return (
         <div className="flex flex-col gap-4 mt-4">
+            {/* A. Üst Kontrol Paneli */}
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Teklif Oluştur / Düzenle</h1>
@@ -47,30 +48,31 @@ function CreateQuoteTab() {
                 </div>
                 <div className="flex items-center gap-2">
                     <Button variant="outline"><Eraser className="mr-2 h-4 w-4" /> Temizle</Button>
-                    <Input placeholder="Versiyon Notu..." className="w-auto" />
-                    <Button><Save className="mr-2 h-4 w-4" /> Kaydet</Button>
+                    <Input placeholder="Versiyon Notu Girin (Örn: Müşteri isteği üzerine pompa değişti)" className="w-96" />
+                    <Button><Save className="mr-2 h-4 w-4" /> Kaydet ve Arşivle</Button>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div className="lg:col-span-2 flex flex-col gap-4">
                 <Card>
-                    <CardHeader><CardTitle>Cari & Proje</CardTitle></CardHeader>
+                    <CardHeader><CardTitle>Cari & Proje Bilgileri</CardTitle></CardHeader>
                     <CardContent className="grid md:grid-cols-2 gap-4">
                         <Select>
                             <SelectTrigger><SelectValue placeholder="Müşteri Seçiniz..." /></SelectTrigger>
                             <SelectContent>{mockCustomers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                         </Select>
-                        <Input placeholder="Proje Adı (Örn: Mekanik Tesisat İşleri)" />
+                        <Input placeholder="Proje Adı (Örn: Villa Mekanik Tesisat İşleri)" />
                     </CardContent>
                 </Card>
 
+                {/* C. Orta Alan: Metraj Izgarası */}
                 <Card>
-                    <CardHeader><CardTitle>Ürün Sepeti</CardTitle></CardHeader>
+                    <CardHeader><CardTitle>Ürün Sepeti (Metraj Cetveli)</CardTitle></CardHeader>
                     <CardContent>
                         <div className="flex gap-2 mb-4">
                             <Select>
-                                <SelectTrigger className="flex-1"><SelectValue placeholder="Ürün Seçiniz..." /></SelectTrigger>
+                                <SelectTrigger className="flex-1"><SelectValue placeholder="Ürün Seçiniz veya Arayın..." /></SelectTrigger>
                                 <SelectContent>{mockProducts.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
                             </Select>
                             <Input type="number" defaultValue="1" className="w-20" />
@@ -79,12 +81,12 @@ function CreateQuoteTab() {
                         <Table>
                             <TableHeader>
                             <TableRow>
-                                <TableHead className="w-[40%]">Ürün Adı</TableHead>
+                                <TableHead className="w-[40%]">Açıklama</TableHead>
                                 <TableHead>Marka</TableHead>
                                 <TableHead className="w-[100px]">Miktar</TableHead>
                                 <TableHead>Birim</TableHead>
-                                <TableHead className="text-right">B.Fiyat</TableHead>
-                                <TableHead className="text-right">Tutar</TableHead>
+                                <TableHead className="text-right">Birim Satış Fiyatı</TableHead>
+                                <TableHead className="text-right">Toplam Tutar</TableHead>
                                 <TableHead className="text-center">% Kâr</TableHead>
                                 <TableHead className="w-[50px]"></TableHead>
                             </TableRow>
@@ -108,23 +110,43 @@ function CreateQuoteTab() {
                 </Card>
                 </div>
 
+                {/* D. Alt Panel'in bir kısmı gibi düşünülebilir (Sağda) */}
                 <div className="lg:col-span-1 flex flex-col gap-4">
                     <Card>
-                        <CardHeader><CardTitle>Fatura Özeti</CardTitle></CardHeader>
+                        <CardHeader><CardTitle>Fatura Özeti ve Kurlar</CardTitle></CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="flex justify-between items-center font-semibold"><span>Toplam TRY</span><span>131,614.80 TL</span></div>
-                            <div className="flex justify-between items-center font-semibold"><span>Toplam USD</span><span>162,000.00 USD</span></div>
+                            <div className="flex justify-between items-center font-semibold text-lg"><span>Toplam TRY</span><span>131,614.80 TL</span></div>
+                            <div className="flex justify-between items-center font-semibold text-lg"><span>Toplam USD</span><span>162,000.00 USD</span></div>
                             <Separator />
                             <div>
-                                <Label className="text-xs text-muted-foreground">Döviz Kurları (Manuel)</Label>
+                                <Label className="text-xs text-muted-foreground">Döviz Kurları (Teklife Özel)</Label>
                                 <div className="flex items-center gap-2 mt-1">
-                                    <div className="relative flex-1"><span className="absolute left-2.5 top-2.5 text-sm text-muted-foreground">$</span><Input defaultValue="34.5" className="pl-6"/></div>
-                                    <div className="relative flex-1"><span className="absolute left-2.5 top-2.5 text-sm text-muted-foreground">€</span><Input defaultValue="36.2" className="pl-6"/></div>
-                                    <Button variant="ghost" size="icon"><RefreshCw className="h-4 w-4" /></Button>
+                                    <div className="relative flex-1">
+                                        <span className="absolute left-2.5 top-2.5 text-sm text-muted-foreground">$</span>
+                                        <Input defaultValue="34.50" className="pl-6"/>
+                                    </div>
+                                    <div className="relative flex-1">
+                                        <span className="absolute left-2.5 top-2.5 text-sm text-muted-foreground">€</span>
+                                        <Input defaultValue="36.20" className="pl-6"/>
+                                    </div>
+                                    <Button variant="outline" size="icon" aria-label="Güncel Kurları Çek">
+                                        <RefreshCw className="h-4 w-4" />
+                                    </Button>
                                 </div>
                             </div>
+                             <Separator />
+                             <div className="space-y-2">
+                                <Label>Genel Kâr Marjı (%)</Label>
+                                <Input type="number" defaultValue="25" />
+                                <Button className="w-full" variant="outline">Tüm Ürünlere Uygula</Button>
+                             </div>
                         </CardContent>
-                        <CardFooter><Button className="w-full" size="lg">Teklifi Kaydet ve Arşivle</Button></CardFooter>
+                        <CardFooter>
+                            <Button size="lg" className="w-full">
+                                <Save className="mr-2 h-4 w-4" />
+                                Teklifi Kaydet
+                            </Button>
+                        </CardFooter>
                     </Card>
                 </div>
             </div>
