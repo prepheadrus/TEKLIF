@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect }from 'react';
@@ -13,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCollection, useFirestore, useUser, useMemoFirebase, deleteDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase';
-import { collection, query, writeBatch, doc, getDocs, orderBy, limit, where, getDoc } from 'firebase/firestore';
+import { collection, query, writeBatch, doc, getDocs, orderBy, limit, where } from 'firebase/firestore';
 import { calculatePrice } from '@/lib/pricing';
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter, FirestorePermissionError } from '@/firebase';
@@ -761,41 +762,54 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
 
     }, [proposals]);
 
-    const handleDeleteProposal = async (proposalId: string, rootId: string) => {
+    const handleDeleteProposal = async (proposalId: string) => {
         if (!firestore) return;
-
-        const group = proposalGroups.find(g => g.rootId === rootId);
-        if (!group) return;
 
         try {
             const batch = writeBatch(firestore);
             
-            if (group.versions.length === 1) { // Deleting the only version
-                const proposalDocRef = doc(firestore, 'proposals', proposalId);
-                // Also delete its items subcollection
-                const itemsSnapshot = await getDocs(collection(proposalDocRef, 'proposal_items'));
-                itemsSnapshot.forEach(itemDoc => batch.delete(itemDoc.ref));
-                batch.delete(proposalDocRef);
-            } else { // Deleting a specific version from a group
-                const proposalDocRef = doc(firestore, 'proposals', proposalId);
-                 const itemsSnapshot = await getDocs(collection(proposalDocRef, 'proposal_items'));
-                itemsSnapshot.forEach(itemDoc => batch.delete(itemDoc.ref));
-                batch.delete(proposalDocRef);
-            }
+            const proposalDocRef = doc(firestore, 'proposals', proposalId);
+            const itemsSnapshot = await getDocs(collection(proposalDocRef, 'proposal_items'));
+            itemsSnapshot.forEach(itemDoc => batch.delete(itemDoc.ref));
+            batch.delete(proposalDocRef);
             
             await batch.commit();
 
             toast({
                 title: "Başarılı",
-                description: "Teklif versiyonu silindi.",
+                description: "Teklif versiyonu ve ilgili tüm veriler silindi.",
             });
-            // A refresh is triggered by the onSnapshot listener automatically
         } catch (error) {
              console.error("Error deleting proposal version: ", error);
              toast({
                 variant: "destructive",
                 title: "Hata",
                 description: "Teklif silinirken bir sorun oluştu.",
+            });
+        }
+    };
+    
+    const handleDeleteGroup = async (group: ProposalGroup) => {
+        if (!firestore) return;
+        try {
+            const batch = writeBatch(firestore);
+            for (const version of group.versions) {
+                const proposalDocRef = doc(firestore, 'proposals', version.id);
+                const itemsSnapshot = await getDocs(collection(proposalDocRef, 'proposal_items'));
+                itemsSnapshot.forEach(itemDoc => batch.delete(itemDoc.ref));
+                batch.delete(proposalDocRef);
+            }
+            await batch.commit();
+            toast({
+                title: "Başarılı",
+                description: `Teklif grubu (${group.latest.quoteNumber}) ve tüm versiyonları silindi.`,
+            });
+        } catch (error) {
+             console.error("Error deleting proposal group: ", error);
+             toast({
+                variant: "destructive",
+                title: "Hata",
+                description: "Teklif grubu silinirken bir sorun oluştu.",
             });
         }
     };
@@ -872,8 +886,8 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
                                 </TableCell>
                             </TableRow>
                         ) : proposalGroups && proposalGroups.length > 0 ? (
-                            proposalGroups.map((group) => (
-                                <TableRow key={group.rootId}>
+                            proposalGroups.map((group, index) => (
+                                <TableRow key={group.rootId || index}>
                                     <TableCell className="font-medium">{group.latest.quoteNumber}</TableCell>
                                     <TableCell>{formatDate(group.latest.createdAt)}</TableCell>
                                     <TableCell>{group.latest.customerName}</TableCell>
@@ -903,6 +917,7 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
                                                         <div className='flex items-center'>
                                                             <span className='mr-4 font-mono'>{formatCurrency(version.totalAmount)}</span>
                                                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEditQuote(version)}><Edit className="h-4 w-4" /></Button>
+                                                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteProposal(version.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                                         </div>
                                                     </DropdownMenuItem>
                                                 ))}
@@ -913,7 +928,7 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
                                     <TableCell className="text-center flex justify-center gap-1">
                                         <Button variant="ghost" size="icon" aria-label="Son Versiyonu İndir"><Download className="h-4 w-4" /></Button>
                                         <Button variant="ghost" size="icon" aria-label="Son Versiyonu Düzenle" onClick={() => onEditQuote(group.latest)}><Edit className="h-4 w-4" /></Button>
-                                        <Button variant="ghost" size="icon" aria-label="Tüm Teklifi Sil" onClick={() => group.versions.forEach(v => handleDeleteProposal(v.id, group.rootId))}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                        <Button variant="ghost" size="icon" aria-label="Tüm Teklifi Sil" onClick={() => handleDeleteGroup(group)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                     </TableCell>
                                 </TableRow>
                             ))
@@ -965,3 +980,5 @@ export default function QuotesPage() {
     </Tabs>
   );
 }
+
+    
