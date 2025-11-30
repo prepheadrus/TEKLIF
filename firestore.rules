@@ -8,16 +8,7 @@ rules_version = '2';
  * ## Core Philosophy
  * This ruleset is designed for a prototyping environment with anonymous authentication.
  * It prioritizes rapid development by allowing any signed-in user (including anonymous ones)
- * to read and write data. Strict owner-based rules will be re-implemented when a full
- * authentication system is added later.
- *
- * ## Key Security Decisions
- * - **Open Access for Authenticated Users**: Any authenticated user can perform CRUD
- *   operations on any top-level collection. This simplifies development by removing
- *   permission errors during the prototyping phase.
- * - **Client-Side Data Integrity**: The application logic is currently responsible for
- *   associating data with the correct user via an `ownerId`. The rules currently
- *   do not enforce this link.
+ * to read and write data they own, based on the `ownerId` field.
  */
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -31,90 +22,62 @@ service cloud.firestore {
     }
 
     /**
-     * @description
-     *   Rules for the `suppliers` collection.
-     *   Allows read/write access for any signed-in user.
-     * @path
-     *   /suppliers/{supplierId}
+     * Returns true if the incoming data's ownerId matches the user's UID.
      */
-    match /suppliers/{supplierId} {
-      allow read, write: if isSignedIn();
-
-      /**
-       * @description
-       *   Rules for materials, nested under a supplier.
-       *   Allows read/write access if the user is signed in.
-       * @path
-       *   /suppliers/{supplierId}/materials/{materialId}
-       */
-      match /materials/{materialId} {
-          allow read, write: if isSignedIn();
-      }
+    function isNewOwner(resource) {
+        return resource.data.ownerId == request.auth.uid;
     }
 
     /**
-     * @description
-     *   Rules for the `labor_costs` collection.
-     *   Allows read/write access for any signed-in user.
-     * @path
-     *   /labor_costs/{laborCostId}
+     * Returns true if the existing data's ownerId matches the user's UID.
      */
-    match /labor_costs/{laborCostId} {
-      allow read, write: if isSignedIn();
+    function isOwner(resource) {
+        return resource.data.ownerId == request.auth.uid;
     }
+    
+    /**
+     * Returns true if the query is limited to the user's own documents.
+     */
+    function isQueryingOwnData() {
+        return request.query.limit <= 100 && request.auth.uid == request.query.resource.data.ownerId;
+    }
+
 
     /**
      * @description
-     *   Rules for the `recipes` collection.
-     *   Allows read/write access for any signed-in user.
-     * @path
-     *   /recipes/{recipeId}
+     *   Rules for collections where documents have an `ownerId`.
+     *   - Allows `list` only if querying by `ownerId`.
+     *   - Allows `read`, `update`, `delete` if the user is the owner.
+     *   - Allows `create` if the new document's `ownerId` is the user's UID.
      */
-    match /recipes/{recipeId} {
-      allow read, write: if isSignedIn();
-    }
-
-    /**
-     * @description
-     *   Rules for the `customers` collection.
-     *   Allows read/write access for any signed-in user.
-     * @path
-     *   /customers/{customerId}
-     */
-    match /customers/{customerId} {
-      allow read, write: if isSignedIn();
+    match /{collection}/{docId} where collection in ['customers', 'products', 'proposals'] {
+      allow list: if isSignedIn() && isQueryingOwnData();
+      allow read, update, delete: if isSignedIn() && isOwner(get(/databases/$(database)/documents/$(collection)/$(docId)));
+      allow create: if isSignedIn() && isNewOwner(request.resource);
     }
     
     /**
      * @description
-     *   Rules for the top-level `proposals` collection.
-     *   Allows read/write access for any signed-in user.
-     * @path
-     *   /proposals/{proposalId}
+     *   Rules for proposal items, nested under a proposal.
+     *   Inherits ownership from the parent proposal.
      */
-    match /proposals/{proposalId} {
+    match /proposals/{proposalId}/proposal_items/{proposalItemId} {
+        allow read, write: if isSignedIn() && isOwner(get(/databases/$(database)/documents/proposals/$(proposalId)));
+    }
+
+
+    // The following rules remain open for prototyping simplicity as they don't have ownerId
+    // or are not directly user-created content in the same way.
+    match /suppliers/{supplierId} {
       allow read, write: if isSignedIn();
-      
-      /**
-       * @description
-       *   Rules for proposal items, nested under a proposal.
-       *   Allows read/write access if the user is signed in.
-       * @path
-       *   /proposals/{proposalId}/proposal_items/{proposalItemId}
-       */
-      match /proposal_items/{proposalItemId} {
+      match /materials/{materialId} {
           allow read, write: if isSignedIn();
       }
     }
-
-    /**
-     * @description
-     *   Rules for the `products` collection.
-     *   Allows read/write access for any signed-in user.
-     * @path
-     *   /products/{productId}
-     */
-    match /products/{productId} {
+    match /labor_costs/{laborCostId} {
+      allow read, write: if isSignedIn();
+    }
+    match /recipes/{recipeId} {
       allow read, write: if isSignedIn();
     }
   }
