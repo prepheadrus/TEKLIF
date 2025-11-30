@@ -445,16 +445,19 @@ function CreateQuoteTab({ onQuoteSaved, onSetActiveTab, quoteToEdit }: { onQuote
             const proposalRef = doc(collection(firestore, 'proposals'));
 
             const isRevision = !!currentEditingProposal;
+            
             let rootProposalId: string;
             let version: number;
             let quoteNumber: string;
 
             if (isRevision && currentEditingProposal) {
+                // REVISION SCENARIO
                 rootProposalId = currentEditingProposal.rootProposalId;
                 version = currentEditingProposal.version + 1;
                 quoteNumber = currentEditingProposal.quoteNumber;
             } else {
-                rootProposalId = proposalRef.id; 
+                // NEW QUOTE SCENARIO
+                rootProposalId = proposalRef.id;
                 version = 1;
                 quoteNumber = await getNextQuoteNumber(firestore);
             }
@@ -791,7 +794,7 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
         return allGroups.filter(group =>
             group.latest.quoteNumber.toLowerCase().includes(lowercasedFilter) ||
             group.latest.customerName.toLowerCase().includes(lowercasedFilter) ||
-            group.latest.projectName.toLowerCase().includes(lowercased-Filter)
+            group.latest.projectName.toLowerCase().includes(lowercasedFilter)
         );
 
     }, [proposals, searchTerm]);
@@ -851,14 +854,40 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
         }
     };
     
-    const handleChangeStatus = (proposalId: string, status: ProposalStatus) => {
+    const handleChangeStatus = async (proposalToUpdate: Proposal, newStatus: ProposalStatus, allVersions: Proposal[]) => {
         if (!firestore) return;
-        const proposalDocRef = doc(firestore, 'proposals', proposalId);
-        setDocumentNonBlocking(proposalDocRef, { status: status }, { merge: true });
-        toast({
-            title: 'Durum Güncellendi',
-            description: `Teklif durumu "${status}" olarak değiştirildi.`,
-        });
+
+        try {
+            const batch = writeBatch(firestore);
+
+            // Update the selected proposal's status
+            const proposalDocRef = doc(firestore, 'proposals', proposalToUpdate.id);
+            batch.update(proposalDocRef, { status: newStatus });
+
+            // If the new status is "Approved", reset other versions of the same quote group to "Draft"
+            if (newStatus === 'Approved') {
+                allVersions.forEach(version => {
+                    if (version.id !== proposalToUpdate.id) {
+                        const otherVersionRef = doc(firestore, 'proposals', version.id);
+                        batch.update(otherVersionRef, { status: 'Draft' });
+                    }
+                });
+            }
+
+            await batch.commit();
+
+            toast({
+                title: 'Durum Güncellendi',
+                description: `Teklif durumu "${newStatus}" olarak değiştirildi. ${newStatus === 'Approved' ? 'Diğer versiyonlar taslak durumuna getirildi.' : ''}`,
+            });
+        } catch (error) {
+            console.error("Error changing status: ", error);
+            toast({
+                variant: "destructive",
+                title: "Hata",
+                description: "Durum değiştirilirken bir sorun oluştu.",
+            });
+        }
     };
 
 
@@ -940,8 +969,8 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
                                 </TableCell>
                             </TableRow>
                         ) : proposalGroups && proposalGroups.length > 0 ? (
-                            proposalGroups.map((group, index) => (
-                                <TableRow key={group.rootId || index}>
+                            proposalGroups.map((group) => (
+                                <TableRow key={group.rootId}>
                                     <TableCell className="font-medium">{group.latest.quoteNumber}</TableCell>
                                     <TableCell>{formatDate(group.latest.createdAt)}</TableCell>
                                     <TableCell>{group.latest.customerName}</TableCell>
@@ -957,7 +986,7 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
                                                 <DropdownMenuLabel>Durumu Değiştir</DropdownMenuLabel>
                                                 <DropdownMenuSeparator />
                                                 {statusOptions.map(status => (
-                                                    <DropdownMenuItem key={status} onSelect={() => handleChangeStatus(group.latest.id, status)}>
+                                                    <DropdownMenuItem key={status} onSelect={() => handleChangeStatus(group.latest, status, group.versions)}>
                                                         {status}
                                                     </DropdownMenuItem>
                                                 ))}
@@ -1061,4 +1090,5 @@ export default function QuotesPage() {
     </Tabs>
   );
 }
+
 

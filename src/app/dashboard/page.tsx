@@ -7,9 +7,12 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Users, FileText, CheckCircle, Banknote, Loader2 } from 'lucide-react';
 
 type Proposal = {
+  id: string;
+  rootProposalId: string;
   status: 'Draft' | 'Sent' | 'Approved' | 'Rejected';
   totalAmount: number;
   createdAt: { seconds: number };
+  version: number;
 };
 
 type Customer = {
@@ -44,11 +47,11 @@ export default function DashboardPage() {
       return {
         totalCustomers: 0,
         activeQuotes: 0,
-        approvedQuotes: 0,
+        approvedQuotesCount: 0,
         totalRevenue: 0,
         customersLastMonth: 0,
         activeQuotesLastMonth: 0,
-        approvedQuotesLastMonth: 0,
+        approvedQuotesLastMonthCount: 0,
         revenueLastMonth: 0,
       };
     }
@@ -60,20 +63,68 @@ export default function DashboardPage() {
     const currentMonthProposals = proposals.filter(p => p.createdAt.seconds >= firstDayOfCurrentMonth);
     const lastMonthProposals = proposals.filter(p => p.createdAt.seconds >= firstDayOfLastMonth && p.createdAt.seconds < firstDayOfCurrentMonth);
 
-    const approvedQuotes = proposals.filter(p => p.status === 'Approved');
-    const totalRevenue = approvedQuotes.reduce((sum, p) => sum + p.totalAmount, 0);
+    // Group proposals by rootProposalId to handle versions correctly
+    const proposalGroups: { [key: string]: Proposal[] } = {};
+    proposals.forEach(p => {
+        if (!proposalGroups[p.rootProposalId]) {
+            proposalGroups[p.rootProposalId] = [];
+        }
+        proposalGroups[p.rootProposalId].push(p);
+    });
 
-    const revenueLastMonth = lastMonthProposals.filter(p => p.status === 'Approved').reduce((sum, p) => sum + p.totalAmount, 0);
+    let totalRevenue = 0;
+    let approvedQuotesCount = 0;
+    
+    // Calculate revenue and count from the latest approved version in each group
+    Object.values(proposalGroups).forEach(group => {
+        const approvedVersions = group.filter(p => p.status === 'Approved');
+        if (approvedVersions.length > 0) {
+            // Find the one with the highest version number
+            const latestApproved = approvedVersions.reduce((latest, current) => current.version > latest.version ? current : latest);
+            totalRevenue += latestApproved.totalAmount;
+            approvedQuotesCount++;
+        }
+    });
+
+    const activeQuotes = Object.values(proposalGroups).filter(group => {
+       const latestVersion = group.reduce((latest, current) => current.version > latest.version ? current : latest);
+       return latestVersion.status === 'Draft' || latestVersion.status === 'Sent';
+    }).length;
+    
+    // --- Last Month Calculations ---
+    const lastMonthProposalGroups: { [key: string]: Proposal[] } = {};
+     lastMonthProposals.forEach(p => {
+        if (!lastMonthProposalGroups[p.rootProposalId]) {
+            lastMonthProposalGroups[p.rootProposalId] = [];
+        }
+        lastMonthProposalGroups[p.rootProposalId].push(p);
+    });
+    
+    let revenueLastMonth = 0;
+    let approvedQuotesLastMonthCount = 0;
+    Object.values(lastMonthProposalGroups).forEach(group => {
+        const approvedVersions = group.filter(p => p.status === 'Approved');
+        if (approvedVersions.length > 0) {
+            const latestApproved = approvedVersions.reduce((latest, current) => current.version > latest.version ? current : latest);
+            revenueLastMonth += latestApproved.totalAmount;
+            approvedQuotesLastMonthCount++;
+        }
+    });
+
+    const activeQuotesLastMonth = Object.values(lastMonthProposalGroups).filter(group => {
+       const latestVersion = group.reduce((latest, current) => current.version > latest.version ? current : latest);
+       return latestVersion.status === 'Draft' || latestVersion.status === 'Sent';
+    }).length;
 
 
     return {
       totalCustomers: customers.length,
-      activeQuotes: proposals.filter(p => p.status === 'Draft' || p.status === 'Sent').length,
-      approvedQuotes: approvedQuotes.length,
+      activeQuotes: activeQuotes,
+      approvedQuotesCount: approvedQuotesCount,
       totalRevenue: totalRevenue,
       customersLastMonth: customers.length, // Placeholder logic for customer change
-      activeQuotesLastMonth: lastMonthProposals.filter(p => p.status === 'Draft' || p.status === 'Sent').length,
-      approvedQuotesLastMonth: lastMonthProposals.filter(p => p.status === 'Approved').length,
+      activeQuotesLastMonth: activeQuotesLastMonth,
+      approvedQuotesLastMonthCount: approvedQuotesLastMonthCount,
       revenueLastMonth: revenueLastMonth,
     };
   }, [proposals, customers]);
@@ -114,8 +165,8 @@ export default function DashboardPage() {
       />
       <StatCard 
         title="Onaylanan Teklifler" 
-        value={dashboardStats.approvedQuotes} 
-        changeText={calculatePercentageChange(dashboardStats.approvedQuotes, dashboardStats.approvedQuotesLastMonth)}
+        value={dashboardStats.approvedQuotesCount} 
+        changeText={calculatePercentageChange(dashboardStats.approvedQuotesCount, dashboardStats.approvedQuotesLastMonthCount)}
         icon={CheckCircle}
         loading={isLoading}
       />
