@@ -62,7 +62,7 @@ export default function PrintQuotePage() {
     // We need to fetch the customer details separately
     const customerRef = useMemoFirebase(
         () => (firestore && proposal?.customerId ? doc(firestore, 'customers', proposal.customerId) : null),
-        [firestore, proposal?.customerId]
+        [firestore, proposal]
     );
     const { data: customer, isLoading: isCustomerLoading } = useDoc<Customer>(customerRef);
     
@@ -124,8 +124,9 @@ export default function PrintQuotePage() {
                     <div className="flex items-start gap-4">
                         <Image src="/logo-header.png" alt="Firma Logosu" width={100} height={100} className="rounded-md" />
                         <div>
-                            <h2 className="text-xl font-bold text-primary">IMS.M Mühendislik</h2>
-                            <p className="text-xs max-w-xs mt-1">
+                            <h2 className="text-2xl font-bold text-primary">İMS Mühendislik</h2>
+                             <p className="text-sm font-semibold text-gray-600">Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
+                            <p className="text-xs max-w-xs mt-2">
                                 Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA
                             </p>
                             <p className="text-xs mt-1">ims.m.muhendislik@gmail.com</p>
@@ -214,7 +215,7 @@ export default function PrintQuotePage() {
                             Teklifin geçerlilik süresi 15 gündür. Fiyatlarımıza KDV dahildir.
                             Belirtilen döviz kurları ({`USD: ${proposal.exchangeRates.USD.toFixed(2)}`}, {`EUR: ${proposal.exchangeRates.EUR.toFixed(2)}`}) teklif tarihindeki TCMB efektif satış kurudur. Ödeme anındaki kur geçerli olacaktır.
                         </p>
-                        <p className="mt-2 font-semibold">IMS.M Mühendislik | Teşekkür Ederiz!</p>
+                        <p className="mt-2 font-semibold">İMS Mühendislik | Teşekkür Ederiz!</p>
                     </div>
                 </footer>
             </div>
