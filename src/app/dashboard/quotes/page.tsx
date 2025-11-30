@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect }from 'react';
@@ -7,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/componen
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, RefreshCw, Save, Eraser, Download, Edit, History, Search, Loader2 } from "lucide-react";
+import { Plus, Trash2, RefreshCw, Save, Eraser, Download, Edit, History, Search, Loader2, Sparkles } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Label } from "@/components/ui/label";
@@ -17,6 +16,7 @@ import { collection, query, where, writeBatch, doc } from 'firebase/firestore';
 import { calculatePrice } from '@/lib/pricing';
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter, FirestorePermissionError } from '@/firebase';
+import { suggestMissingParts } from '@/ai/flows/suggest-missing-parts';
 
 
 type Customer = { id: string; name: string; [key: string]: any };
@@ -76,6 +76,7 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
     const [projectName, setProjectName] = useState('');
     const [versionNote, setVersionNote] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const [isSuggesting, setIsSuggesting] = useState(false);
 
 
     // Data fetching
@@ -91,7 +92,7 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
     );
     const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
 
-    const handleAddProduct = () => {
+    const handleAddProduct = async () => {
         if (!selectedProductId || !products) return;
         const productToAdd = products.find(p => p.id === selectedProductId);
         if (!productToAdd) return;
@@ -129,9 +130,35 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
             total: priceResult.originalSellPrice * quantityToAdd,
         };
 
-        setQuoteItems(prevItems => [...prevItems, newItem]);
+        const updatedItems = [...quoteItems, newItem];
+        setQuoteItems(updatedItems);
         setSelectedProductId(null);
         setQuantityToAdd(1);
+        
+        // AI Suggestions
+        setIsSuggesting(true);
+        try {
+            const existingParts = updatedItems.map(item => item.name);
+            const result = await suggestMissingParts({
+                productName: productToAdd.name,
+                existingParts: existingParts,
+            });
+
+            if (result.suggestedParts && result.suggestedParts.length > 0) {
+                 toast({
+                    title: "AI Önerisi ✨",
+                    description: `Şunları da eklemek isteyebilirsiniz: ${result.suggestedParts.join(', ')}`,
+                    duration: 8000,
+                });
+            }
+
+        } catch (error) {
+            console.error("AI suggestion failed:", error);
+            // Optional: show a silent fail toast
+            // toast({ variant: "destructive", title: "AI Önerisi alınamadı."})
+        } finally {
+            setIsSuggesting(false);
+        }
     };
     
     const handleRemoveItem = (itemId: string) => {
@@ -289,7 +316,7 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
             toast({
                 variant: "destructive",
                 title: "Hata",
-                description: "Teklif kaydedilemedi. İzinler kontrol ediliyor.",
+                description: "Teklif kaydedilemedi. " + (error.message || "Lütfen konsolu kontrol edin."),
             });
         } finally {
             setIsSaving(false);
@@ -363,8 +390,8 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
                                 min="1"
                                 disabled={isSaving}
                             />
-                            <Button onClick={handleAddProduct} disabled={!selectedProductId || areProductsLoading || isSaving}>
-                               {areProductsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                            <Button onClick={handleAddProduct} disabled={!selectedProductId || areProductsLoading || isSaving || isSuggesting}>
+                               {isSuggesting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
                                 Ekle
                             </Button>
                         </div>
@@ -614,7 +641,5 @@ export default function QuotesPage() {
     </Tabs>
   );
 }
-
-    
 
     
