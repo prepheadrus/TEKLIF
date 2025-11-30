@@ -109,8 +109,16 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Proposal",
       "type": "object",
-      "description": "Represents a quotation or proposal.",
+      "description": "Represents a quotation or proposal. Can be a new proposal or a revision of an existing one.",
       "properties": {
+        "rootProposalId": {
+          "type": "string",
+          "description": "The ID of the original proposal in a revision chain. Used to group all versions of a proposal."
+        },
+        "version": {
+          "type": "number",
+          "description": "The version number of this specific proposal in the chain (e.g., 1, 2, 3)."
+        },
         "customerId": {
           "type": "string",
           "description": "Reference to the Customer who the proposal is for."
@@ -155,6 +163,8 @@
         }
       },
       "required": [
+        "rootProposalId",
+        "version",
         "customerId",
         "customerName",
         "projectName",
@@ -430,11 +440,11 @@
           "schema": {
             "$ref": "#/backend/entities/Proposal"
           },
-          "description": "Represents a proposal document.",
+          "description": "Represents a proposal document. Each document is a specific version of a proposal.",
           "params": [
             {
               "name": "proposalId",
-              "description": "Unique identifier for the Proposal entity."
+              "description": "Unique identifier for a specific Proposal version."
             }
           ]
         }
@@ -446,11 +456,11 @@
           "schema": {
             "$ref": "#/backend/entities/ProposalItem"
           },
-          "description": "Represents an individual line item within a proposal.",
+          "description": "Represents an individual line item within a specific proposal version.",
           "params": [
             {
               "name": "proposalId",
-              "description": "Unique identifier for the parent Proposal."
+              "description": "Unique identifier for the parent Proposal version."
             },
             {
               "name": "proposalItemId",
