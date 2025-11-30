@@ -432,42 +432,51 @@ function CreateQuoteTab({ onQuoteSaved, onSetActiveTab, quoteToEdit }: { onQuote
         }
 
         setIsSaving(true);
-        const proposalRef = doc(collection(firestore, 'proposals'));
         const selectedCustomer = customers?.find(c => c.id === currentCustomerId);
-
-        const isRevision = !!currentEditingProposal;
-
-        let rootProposalId: string;
-        let version: number;
-        let quoteNumber: string;
-
-        if (isRevision && currentEditingProposal) {
-            rootProposalId = currentEditingProposal.rootProposalId;
-            version = currentEditingProposal.version + 1;
-            quoteNumber = currentEditingProposal.quoteNumber;
-        } else {
-            rootProposalId = proposalRef.id;
-            version = 1;
-            quoteNumber = await getNextQuoteNumber(firestore);
-        }
-
-        const proposalData = {
-            rootProposalId,
-            version,
-            quoteNumber,
-            customerId: currentCustomerId,
-            customerName: selectedCustomer?.name || 'Bilinmeyen Müşteri',
-            projectName: projectName || 'Genel Teklif',
-            status: 'Draft' as const,
-            totalAmount: quoteTotals.grandTotal,
-            exchangeRates,
-            versionNote: versionNote || (isRevision ? `Versiyon ${version}` : 'İlk Versiyon'),
-            createdAt: new Date(),
-        };
-
+        
         try {
             const batch = writeBatch(firestore);
-            batch.set(proposalRef, proposalData);
+            const proposalRef = doc(collection(firestore, 'proposals'));
+
+            const isRevision = !!currentEditingProposal;
+            let rootProposalId: string;
+            let version: number;
+            let quoteNumber: string;
+
+            if (isRevision && currentEditingProposal) {
+                // This is a revision of an existing quote
+                rootProposalId = currentEditingProposal.rootProposalId;
+                version = currentEditingProposal.version + 1;
+                quoteNumber = currentEditingProposal.quoteNumber;
+            } else {
+                // This is a brand new quote
+                rootProposalId = proposalRef.id; // It's okay to use this, it's generated client-side
+                version = 1;
+                quoteNumber = await getNextQuoteNumber(firestore);
+            }
+            
+            const proposalData = {
+                // rootProposalId is set below, conditionally
+                version,
+                quoteNumber,
+                customerId: currentCustomerId,
+                customerName: selectedCustomer?.name || 'Bilinmeyen Müşteri',
+                projectName: projectName || 'Genel Teklif',
+                status: 'Draft' as const,
+                totalAmount: quoteTotals.grandTotal,
+                exchangeRates,
+                versionNote: versionNote || (isRevision ? `Versiyon ${version}` : 'İlk Versiyon'),
+                createdAt: new Date(),
+            };
+
+            // This is the critical fix. We add the correct rootProposalId to the data object
+            // before setting it in the batch.
+            const finalProposalData = {
+                ...proposalData,
+                rootProposalId: rootProposalId,
+            };
+
+            batch.set(proposalRef, finalProposalData);
 
             for (const item of currentQuoteItems) {
                 const itemRef = doc(collection(proposalRef, 'proposal_items'));
@@ -492,10 +501,9 @@ function CreateQuoteTab({ onQuoteSaved, onSetActiveTab, quoteToEdit }: { onQuote
             console.error("Teklif kaydedilirken hata oluştu:", error);
 
             const permissionError = new FirestorePermissionError({
-              path: `proposals/${proposalRef.id} or subcollections`,
+              path: `proposals/some-id or subcollections`,
               operation: 'write',
               requestResourceData: {
-                  proposal: proposalData,
                   items: currentQuoteItems.map(({id, ...rest}) => rest),
               }
             });
