@@ -433,9 +433,19 @@ function CreateQuoteTab({ onQuoteSaved, onSetActiveTab, quoteToEdit }: { onQuote
 
         const isRevision = !!editingProposal;
         
-        const rootProposalId = isRevision ? editingProposal.rootProposalId : proposalRef.id;
-        const version = isRevision ? editingProposal.version + 1 : 1;
-        const quoteNumber = isRevision ? editingProposal.quoteNumber : await getNextQuoteNumber(firestore);
+        let rootProposalId: string;
+        let version: number;
+        let quoteNumber: string;
+
+        if (isRevision) {
+            rootProposalId = editingProposal.rootProposalId;
+            version = editingProposal.version + 1;
+            quoteNumber = editingProposal.quoteNumber;
+        } else {
+            rootProposalId = proposalRef.id;
+            version = 1;
+            quoteNumber = await getNextQuoteNumber(firestore);
+        }
 
         const proposalData = {
             rootProposalId: rootProposalId,
@@ -981,5 +991,3 @@ export default function QuotesPage() {
     </Tabs>
   );
 }
-
-    
