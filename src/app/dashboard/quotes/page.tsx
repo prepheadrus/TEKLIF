@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo, useEffect }from 'react';
+import { useState, useMemo, useEffect, useCallback }from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -413,34 +413,38 @@ function CreateQuoteTab({ onQuoteSaved, onSetActiveTab, quoteToEdit }: { onQuote
         }
     }
 
-    const handleSaveQuote = async () => {
+    const handleSaveQuote = useCallback(async (
+        currentEditingProposal: Proposal | null,
+        currentCustomerId: string | null,
+        currentQuoteItems: QuoteItem[]
+    ) => {
         if (!firestore) {
             toast({ variant: "destructive", title: "Hata", description: "Veritabanı bağlantısı yok." });
             return;
         }
-        if (!selectedCustomerId) {
+        if (!currentCustomerId) {
             toast({ variant: "destructive", title: "Eksik Bilgi", description: "Lütfen bir müşteri seçin." });
             return;
         }
-        if (quoteItems.length === 0) {
+        if (currentQuoteItems.length === 0) {
             toast({ variant: "destructive", title: "Eksik Bilgi", description: "Lütfen sepete en az bir ürün ekleyin." });
             return;
         }
-    
+
         setIsSaving(true);
         const proposalRef = doc(collection(firestore, 'proposals'));
-        const selectedCustomer = customers?.find(c => c.id === selectedCustomerId);
+        const selectedCustomer = customers?.find(c => c.id === currentCustomerId);
 
-        const isRevision = !!editingProposal;
-        
+        const isRevision = !!currentEditingProposal;
+
         let rootProposalId: string;
         let version: number;
         let quoteNumber: string;
 
-        if (isRevision && editingProposal) {
-            rootProposalId = editingProposal.rootProposalId;
-            version = editingProposal.version + 1;
-            quoteNumber = editingProposal.quoteNumber;
+        if (isRevision && currentEditingProposal) {
+            rootProposalId = currentEditingProposal.rootProposalId;
+            version = currentEditingProposal.version + 1;
+            quoteNumber = currentEditingProposal.quoteNumber;
         } else {
             rootProposalId = proposalRef.id;
             version = 1;
@@ -448,10 +452,10 @@ function CreateQuoteTab({ onQuoteSaved, onSetActiveTab, quoteToEdit }: { onQuote
         }
 
         const proposalData = {
-            rootProposalId: rootProposalId,
-            version: version,
-            quoteNumber: quoteNumber,
-            customerId: selectedCustomerId,
+            rootProposalId,
+            version,
+            quoteNumber,
+            customerId: currentCustomerId,
             customerName: selectedCustomer?.name || 'Bilinmeyen Müşteri',
             projectName: projectName || 'Genel Teklif',
             status: 'Draft' as const,
@@ -460,12 +464,12 @@ function CreateQuoteTab({ onQuoteSaved, onSetActiveTab, quoteToEdit }: { onQuote
             versionNote: versionNote || (isRevision ? `Versiyon ${version}` : 'İlk Versiyon'),
             createdAt: new Date(),
         };
-        
+
         try {
             const batch = writeBatch(firestore);
             batch.set(proposalRef, proposalData);
-    
-            for (const item of quoteItems) {
+
+            for (const item of currentQuoteItems) {
                 const itemRef = doc(collection(proposalRef, 'proposal_items'));
                 const { id, ...itemData } = item;
                 batch.set(itemRef, {
@@ -473,9 +477,9 @@ function CreateQuoteTab({ onQuoteSaved, onSetActiveTab, quoteToEdit }: { onQuote
                     proposalId: proposalRef.id,
                 });
             }
-    
+
             await batch.commit();
-    
+
             toast({
                 title: "Başarılı!",
                 description: `Teklif (${quoteNumber} - V${version}) başarıyla kaydedildi.`,
@@ -483,7 +487,7 @@ function CreateQuoteTab({ onQuoteSaved, onSetActiveTab, quoteToEdit }: { onQuote
             clearForm();
             onQuoteSaved();
             onSetActiveTab('archive');
-    
+
         } catch (error: any) {
             console.error("Teklif kaydedilirken hata oluştu:", error);
 
@@ -492,7 +496,7 @@ function CreateQuoteTab({ onQuoteSaved, onSetActiveTab, quoteToEdit }: { onQuote
               operation: 'write',
               requestResourceData: {
                   proposal: proposalData,
-                  items: quoteItems.map(({id, ...rest}) => rest),
+                  items: currentQuoteItems.map(({id, ...rest}) => rest),
               }
             });
             errorEmitter.emit('permission-error', permissionError);
@@ -505,7 +509,7 @@ function CreateQuoteTab({ onQuoteSaved, onSetActiveTab, quoteToEdit }: { onQuote
         } finally {
             setIsSaving(false);
         }
-    };
+    }, [firestore, customers, projectName, quoteTotals, exchangeRates, versionNote, onQuoteSaved, onSetActiveTab, toast]);
     
     const tableInputClass = "h-8 w-full bg-transparent border-0 rounded-none focus:outline-none focus:ring-1 focus:ring-primary p-1";
 
@@ -531,7 +535,7 @@ function CreateQuoteTab({ onQuoteSaved, onSetActiveTab, quoteToEdit }: { onQuote
                 <div className="flex items-center gap-2">
                     <Button variant="outline" onClick={clearForm} disabled={isSaving}><Eraser className="mr-2 h-4 w-4" /> Temizle</Button>
                     <Input placeholder="Versiyon Notu Girin (Örn: Müşteri isteği üzerine pompa değişti)" className="w-96" value={versionNote} onChange={e => setVersionNote(e.target.value)} />
-                    <Button onClick={handleSaveQuote} disabled={isSaving}>
+                    <Button onClick={() => handleSaveQuote(editingProposal, selectedCustomerId, quoteItems)} disabled={isSaving}>
                         {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                         Kaydet
                     </Button>
@@ -718,7 +722,7 @@ function CreateQuoteTab({ onQuoteSaved, onSetActiveTab, quoteToEdit }: { onQuote
                              </div>
                         </CardContent>
                         <CardFooter>
-                            <Button size="lg" className="w-full" onClick={handleSaveQuote} disabled={isSaving}>
+                            <Button size="lg" className="w-full" onClick={() => handleSaveQuote(editingProposal, selectedCustomerId, quoteItems)} disabled={isSaving}>
                                 {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                                 Teklifi Kaydet
                             </Button>
@@ -991,6 +995,3 @@ export default function QuotesPage() {
     </Tabs>
   );
 }
-
-
-    
