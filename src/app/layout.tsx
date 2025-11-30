@@ -1,12 +1,23 @@
-import type { Metadata } from 'next';
+'use client';
+
+import { useEffect } from 'react';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
+import { useAuth, useUser, initiateAnonymousSignIn } from '@/firebase';
 
-export const metadata: Metadata = {
-  title: 'MechQuote',
-  description: 'Mekanik Teklif Otomasyon Sistemi',
-};
+function AppInitializer({ children }: { children: React.ReactNode }) {
+  const auth = useAuth();
+  const { user, isUserLoading } = useUser();
+
+  useEffect(() => {
+    if (!isUserLoading && !user && auth) {
+      initiateAnonymousSignIn(auth);
+    }
+  }, [isUserLoading, user, auth]);
+
+  return <>{children}</>;
+}
 
 export default function RootLayout({
   children,
@@ -28,7 +39,9 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <FirebaseClientProvider>{children}</FirebaseClientProvider>
+        <FirebaseClientProvider>
+          <AppInitializer>{children}</AppInitializer>
+        </FirebaseClientProvider>
         <Toaster />
       </body>
     </html>
