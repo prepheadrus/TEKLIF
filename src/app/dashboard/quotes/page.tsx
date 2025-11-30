@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useCollection, useFirestore, useUser, useMemoFirebase, deleteDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase';
+import { useCollection, useFirestore, useUser, useMemoFirebase, deleteDocumentNonBlocking, addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
 import { collection, query, writeBatch, doc, getDocs, orderBy, limit, where } from 'firebase/firestore';
 import { calculatePrice } from '@/lib/pricing';
 import { useToast } from "@/hooks/use-toast";
@@ -27,6 +27,10 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu"
 
 type Customer = { id: string; name: string; [key: string]: any };
@@ -60,6 +64,8 @@ type QuoteItem = {
     total: number; // total sell price in original currency
 };
 
+type ProposalStatus = 'Draft' | 'Sent' | 'Approved' | 'Rejected';
+
 type Proposal = {
     id: string;
     rootProposalId: string;
@@ -71,7 +77,7 @@ type Proposal = {
     customerId: string;
     totalAmount: number;
     versionNote: string;
-    status: 'Draft' | 'Sent' | 'Approved' | 'Rejected';
+    status: ProposalStatus;
     exchangeRates: { USD: number, EUR: number };
 };
 
@@ -444,21 +450,19 @@ function CreateQuoteTab({ onQuoteSaved, onSetActiveTab, quoteToEdit }: { onQuote
             let quoteNumber: string;
 
             if (isRevision && currentEditingProposal) {
-                // This is a revision of an existing quote
                 rootProposalId = currentEditingProposal.rootProposalId;
                 version = currentEditingProposal.version + 1;
                 quoteNumber = currentEditingProposal.quoteNumber;
             } else {
-                // This is a brand new quote
-                rootProposalId = proposalRef.id; // It's okay to use this, it's generated client-side
+                rootProposalId = proposalRef.id; 
                 version = 1;
                 quoteNumber = await getNextQuoteNumber(firestore);
             }
             
             const proposalData = {
-                // rootProposalId is set below, conditionally
-                version,
-                quoteNumber,
+                rootProposalId: rootProposalId,
+                version: version,
+                quoteNumber: quoteNumber,
                 customerId: currentCustomerId,
                 customerName: selectedCustomer?.name || 'Bilinmeyen Müşteri',
                 projectName: projectName || 'Genel Teklif',
@@ -469,14 +473,7 @@ function CreateQuoteTab({ onQuoteSaved, onSetActiveTab, quoteToEdit }: { onQuote
                 createdAt: new Date(),
             };
 
-            // This is the critical fix. We add the correct rootProposalId to the data object
-            // before setting it in the batch.
-            const finalProposalData = {
-                ...proposalData,
-                rootProposalId: rootProposalId,
-            };
-
-            batch.set(proposalRef, finalProposalData);
+            batch.set(proposalRef, proposalData);
 
             for (const item of currentQuoteItems) {
                 const itemRef = doc(collection(proposalRef, 'proposal_items'));
@@ -747,6 +744,8 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
     const { user, isUserLoading } = useUser();
     const firestore = useFirestore();
     const { toast } = useToast();
+    const [searchTerm, setSearchTerm] = useState('');
+
 
     const proposalsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
@@ -781,9 +780,21 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
         });
         
         // Sort groups by the creation date of their latest version
-        return Object.values(groups).sort((a, b) => b.latest.createdAt.seconds - a.latest.createdAt.seconds);
+        const allGroups = Object.values(groups).sort((a, b) => b.latest.createdAt.seconds - a.latest.createdAt.seconds);
 
-    }, [proposals]);
+        // Filter groups based on search term
+        if (!searchTerm) {
+            return allGroups;
+        }
+
+        const lowercasedFilter = searchTerm.toLowerCase();
+        return allGroups.filter(group =>
+            group.latest.quoteNumber.toLowerCase().includes(lowercasedFilter) ||
+            group.latest.customerName.toLowerCase().includes(lowercasedFilter) ||
+            group.latest.projectName.toLowerCase().includes(lowercased-Filter)
+        );
+
+    }, [proposals, searchTerm]);
 
     const handleDeleteProposal = async (proposalId: string) => {
         if (!firestore) return;
@@ -814,6 +825,9 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
     
     const handleDeleteGroup = async (group: ProposalGroup) => {
         if (!firestore) return;
+        if (!confirm(`${group.latest.quoteNumber} numaralı teklifin tüm versiyonlarını silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`)) {
+            return;
+        }
         try {
             const batch = writeBatch(firestore);
             for (const version of group.versions) {
@@ -836,6 +850,16 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
             });
         }
     };
+    
+    const handleChangeStatus = (proposalId: string, status: ProposalStatus) => {
+        if (!firestore) return;
+        const proposalDocRef = doc(firestore, 'proposals', proposalId);
+        setDocumentNonBlocking(proposalDocRef, { status: status }, { merge: true });
+        toast({
+            title: 'Durum Güncellendi',
+            description: `Teklif durumu "${status}" olarak değiştirildi.`,
+        });
+    };
 
 
     const formatDate = (timestamp: { seconds: number, nanoseconds: number }) => {
@@ -857,6 +881,8 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
                 return 'outline';
         }
     }
+
+    const statusOptions: ProposalStatus[] = ['Draft', 'Sent', 'Approved', 'Rejected'];
     
      if (isUserLoading || (areProposalsLoading && !proposals)) {
         return (
@@ -882,7 +908,12 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
                     <div className="flex items-center gap-2">
                         <div className="relative">
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="Teklif, müşteri veya projede ara..." className="pl-8 w-64" />
+                            <Input 
+                                placeholder="Teklif, müşteri veya projede ara..." 
+                                className="pl-8 w-64" 
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
                         </div>
                     </div>
                 </div>
@@ -895,7 +926,7 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
                             <TableHead className="w-[100px]">Son Tarih</TableHead>
                             <TableHead>Müşteri</TableHead>
                             <TableHead>Proje</TableHead>
-                            <TableHead className="w-[100px]">Durum</TableHead>
+                            <TableHead className="w-[130px]">Durum</TableHead>
                             <TableHead className="w-[180px]">Versiyonlar</TableHead>
                             <TableHead className="text-right w-[150px]">Son Tutar</TableHead>
                             <TableHead className="text-center w-[120px]">İşlemler</TableHead>
@@ -916,7 +947,22 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
                                     <TableCell>{group.latest.customerName}</TableCell>
                                     <TableCell>{group.latest.projectName}</TableCell>
                                     <TableCell>
-                                        <Badge variant={getStatusBadgeVariant(group.latest.status)}>{group.latest.status}</Badge>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant={getStatusBadgeVariant(group.latest.status)} className="w-full justify-start text-left font-normal">
+                                                     <Badge variant={getStatusBadgeVariant(group.latest.status)}>{group.latest.status}</Badge>
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent>
+                                                <DropdownMenuLabel>Durumu Değiştir</DropdownMenuLabel>
+                                                <DropdownMenuSeparator />
+                                                {statusOptions.map(status => (
+                                                    <DropdownMenuItem key={status} onSelect={() => handleChangeStatus(group.latest.id, status)}>
+                                                        {status}
+                                                    </DropdownMenuItem>
+                                                ))}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     </TableCell>
                                     <TableCell>
                                         <DropdownMenu>
@@ -958,7 +1004,7 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
                         ) : (
                             <TableRow>
                                 <TableCell colSpan={8} className="text-center h-24">
-                                    Henüz arşivlenmiş bir teklif bulunmuyor.
+                                    {searchTerm ? 'Arama kriterlerinize uygun teklif bulunamadı.' : 'Henüz arşivlenmiş bir teklif bulunmuyor.'}
                                 </TableCell>
                             </TableRow>
                         )}
@@ -988,6 +1034,18 @@ export default function QuotesPage() {
     setActiveTab("new");
   };
 
+  useEffect(() => {
+    // If we switch to 'new' tab without a quote to edit, clear the form.
+    if (activeTab === 'new' && !quoteToEdit) {
+      // Logic to clear the form needs to be handled within CreateQuoteTab
+    }
+    // If we switch away from 'new' tab, clear the quote to edit
+    if (activeTab !== 'new' && quoteToEdit) {
+        setQuoteToEdit(null);
+    }
+  }, [activeTab, quoteToEdit]);
+
+
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
@@ -1003,3 +1061,4 @@ export default function QuotesPage() {
     </Tabs>
   );
 }
+
