@@ -10,6 +10,7 @@ import { Plus, Trash2, RefreshCw, Save, Eraser, Download, Edit, History, Search,
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCollection, useFirestore, useUser, useMemoFirebase, deleteDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase';
 import { collection, query, where, writeBatch, doc } from 'firebase/firestore';
@@ -46,6 +47,7 @@ type QuoteItem = {
     // Calculated fields
     cost: number;
     unitPrice: number; // sell price in original currency
+    unitProfit: number;
     total: number; // total sell price in original currency
 };
 
@@ -77,6 +79,8 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
     const [versionNote, setVersionNote] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [isSuggesting, setIsSuggesting] = useState(false);
+    const [isVatIncluded, setIsVatIncluded] = useState(false);
+    const VAT_RATE = 0.20;
 
 
     // Data fetching
@@ -92,99 +96,104 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
     );
     const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
 
-    const handleAddProduct = async () => {
-        if (!selectedProductId || !products) return;
-        const productToAdd = products.find(p => p.id === selectedProductId);
-        if (!productToAdd) return;
-
-         // Prevent adding the same product twice
-        if (quoteItems.some(item => item.productId === productToAdd.id)) {
-            toast({
-                variant: "destructive",
-                title: "Uyarı",
-                description: "Bu ürün zaten sepete eklenmiş.",
-            });
-            return;
-        }
-
-        const priceResult = calculatePrice({
-            listPrice: productToAdd.listPrice,
-            discountRate: productToAdd.discountRate,
-            profitMargin: globalProfitMargin / 100,
-            exchangeRate: 1, // Will be applied in the summary
-        });
-
-        const newItem: QuoteItem = {
-            id: productToAdd.id, // Use product id for client-side key
-            productId: productToAdd.id,
-            name: productToAdd.name,
-            brand: productToAdd.brand,
-            quantity: quantityToAdd,
-            unit: productToAdd.unit,
-            listPrice: productToAdd.listPrice,
-            currency: productToAdd.currency,
-            discountRate: productToAdd.discountRate,
-            profitMargin: globalProfitMargin / 100,
-            cost: priceResult.cost,
-            unitPrice: priceResult.originalSellPrice,
-            total: priceResult.originalSellPrice * quantityToAdd,
-        };
-
-        const updatedItems = [...quoteItems, newItem];
-        setQuoteItems(updatedItems);
-        setSelectedProductId(null);
-        setQuantityToAdd(1);
-        
-        // AI Suggestions
-        setIsSuggesting(true);
-        try {
-            const existingParts = updatedItems.map(item => item.name);
-            const result = await suggestMissingParts({
-                productName: productToAdd.name,
-                existingParts: existingParts,
-            });
-
-            if (result.suggestedParts && result.suggestedParts.length > 0) {
-                 toast({
-                    title: "AI Önerisi ✨",
-                    description: `Şunları da eklemek isteyebilirsiniz: ${result.suggestedParts.join(', ')}`,
-                    duration: 8000,
-                });
-            }
-
-        } catch (error) {
-            console.error("AI suggestion failed:", error);
-            // Optional: show a silent fail toast
-            // toast({ variant: "destructive", title: "AI Önerisi alınamadı."})
-        } finally {
-            setIsSuggesting(false);
-        }
-    };
-    
-    const handleRemoveItem = (itemId: string) => {
-        setQuoteItems(prevItems => prevItems.filter(item => item.id !== itemId));
-    };
-
-    const updateItem = (itemId: string, newValues: Partial<QuoteItem>) => {
+    const updateItem = (itemId: string, newValues: Partial<Omit<QuoteItem, 'id'>>) => {
         setQuoteItems(prevItems =>
             prevItems.map(item => {
                 if (item.id === itemId) {
                     const updatedItem = { ...item, ...newValues };
+                    
                     const priceResult = calculatePrice({
                         listPrice: updatedItem.listPrice,
                         discountRate: updatedItem.discountRate,
                         profitMargin: updatedItem.profitMargin,
-                        exchangeRate: 1,
+                        exchangeRate: 1, // Recalculate TL values at summary level
                     });
+
                     return {
                         ...updatedItem,
+                        cost: priceResult.cost,
                         unitPrice: priceResult.originalSellPrice,
+                        unitProfit: priceResult.originalSellPrice - priceResult.cost,
                         total: priceResult.originalSellPrice * updatedItem.quantity,
                     };
                 }
                 return item;
             })
         );
+    };
+
+    const handleAddProduct = async () => {
+        if (!selectedProductId || !products) return;
+        const productToAdd = products.find(p => p.id === selectedProductId);
+        if (!productToAdd) return;
+
+        const existingItem = quoteItems.find(item => item.productId === productToAdd.id);
+
+        if (existingItem) {
+            // If item exists, update its quantity
+            updateItem(existingItem.id, { quantity: existingItem.quantity + quantityToAdd });
+            toast({
+                title: "Miktar Güncellendi",
+                description: `${productToAdd.name} ürününün miktarı ${quantityToAdd} adet artırıldı.`,
+            });
+        } else {
+            // If item does not exist, add it as a new item
+            const priceResult = calculatePrice({
+                listPrice: productToAdd.listPrice,
+                discountRate: productToAdd.discountRate,
+                profitMargin: globalProfitMargin / 100,
+                exchangeRate: 1, // Will be applied in the summary
+            });
+
+            const newItem: QuoteItem = {
+                id: productToAdd.id, // Use product id for client-side key
+                productId: productToAdd.id,
+                name: productToAdd.name,
+                brand: productToAdd.brand,
+                quantity: quantityToAdd,
+                unit: productToAdd.unit,
+                listPrice: productToAdd.listPrice,
+                currency: productToAdd.currency,
+                discountRate: productToAdd.discountRate,
+                profitMargin: globalProfitMargin / 100,
+                cost: priceResult.cost,
+                unitPrice: priceResult.originalSellPrice,
+                unitProfit: priceResult.originalSellPrice - priceResult.cost,
+                total: priceResult.originalSellPrice * quantityToAdd,
+            };
+            
+            const updatedItems = [...quoteItems, newItem];
+            setQuoteItems(updatedItems);
+             // AI Suggestions
+            setIsSuggesting(true);
+            try {
+                const existingParts = updatedItems.map(item => item.name);
+                const result = await suggestMissingParts({
+                    productName: productToAdd.name,
+                    existingParts: existingParts,
+                });
+
+                if (result.suggestedParts && result.suggestedParts.length > 0) {
+                    toast({
+                        title: "AI Önerisi ✨",
+                        description: `Şunları da eklemek isteyebilirsiniz: ${result.suggestedParts.join(', ')}`,
+                        duration: 8000,
+                    });
+                }
+
+            } catch (error) {
+                console.error("AI suggestion failed:", error);
+            } finally {
+                setIsSuggesting(false);
+            }
+        }
+        
+        setSelectedProductId(null);
+        setQuantityToAdd(1);
+    };
+    
+    const handleRemoveItem = (itemId: string) => {
+        setQuoteItems(prevItems => prevItems.filter(item => item.id !== itemId));
     };
     
     const applyGlobalProfitMargin = () => {
@@ -201,10 +210,15 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
                     ...item,
                     profitMargin: profitMargin,
                     unitPrice: priceResult.originalSellPrice,
+                    unitProfit: priceResult.originalSellPrice - priceResult.cost,
                     total: priceResult.originalSellPrice * item.quantity,
                 };
             })
         );
+         toast({
+            title: "Başarılı",
+            description: `Tüm ürünlere %${globalProfitMargin} kâr marjı uygulandı.`,
+        });
     };
 
     const handleExchangeRateChange = (currency: 'USD' | 'EUR', value: string) => {
@@ -218,21 +232,30 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
     }
     
     const quoteTotals = useMemo(() => {
-        const totals = {
-            TRY: 0,
-            USD: 0,
-            EUR: 0,
-            grandTotalTRY: 0,
+        const subtotalTRY = quoteItems.reduce((acc, item) => {
+            const exchangeRate = item.currency === 'TRY' ? 1 : (exchangeRates[item.currency] || 1);
+            return acc + (item.total * exchangeRate);
+        }, 0);
+
+        let vatAmount = 0;
+        let grandTotal = subtotalTRY;
+
+        if (isVatIncluded) {
+            // Grand total is fixed, subtotal and VAT are derived from it.
+            vatAmount = grandTotal - (grandTotal / (1 + VAT_RATE));
+        } else {
+            // Subtotal is fixed, VAT and grand total are derived from it.
+            vatAmount = subtotalTRY * VAT_RATE;
+            grandTotal = subtotalTRY + vatAmount;
+        }
+
+        return {
+            subtotal: subtotalTRY,
+            vat: vatAmount,
+            grandTotal: grandTotal
         };
-        quoteItems.forEach(item => {
-            const currency = item.currency === 'TL' ? 'TRY' : item.currency;
-            totals[currency] += item.total;
-        });
+    }, [quoteItems, exchangeRates, isVatIncluded, VAT_RATE]);
 
-        totals.grandTotalTRY = totals.TRY + (totals.USD * exchangeRates.USD) + (totals.EUR * exchangeRates.EUR);
-        return totals;
-
-    }, [quoteItems, exchangeRates]);
 
     const clearForm = () => {
         setQuoteItems([]);
@@ -270,7 +293,7 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
             projectName: projectName || 'Genel Teklif',
             quoteNumber: '', // Will be generated server-side or in a later step
             status: 'Draft',
-            totalAmount: quoteTotals.grandTotalTRY,
+            totalAmount: quoteTotals.grandTotal,
             exchangeRates,
             versionNote,
             createdAt: new Date(),
@@ -315,8 +338,8 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
 
             toast({
                 variant: "destructive",
-                title: "Hata",
-                description: "Teklif kaydedilemedi. " + (error.message || "Lütfen konsolu kontrol edin."),
+                title: "Teklif kaydedilirken bir sorun oluştu",
+                description: "Gerekli izinlere sahip olmayabilirsiniz. Lütfen konsolu kontrol edin.",
             });
         } finally {
             setIsSaving(false);
@@ -399,20 +422,28 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
                         <Table>
                             <TableHeader>
                             <TableRow>
-                                <TableHead className="w-[40%]">Açıklama</TableHead>
+                                <TableHead className="w-[30%]">Açıklama</TableHead>
                                 <TableHead>Marka</TableHead>
                                 <TableHead className="w-[100px]">Miktar</TableHead>
                                 <TableHead>Birim</TableHead>
-                                <TableHead className="text-right">Birim Satış F.</TableHead>
+                                <TableHead className="text-right">Birim Satış</TableHead>
+                                <TableHead className="text-right">Birim Kâr (TL)</TableHead>
                                 <TableHead className="text-right">Toplam Tutar</TableHead>
-                                <TableHead className="text-center">% Kâr</TableHead>
+                                <TableHead className="text-center w-[120px]">% Kâr</TableHead>
                                 <TableHead className="w-[50px]"></TableHead>
                             </TableRow>
                             </TableHeader>
                             <TableBody>
                             {quoteItems.map((item) => (
                                 <TableRow key={item.id}>
-                                    <TableCell className="font-medium">{item.name}</TableCell>
+                                    <TableCell className="font-medium">
+                                        <Input
+                                            value={item.name}
+                                            onChange={(e) => updateItem(item.id, { name: e.target.value })}
+                                            className="h-8"
+                                            disabled={isSaving}
+                                        />
+                                    </TableCell>
                                     <TableCell>{item.brand}</TableCell>
                                     <TableCell>
                                         <Input 
@@ -426,6 +457,9 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
                                     </TableCell>
                                     <TableCell>{item.unit}</TableCell>
                                     <TableCell className="text-right">{formatCurrency(item.unitPrice, item.currency)}</TableCell>
+                                    <TableCell className="text-right text-green-600 font-medium">
+                                        {formatCurrency(item.unitProfit, 'TRY')}
+                                    </TableCell>
                                     <TableCell className="text-right font-semibold">{formatCurrency(item.total, item.currency)}</TableCell>
                                     <TableCell>
                                         <div className='flex items-center justify-center'>
@@ -448,7 +482,7 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
                             ))}
                              {quoteItems.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={8} className="text-center h-24">
+                                    <TableCell colSpan={9} className="text-center h-24">
                                         Sepete eklemek için yukarıdan bir ürün seçin.
                                     </TableCell>
                                 </TableRow>
@@ -462,13 +496,27 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
 
                 <div className="lg:col-span-1 flex flex-col gap-4">
                     <Card>
-                        <CardHeader><CardTitle>Fatura Özeti ve Kurlar</CardTitle></CardHeader>
+                        <CardHeader>
+                            <div className="flex justify-between items-center">
+                                <CardTitle>Teklif Özeti</CardTitle>
+                                <div className="flex items-center space-x-2">
+                                    <Label htmlFor="vat-switch" className="text-sm font-normal">
+                                        {isVatIncluded ? "KDV Dahil" : "KDV Hariç"}
+                                    </Label>
+                                    <Switch
+                                        id="vat-switch"
+                                        checked={isVatIncluded}
+                                        onCheckedChange={setIsVatIncluded}
+                                        disabled={isSaving}
+                                    />
+                                </div>
+                            </div>
+                        </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="flex justify-between items-center text-sm"><span>Ara Toplam (TRY)</span><span>{formatCurrency(quoteTotals.TRY, 'TRY')}</span></div>
-                            <div className="flex justify-between items-center text-sm"><span>Ara Toplam (USD)</span><span>{formatCurrency(quoteTotals.USD, 'USD')}</span></div>
-                            <div className="flex justify-between items-center text-sm"><span>Ara Toplam (EUR)</span><span>{formatCurrency(quoteTotals.EUR, 'EUR')}</span></div>
+                            <div className="flex justify-between items-center text-sm"><span>Ara Toplam</span><span>{formatCurrency(quoteTotals.subtotal, 'TRY')}</span></div>
+                            <div className="flex justify-between items-center text-sm"><span>KDV Tutarı (%{VAT_RATE * 100})</span><span>{formatCurrency(quoteTotals.vat, 'TRY')}</span></div>
                             <Separator />
-                            <div className="flex justify-between items-center font-bold text-lg"><span>Genel Toplam (TL)</span><span>{formatCurrency(quoteTotals.grandTotalTRY, 'TRY')}</span></div>
+                            <div className="flex justify-between items-center font-bold text-lg"><span>Genel Toplam</span><span>{formatCurrency(quoteTotals.grandTotal, 'TRY')}</span></div>
 
                             <Separator />
                             <div>
@@ -616,7 +664,7 @@ function QuoteArchiveTab({ refreshTrigger }: { refreshTrigger: number }) {
 
 
 export default function QuotesPage() {
-  const [activeTab, setActiveTab] = useState("archive");
+  const [activeTab, setActiveTab] = useState("new");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const handleQuoteSaved = () => {
@@ -641,5 +689,3 @@ export default function QuotesPage() {
     </Tabs>
   );
 }
-
-    
