@@ -1,7 +1,8 @@
+
 'use client';
 
-import { useParams } from 'next/navigation';
-import { useMemo, useEffect } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
+import { useMemo } from 'react';
 import Image from 'next/image';
 import { useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
@@ -41,12 +42,12 @@ type Customer = {
     taxNumber?: string;
 };
 
-// This page's only job is to render the printable content.
-// The logic to print is handled by the parent component that loads it in an iframe.
 export default function PrintQuotePage() {
     const params = useParams();
+    const searchParams = useSearchParams();
     const firestore = useFirestore();
     const proposalId = params.id as string;
+    const customerId = searchParams.get('customerId');
 
     // Fetch Proposal
     const proposalRef = useMemoFirebase(
@@ -64,8 +65,8 @@ export default function PrintQuotePage() {
 
     // Fetch customer details
     const customerRef = useMemoFirebase(
-        () => (firestore && proposal?.customerId ? doc(firestore, 'customers', proposal.customerId) : null),
-        [firestore, proposal?.customerId]
+        () => (firestore && customerId ? doc(firestore, 'customers', customerId) : null),
+        [firestore, customerId]
     );
     const { data: customer, isLoading: isCustomerLoading } = useDoc<Customer>(customerRef);
     

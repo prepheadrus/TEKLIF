@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect, useCallback }from 'react';
@@ -754,8 +755,8 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
 
     const { data: proposals, isLoading: areProposalsLoading } = useCollection<Proposal>(proposalsQuery);
     
-    const handlePrintOrDownload = (proposalId: string) => {
-        const printUrl = `/dashboard/quotes/${proposalId}/print`;
+    const handlePrintOrDownload = (proposalId: string, customerId: string) => {
+        const printUrl = `/dashboard/quotes/${proposalId}/print?customerId=${customerId}`;
         window.open(printUrl, '_blank');
     };
 
@@ -1011,7 +1012,7 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
                                                             <DropdownMenuSubContent>
                                                                 <DropdownMenuLabel>İşlemler (V{version.version})</DropdownMenuLabel>
                                                                 <DropdownMenuSeparator />
-                                                                <DropdownMenuItem onSelect={(e) => {e.preventDefault(); handlePrintOrDownload(version.id);}}>
+                                                                <DropdownMenuItem onSelect={(e) => {e.preventDefault(); handlePrintOrDownload(version.id, version.customerId);}}>
                                                                     <Download className="mr-2 h-4 w-4" /> Yazdır/İndir
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuSub>
@@ -1041,7 +1042,7 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
                                     </TableCell>
                                     <TableCell className="text-right font-semibold">{formatCurrency(group.latest.totalAmount)}</TableCell>
                                     <TableCell className="text-center flex justify-center gap-1">
-                                        <Button variant="ghost" size="icon" aria-label="Son Versiyonu İndir" onClick={() => handlePrintOrDownload(group.latest.id)}>
+                                        <Button variant="ghost" size="icon" aria-label="Son Versiyonu İndir" onClick={() => handlePrintOrDownload(group.latest.id, group.latest.customerId)}>
                                             <Download className="h-4 w-4" />
                                         </Button>
                                         <Button variant="ghost" size="icon" aria-label="Son Versiyonu Düzenle" onClick={() => onEditQuote(group.latest)}><Edit className="h-4 w-4" /></Button>
