@@ -349,6 +349,9 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
             setIsSaving(false);
         }
     };
+    
+    const tableInputClass = "h-8 bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0";
+
 
     return (
         <>
@@ -452,38 +455,38 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
                             <TableBody>
                             {quoteItems.map((item) => (
                                 <TableRow key={item.id}>
-                                    <TableCell className="font-medium">
-                                        <Input value={item.name} onChange={(e) => updateItem(item.id, { name: e.target.value })} className="h-8" disabled={isSaving} />
+                                    <TableCell className="font-medium p-1">
+                                        <Input value={item.name} onChange={(e) => updateItem(item.id, { name: e.target.value })} className={tableInputClass} disabled={isSaving} />
                                     </TableCell>
-                                     <TableCell>
-                                        <Input value={item.brand} onChange={(e) => updateItem(item.id, { brand: e.target.value })} className="h-8" disabled={isSaving} />
+                                     <TableCell className="p-1">
+                                        <Input value={item.brand} onChange={(e) => updateItem(item.id, { brand: e.target.value })} className={tableInputClass} disabled={isSaving} />
                                     </TableCell>
-                                    <TableCell>
-                                        <Input type="number" value={item.quantity} onChange={(e) => updateItem(item.id, { quantity: Number(e.target.value) })} className="h-8 w-16 text-center" min="1" disabled={isSaving} />
+                                    <TableCell className="p-1">
+                                        <Input type="number" value={item.quantity} onChange={(e) => updateItem(item.id, { quantity: Number(e.target.value) })} className={`${tableInputClass} w-16 text-center`} min="1" disabled={isSaving} />
                                     </TableCell>
-                                    <TableCell>
-                                        <Input value={item.unit} onChange={(e) => updateItem(item.id, { unit: e.target.value })} className="h-8" disabled={isSaving} />
+                                    <TableCell className="p-1">
+                                        <Input value={item.unit} onChange={(e) => updateItem(item.id, { unit: e.target.value })} className={tableInputClass} disabled={isSaving} />
                                     </TableCell>
-                                    <TableCell className="text-right">
-                                         <Input type="number" value={item.listPrice} onChange={(e) => updateItem(item.id, { listPrice: Number(e.target.value) })} className="h-8 text-right" disabled={isSaving} />
+                                    <TableCell className="text-right p-1">
+                                         <Input type="number" value={item.listPrice} onChange={(e) => updateItem(item.id, { listPrice: Number(e.target.value) })} className={`${tableInputClass} text-right`} disabled={isSaving} />
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell className="p-1">
                                         <div className='flex items-center justify-center'>
-                                            <Input type="number" value={Math.round(item.discountRate * 100)} onChange={(e) => updateItem(item.id, { discountRate: Number(e.target.value) / 100 })} className="h-8 w-16 text-center" disabled={isSaving} />
-                                             <span className="ml-1 text-xs">%</span>
+                                            <Input type="number" value={Math.round(item.discountRate * 100)} onChange={(e) => updateItem(item.id, { discountRate: Number(e.target.value) / 100 })} className={`${tableInputClass} w-16 text-center`} disabled={isSaving} />
+                                             <span className="ml-1 text-xs text-muted-foreground">%</span>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="text-right">{formatCurrency(item.cost, item.currency)}</TableCell>
-                                    <TableCell className="text-right font-semibold">{formatCurrency(item.unitPrice, item.currency)}</TableCell>
-                                    <TableCell>
+                                    <TableCell className="text-right p-1">{formatCurrency(item.cost, item.currency)}</TableCell>
+                                    <TableCell className="text-right font-semibold p-1">{formatCurrency(item.unitPrice, item.currency)}</TableCell>
+                                    <TableCell className="p-1">
                                         <div className='flex items-center justify-center'>
-                                            <Input type="number" value={Math.round(item.profitMargin * 100)} onChange={(e) => updateItem(item.id, { profitMargin: Number(e.target.value) / 100 })} className="h-8 w-16 text-center" disabled={isSaving} />
-                                            <span className="ml-1 text-xs">%</span>
+                                            <Input type="number" value={Math.round(item.profitMargin * 100)} onChange={(e) => updateItem(item.id, { profitMargin: Number(e.target.value) / 100 })} className={`${tableInputClass} w-16 text-center`} disabled={isSaving} />
+                                            <span className="ml-1 text-xs text-muted-foreground">%</span>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="text-right text-green-600 font-medium">{formatCurrency(item.unitProfit, item.currency)}</TableCell>
-                                    <TableCell className="text-right font-bold">{formatCurrency(item.total, item.currency)}</TableCell>
-                                    <TableCell>
+                                    <TableCell className="text-right text-green-600 font-medium p-1">{formatCurrency(item.unitProfit, item.currency)}</TableCell>
+                                    <TableCell className="text-right font-bold p-1">{formatCurrency(item.total, item.currency)}</TableCell>
+                                    <TableCell className="p-1">
                                         <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)} disabled={isSaving}>
                                             <Trash2 className="h-4 w-4 text-destructive" />
                                         </Button>
