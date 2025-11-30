@@ -5,8 +5,10 @@ import { useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import { useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Printer } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+
 
 type Proposal = {
     id: string;
@@ -69,12 +71,15 @@ export default function PrintQuotePage() {
     
     const isLoading = isProposalLoading || areItemsLoading || isCustomerLoading;
 
-    // This effect will send a message to the parent window when data is ready.
+    // This effect will run once data is loaded and trigger the print dialog.
     useEffect(() => {
         if (!isLoading && proposal) {
             document.title = `Teklif-${proposal.quoteNumber}`;
-            // Let the parent know we are ready to be printed.
-            window.parent.postMessage('print-ready', window.location.origin);
+            // A small delay ensures all content is rendered before printing
+            const timer = setTimeout(() => {
+                window.print();
+            }, 500); 
+            return () => clearTimeout(timer);
         }
     }, [isLoading, proposal]);
     
@@ -113,12 +118,24 @@ export default function PrintQuotePage() {
     }
 
     if (!proposal || !items) {
-        return <div className="p-8 text-center text-red-500 bg-white text-black">Teklif bulunamadı veya yüklenemedi.</div>;
+        return (
+            <div className="p-8 text-center text-red-500 bg-white text-black">
+                <p>Teklif bulunamadı veya yüklenemedi.</p>
+                <p className="mt-4">
+                    <Button onClick={() => window.close()}>Bu Sekmeyi Kapat</Button>
+                </p>
+            </div>
+        );
     }
 
     return (
-        <div className="bg-white text-black min-h-screen text-xs print:p-0">
-            <div className="max-w-4xl mx-auto p-8 print:p-0">
+        <div className="bg-white text-black min-h-screen text-xs print:p-0 p-8">
+             <div className="fixed top-4 right-4 print:hidden z-50">
+                <Button onClick={() => window.print()}>
+                    <Printer className="mr-2" /> Yazdır veya PDF Olarak Kaydet
+                </Button>
+            </div>
+            <div className="max-w-4xl mx-auto">
                 <header className="flex justify-between items-start mb-6 pb-4 border-b">
                     <div className="flex items-center gap-4">
                         <Image src="/logo-header.png" alt="Firma Logosu" width={80} height={80} className="rounded-md" />
@@ -211,7 +228,6 @@ export default function PrintQuotePage() {
                      <div className="text-xs text-gray-500 text-center">
                         <p>
                             Teklifin geçerlilik süresi 15 gündür. Fiyatlarımıza KDV dahildir.
-                            Belirtilen döviz kurları ({proposal.exchangeRates.USD ? `USD: ${proposal.exchangeRates.USD.toFixed(2)}` : ''}{proposal.exchangeRates.EUR ? `, EUR: ${proposal.exchangeRates.EUR.toFixed(2)}` : ''}) teklif tarihindeki TCMB efektif satış kurudur. Ödeme anındaki kur geçerli olacaktır.
                         </p>
                         <p className="mt-2 font-semibold">İMS Mühendislik | Teşekkür Ederiz!</p>
                     </div>
