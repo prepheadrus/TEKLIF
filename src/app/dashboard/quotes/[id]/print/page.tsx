@@ -41,6 +41,8 @@ type Customer = {
     taxNumber?: string;
 };
 
+// This page is now a "dumb" component. It only renders the data.
+// The logic to trigger the print is handled by the parent component that loads it in an iframe.
 export default function PrintQuotePage() {
     const params = useParams();
     const firestore = useFirestore();
@@ -72,12 +74,6 @@ export default function PrintQuotePage() {
     useEffect(() => {
         if (!isLoading && proposal) {
             document.title = `Teklif-${proposal.quoteNumber}`;
-            // A small delay helps ensure all content, especially images, are rendered before printing.
-            const timer = setTimeout(() => {
-                window.print();
-            }, 500); 
-            
-            return () => clearTimeout(timer); // Cleanup timer on unmount
         }
     }, [isLoading, proposal]);
     
@@ -92,12 +88,6 @@ export default function PrintQuotePage() {
     
     const totals = useMemo(() => {
         if (!items || !proposal) return { subtotal: 0, vat: 0, grandTotal: proposal?.totalAmount || 0 };
-        const exchangeRates = proposal.exchangeRates || { USD: 1, EUR: 1 };
-        
-        const subtotalTRY = items.reduce((acc, item) => {
-            const rate = item.currency === 'TRY' ? 1 : (exchangeRates[item.currency as 'USD' | 'EUR'] || 1);
-            return acc + (item.total * rate);
-        }, 0);
         
         // Assuming grandTotal from proposal includes VAT
         const grandTotal = proposal.totalAmount;
@@ -127,11 +117,6 @@ export default function PrintQuotePage() {
 
     return (
         <div className="bg-white text-black min-h-screen text-xs print:p-0">
-             <div className="fixed top-4 right-4 print:hidden z-50">
-                <Button onClick={() => window.print()}>
-                    <Printer className="mr-2" /> Yazdır veya PDF Olarak Kaydet
-                </Button>
-            </div>
             <div className="max-w-4xl mx-auto p-8 print:p-0">
                 <header className="flex justify-between items-start mb-6 pb-4 border-b">
                     <div className="flex items-center gap-4">
@@ -225,7 +210,7 @@ export default function PrintQuotePage() {
                      <div className="text-xs text-gray-500 text-center">
                         <p>
                             Teklifin geçerlilik süresi 15 gündür. Fiyatlarımıza KDV dahildir.
-                            Belirtilen döviz kurları ({`USD: ${proposal.exchangeRates.USD.toFixed(2)}`}, {`EUR: ${proposal.exchangeRates.EUR.toFixed(2)}`}) teklif tarihindeki TCMB efektif satış kurudur. Ödeme anındaki kur geçerli olacaktır.
+                            Belirtilen döviz kurları ({proposal.exchangeRates.USD ? `USD: ${proposal.exchangeRates.USD.toFixed(2)}` : ''}{proposal.exchangeRates.EUR ? `, EUR: ${proposal.exchangeRates.EUR.toFixed(2)}` : ''}) teklif tarihindeki TCMB efektif satış kurudur. Ödeme anındaki kur geçerli olacaktır.
                         </p>
                         <p className="mt-2 font-semibold">İMS Mühendislik | Teşekkür Ederiz!</p>
                     </div>

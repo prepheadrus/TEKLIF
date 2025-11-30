@@ -756,7 +756,39 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
     const { data: proposals, isLoading: areProposalsLoading } = useCollection<Proposal>(proposalsQuery);
     
     const handlePrintOrDownload = (proposalId: string) => {
-        window.open(`/dashboard/quotes/${proposalId}/print`, '_blank');
+        const printUrl = `/dashboard/quotes/${proposalId}/print`;
+        const iframe = document.createElement('iframe');
+        
+        // Hide the iframe
+        iframe.style.position = 'absolute';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        iframe.style.visibility = 'hidden';
+
+        iframe.src = printUrl;
+        
+        iframe.onload = () => {
+            try {
+                // Small delay to ensure content is fully rendered in the iframe
+                setTimeout(() => {
+                    iframe.contentWindow?.focus();
+                    iframe.contentWindow?.print();
+                }, 500);
+            } catch (error) {
+                console.error("Could not print from iframe:", error);
+                toast({
+                    variant: "destructive",
+                    title: "Yazdırma Hatası",
+                    description: "PDF oluşturulurken bir sorun oluştu. Tarayıcı ayarlarınızı kontrol edin.",
+                });
+            } finally {
+                // Clean up the iframe after a short delay
+                setTimeout(() => document.body.removeChild(iframe), 2000);
+            }
+        };
+
+        document.body.appendChild(iframe);
     };
 
     const proposalGroups = useMemo((): ProposalGroup[] => {
