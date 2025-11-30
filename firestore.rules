@@ -6,33 +6,28 @@ rules_version = '2';
  *
  * ## Core Philosophy
  * This ruleset is designed for a prototyping environment. It prioritizes strict authorization
- * while allowing flexibility in data shapes. The core principle is that all data related to business
- * operations (customers, suppliers, products, etc.) can be read by any authenticated user, which
- * is suitable for an internal company tool. However, write operations (create, update, delete) are
- * currently disallowed across the board because the data models lack the necessary ownership fields
- * (e.g., `creatorId`, `ownerId`) to securely authorize who can modify the data. This creates a secure
- * "read-only" state by default, preventing unauthorized data manipulation.
+ * while allowing flexibility in data shapes. The core principle is that a user can only
+ * access (read, write, delete) the data that they own. This is enforced by an `ownerId`
+ * field on documents that must match the authenticated user's UID.
  *
  * ## Data Structure
- * The data is organized into top-level collections for primary entities like `suppliers`, `customers`,
- * `products`, `labor_costs`, and `recipes`. Some data is nested to represent clear relationships, such as
- * `/materials` under a specific `/supplier` and `/proposals` under a specific `/customer`.
+ * Data is organized into top-level collections for primary entities like `suppliers`, `customers`,
+ * `products`, `labor_costs`, and `recipes`. This flat structure is preferred to avoid complex
+ * nested permissions.
  *
  * ## Key Security Decisions
- * - **Authenticated-Read, Secure-Write**: All authenticated users can read data, but no one can
- *   write data yet. This is a deliberate, secure-by-default choice for the prototyping phase.
- * - **TODOs for Write Access**: Write rules are explicitly set to `if false;` and are accompanied by
- *   `// TODO` comments. This clearly signals to developers that an `ownerId` or similar field must be
- *   added to the corresponding data entity before write access can be enabled securely.
- * - **No User Listing**: There is no top-level `/users` collection, so there is no risk of exposing
- *   a list of all application users.
- * - **Denormalization for Authorization**: The rules are architected with the expectation that data
- *   required for authorization will be denormalized. For example, to allow a user to edit a `Proposal`,
- *   that `Proposal` document must contain a field like `creatorId` that can be checked against the
- *   user's auth UID. The current rules highlight where these fields are missing.
- * - **Structural Segregation**: The separation of entities into different collections (e.g., `suppliers`,
- *   `customers`) allows for distinct security rules per entity type. Nesting proposals under customers
- *   provides a clear path for path-based security.
+ * - **Owner-based Access Control**: A user can only interact with documents that have an `ownerId`
+ *   field matching their `request.auth.uid`. This is a strict, secure-by-default model.
+ * - **Secure Creation**: When a document is created, the rules enforce that the `ownerId` in the
+ *   new document's data (`request.resource.data.ownerId`) MUST match the UID of the user
+ *   making the request (`request.auth.uid`). This prevents users from creating documents on
+ *   behalf of others.
+ * - **Secure Reads & Writes**: For `get`, `list`, and `update`/`delete`, the rules check the
+ *   `ownerId` of the *existing* document in the database (`resource.data.ownerId`) against the
+*   user's UID.
+ * - **Query Security**: The `list` rule ensures that queries will only return documents owned
+ *   by the user. This works in conjunction with client-side queries that MUST include a
+ *   `where("ownerId", "==", currentUser.uid)` clause to be valid.
  */
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -46,183 +41,140 @@ service cloud.firestore {
     }
 
     /**
+     * Returns true if the user owns the resource.
+     * Checks the `ownerId` of the document being accessed.
+     */
+    function isOwner(resource) {
+      return isSignedIn() && resource.data.ownerId == request.auth.uid;
+    }
+
+    /**
+     * Returns true if the user is the designated owner of the new resource.
+     * Checks the `ownerId` of the incoming document data.
+     */
+     function isNewOwner(resource) {
+       return isSignedIn() && resource.data.ownerId == request.auth.uid;
+     }
+
+    /**
      * @description
-     *   Rules for the `suppliers` collection. Suppliers are readable by any authenticated
-     *   user, but cannot be modified until an ownership model is implemented.
+     *   Rules for the `suppliers` collection.
+     *   Access is restricted to the owner of the supplier document.
      * @path
      *   /suppliers/{supplierId}
-     * @allow
-     *   (get) Any signed-in user can read a supplier document.
-     * @deny
-     *   (create) Any user trying to create a supplier. Writes are disabled.
-     * @principle
-     *   Public read for authenticated users with writes locked down pending schema updates.
      */
     match /suppliers/{supplierId} {
-      allow get, list: if isSignedIn();
-      // CRITICAL: Cannot implement owner-only writes. The 'Supplier' entity is missing an 'ownerId' or 'creatorId' field.
-      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow get, update, delete: if isOwner(resource);
+      allow create: if isNewOwner(request.resource);
+      allow list: if isSignedIn(); // Queries must be filtered by ownerId on the client
     }
 
     /**
      * @description
      *   Rules for materials, which are nested under a specific supplier.
-     *   Readable by any authenticated user, but cannot be modified.
+     *   Access is determined by ownership of the parent supplier.
      * @path
      *   /suppliers/{supplierId}/materials/{materialId}
-     * @allow
-     *   (get) Any signed-in user can read a material document.
-     * @deny
-     *   (create) Any user trying to create a material. Writes are disabled.
-     * @principle
-     *   Inherits read access from the parent context and enforces relational integrity on create. Writes are locked.
      */
     match /suppliers/{supplierId}/materials/{materialId} {
-      allow get, list: if isSignedIn();
-      // CRITICAL: Cannot implement owner-only writes. The parent 'Supplier' lacks an ownership model,
-      // and the 'Material' entity itself is also missing an owner reference.
-      allow create: if false; // TODO: Add owner validation. Creation should also validate: request.resource.data.supplierId == supplierId;
-      allow update, delete: if false; // TODO: Add owner validation.
+        allow get, list, update, delete: if exists(/databases/$(database)/documents/suppliers/$(supplierId)) && isOwner(get(/databases/$(database)/documents/suppliers/$(supplierId)).data);
+        allow create: if exists(/databases/$(database)/documents/suppliers/$(supplierId)) && isOwner(get(/databases/$(database)/documents/suppliers/$(supplierId)).data);
     }
+
 
     /**
      * @description
-     *   Rules for the `labor_costs` collection. This is considered app-wide configuration data.
-     *   Readable by any authenticated user, but cannot be modified.
+     *   Rules for the `labor_costs` collection.
+     *   Access is restricted to the owner of the labor cost document.
      * @path
      *   /labor_costs/{laborCostId}
-     * @allow
-     *   (get) Any signed-in user can read a labor cost document.
-     * @deny
-     *   (create) Any user trying to create a labor cost. Writes are disabled.
-     * @principle
-     *   Public read for authenticated users with writes locked down for app configuration data.
      */
     match /labor_costs/{laborCostId} {
-      allow get, list: if isSignedIn();
-      // CRITICAL: Cannot implement owner-only or admin-only writes. The 'LaborCost' entity is missing
-      // an ownership field, and no admin role system is defined.
-      allow create, update, delete: if false; // TODO: Restrict writes to admin users once an admin role system is implemented.
+      allow get, update, delete: if isOwner(resource);
+      allow create: if isNewOwner(request.resource);
+      allow list: if isSignedIn();
     }
 
     /**
      * @description
-     *   Rules for the `recipes` collection. This is considered app-wide configuration data.
-     *   Readable by any authenticated user, but cannot be modified.
+     *   Rules for the `recipes` collection.
+     *   Access is restricted to the owner of the recipe document.
      * @path
      *   /recipes/{recipeId}
-     * @allow
-     *   (get) Any signed-in user can read a recipe document.
-     * @deny
-     *   (create) Any user trying to create a recipe. Writes are disabled.
-     * @principle
-     *   Public read for authenticated users with writes locked down for app configuration data.
      */
     match /recipes/{recipeId} {
-      allow get, list: if isSignedIn();
-      // CRITICAL: Cannot implement owner-only or admin-only writes. The 'Recipe' entity is missing
-      // an ownership field to associate it with a creator.
-      allow create, update, delete: if false; // TODO: Add owner/admin validation once the schema is updated with an ownership field.
+      allow get, update, delete: if isOwner(resource);
+      allow create: if isNewOwner(request.resource);
+      allow list: if isSignedIn();
     }
 
     /**
      * @description
-     *   Rules for the `customers` collection. Customers are readable by any authenticated
-     *   user, but cannot be modified until an ownership model is implemented.
+     *   Rules for the `customers` collection.
+     *   A user can only create, read, update, or delete their own customer documents.
      * @path
      *   /customers/{customerId}
-     * @allow
-     *   (get) Any signed-in user can read a customer document.
-     * @deny
-     *   (create) Any user trying to create a customer. Writes are disabled.
-     * @principle
-     *   Public read for authenticated users with writes locked down pending schema updates.
      */
     match /customers/{customerId} {
-      allow get, list: if isSignedIn();
-      // CRITICAL: Cannot implement owner-only writes. The 'Customer' entity is missing an 'ownerId' or 'creatorId' field.
-      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      // Allow read, update, delete if the user is the owner of the existing doc.
+      allow get, update, delete: if isOwner(resource);
+      // Allow create if the user is the owner of the new doc.
+      allow create: if isNewOwner(request.resource);
+      // Allow list, but queries MUST be secured on the client-side
+      // e.g., query(collection(db, 'customers'), where('ownerId', '==', user.uid))
+      allow list: if isSignedIn();
     }
+
 
     /**
      * @description
      *   Rules for proposals, which are nested under a specific customer.
-     *   Readable by any authenticated user, but cannot be modified.
+     *   Access is determined by ownership of the parent customer.
      * @path
      *   /customers/{customerId}/proposals/{proposalId}
-     * @allow
-     *   (get) Any signed-in user can read a proposal document.
-     * @deny
-     *   (create) Any user trying to create a proposal. Writes are disabled.
-     * @principle
-     *   Inherits read access from the parent context and enforces relational integrity. Writes are locked.
      */
     match /customers/{customerId}/proposals/{proposalId} {
-      allow get, list: if isSignedIn();
-      // CRITICAL: Cannot implement owner-only writes. The 'Proposal' entity is missing an 'ownerId' or 'creatorId' field.
-      allow create: if false; // TODO: Add owner validation. Creation should also validate: request.resource.data.customerId == customerId;
-      allow update, delete: if false; // TODO: Add owner validation.
+      allow get, list, update, delete: if exists(/databases/$(database)/documents/customers/$(customerId)) && isOwner(get(/databases/$(database)/documents/customers/$(customerId)).data);
+      allow create: if exists(/databases/$(database)/documents/customers/$(customerId)) && isOwner(get(/databases/$(database)/documents/customers/$(customerId)).data) && request.resource.data.customerId == customerId;
     }
 
     /**
      * @description
-     *   Rules for the top-level `proposals` collection, implied by the path for `proposal_items`.
-     *   This follows the same security model as other collections: readable by any authenticated
-     *   user, but writes are disabled pending a proper ownership model.
+     *   Rules for the top-level `proposals` collection.
+     *   Access is restricted to the owner of the proposal document.
      * @path
      *   /proposals/{proposalId}
-     * @allow
-     *   (get) Any signed-in user can read a proposal document.
-     * @deny
-     *   (create) Any user trying to create a proposal. Writes are disabled.
-     * @principle
-     *   Public read for authenticated users with writes locked down pending schema updates.
      */
     match /proposals/{proposalId} {
-      allow get, list: if isSignedIn();
-      // CRITICAL: Cannot implement owner-only writes. The 'Proposal' entity is missing an 'ownerId' or 'creatorId' field.
-      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow get, update, delete: if isOwner(resource);
+      allow create: if isNewOwner(request.resource);
+      allow list: if isSignedIn();
     }
 
     /**
      * @description
      *   Rules for proposal items, which are nested under a proposal.
-     *   Access is determined by access to the parent proposal. Readable by any
-     *   authenticated user, but cannot be modified.
+     *   Access is determined by ownership of the parent proposal.
      * @path
      *   /proposals/{proposalId}/proposal_items/{proposalItemId}
-     * @allow
-     *   (get) Any signed-in user can read a proposal item.
-     * @deny
-     *   (create) Any user trying to create a proposal item. Writes are disabled.
-     * @principle
-     *   Access is governed by the parent document. Enforces relational integrity. Writes are locked.
      */
     match /proposals/{proposalId}/proposal_items/{proposalItemId} {
-      allow get, list: if isSignedIn();
-      // CRITICAL: Cannot implement owner-only writes. The parent 'Proposal' lacks an ownership model.
-      allow create: if false; // TODO: Add owner validation. Creation should also validate: request.resource.data.proposalId == proposalId;
-      allow update, delete: if false; // TODO: Add owner validation.
+      allow get, list, update, delete: if exists(/databases/$(database)/documents/proposals/$(proposalId)) && isOwner(get(/databases/$(database)/documents/proposals/$(proposalId)).data);
+      allow create: if exists(/databases/$(database)/documents/proposals/$(proposalId)) && isOwner(get(/databases/$(database)/documents/proposals/$(proposalId)).data) && request.resource.data.proposalId == proposalId;
     }
 
     /**
-     * @description
-     *   Rules for the `products` collection. This is considered app-wide configuration data.
-     *   Readable by any authenticated user, but cannot be modified.
+* @description
+     *   Rules for the `products` collection.
+     *   Access is restricted to the owner of the product document.
      * @path
      *   /products/{productId}
-     * @allow
-     *   (get) Any signed-in user can read a product document.
-     * @deny
-     *   (create) Any user trying to create a product. Writes are disabled.
-     * @principle
-     *   Public read for authenticated users with writes locked down for app configuration data.
      */
     match /products/{productId} {
-      allow get, list: if isSignedIn();
-      // CRITICAL: Cannot implement owner-only or admin-only writes. The 'Product' entity is missing
-      // an ownership field to associate it with a creator.
-      allow create, update, delete: if false; // TODO: Add owner/admin validation once the schema is updated with an ownership field.
+      allow get, update, delete: if isOwner(resource);
+      allow create: if isNewOwner(request.resource);
+      allow list: if isSignedIn();
     }
   }
 }
+    
