@@ -5,15 +5,15 @@
 
 interface PriceCalculationInput {
   listPrice: number;
-  discountRate: number;
-  profitMargin: number;
-  exchangeRate: number;
+  discountRate: number; // 0-1 aralığında, örn: 0.15
+  profitMargin: number;  // 0-1 aralığında, örn: 0.20
+  exchangeRate: number;  // Yabancı para birimi için, TL ise 1 olmalı
 }
 
 interface PriceCalculationOutput {
-  cost: number;
-  originalSellPrice: number;
-  tlSellPrice: number;
+  cost: number;            // Orijinal para biriminde maliyet
+  originalSellPrice: number; // Orijinal para biriminde satış fiyatı
+  tlSellPrice: number;       // TL cinsinden satış fiyatı
 }
 
 /**
@@ -45,3 +45,5 @@ export function calculatePrice({
     tlSellPrice,
   };
 }
+
+    

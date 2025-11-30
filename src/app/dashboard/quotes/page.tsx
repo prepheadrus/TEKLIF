@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -14,39 +14,54 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
+import { calculatePrice } from '@/lib/pricing';
 
-// Zod'dan gelen tipleri burada da kullanabiliriz. Şimdilik manuel tanımlayalım.
 type Customer = { id: string; name: string; [key: string]: any };
-type Product = { id: string; name: string; brand: string; unit: string; listPrice: number; currency: string; [key: string]: any };
+type Product = { 
+    id: string; 
+    name: string; 
+    brand: string; 
+    unit: string; 
+    listPrice: number; 
+    currency: 'TRY' | 'USD' | 'EUR'; 
+    discountRate: number;
+    [key: string]: any 
+};
+
 type QuoteItem = {
     productId: string;
     name: string;
     brand: string;
     quantity: number;
     unit: string;
-    unitPrice: number;
-    total: number;
-    profit: number;
-    currency: string;
+    listPrice: number;
+    currency: 'TRY' | 'USD' | 'EUR';
+    discountRate: number;
+    // Calculated fields
+    cost: number;
+    profitMargin: number; // 0.25 for 25%
+    unitPrice: number; // sell price in original currency
+    total: number; // total sell price in original currency
 };
 
 
-// Mock data - will be replaced with Firestore data
 const mockQuotes = [
     { id: '1', quoteNo: '2025/002', date: '30.11.2025', customer: 'Ersen Kazar', project: 'Mekanik Tesisat İşleri', total: 5720614.80, currency: 'TRY', versions: 8 },
     { id: '2', quoteNo: '2025/001', date: '30.11.2025', customer: 'Ersen Kazar', project: 'deneme', total: 127107.94, currency: 'TRY', versions: 3 },
 ];
 
 function CreateQuoteTab() {
-    const { user, isUserLoading } = useUser();
+    const { user } = useUser();
     const firestore = useFirestore();
 
     // State definitions
     const [quoteItems, setQuoteItems] = useState<QuoteItem[]>([]);
     const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
     const [quantityToAdd, setQuantityToAdd] = useState<number>(1);
+    const [exchangeRates, setExchangeRates] = useState({ USD: 34.50, EUR: 36.20 });
+    const [globalProfitMargin, setGlobalProfitMargin] = useState(25);
 
-    // Data fetching from Firestore
+    // Data fetching
     const customersQuery = useMemoFirebase(() => 
         user && firestore ? query(collection(firestore, 'customers'), where("ownerId", "==", user.uid)) : null,
         [user, firestore]
@@ -61,9 +76,15 @@ function CreateQuoteTab() {
 
     const handleAddProduct = () => {
         if (!selectedProductId || !products) return;
-
         const productToAdd = products.find(p => p.id === selectedProductId);
         if (!productToAdd) return;
+
+        const priceResult = calculatePrice({
+            listPrice: productToAdd.listPrice,
+            discountRate: productToAdd.discountRate,
+            profitMargin: globalProfitMargin / 100,
+            exchangeRate: 1, // Will be applied in the summary
+        });
 
         const newItem: QuoteItem = {
             productId: productToAdd.id,
@@ -71,10 +92,13 @@ function CreateQuoteTab() {
             brand: productToAdd.brand,
             quantity: quantityToAdd,
             unit: productToAdd.unit,
-            unitPrice: productToAdd.listPrice,
-            total: productToAdd.listPrice * quantityToAdd,
-            profit: 25, // Varsayılan kar marjı
+            listPrice: productToAdd.listPrice,
             currency: productToAdd.currency,
+            discountRate: productToAdd.discountRate,
+            cost: priceResult.cost,
+            profitMargin: globalProfitMargin / 100,
+            unitPrice: priceResult.originalSellPrice,
+            total: priceResult.originalSellPrice * quantityToAdd,
         };
 
         setQuoteItems(prevItems => [...prevItems, newItem]);
@@ -85,29 +109,77 @@ function CreateQuoteTab() {
     const handleRemoveItem = (productId: string) => {
         setQuoteItems(prevItems => prevItems.filter(item => item.productId !== productId));
     };
-    
-    const handleQuantityChange = (productId: string, newQuantity: number) => {
+
+    const updateItem = (productId: string, newValues: Partial<QuoteItem>) => {
         setQuoteItems(prevItems =>
-            prevItems.map(item =>
-                item.productId === productId
-                    ? {
-                        ...item,
-                        quantity: newQuantity,
-                        total: item.unitPrice * newQuantity,
-                      }
-                    : item
-            )
+            prevItems.map(item => {
+                if (item.productId === productId) {
+                    const updatedItem = { ...item, ...newValues };
+                    const priceResult = calculatePrice({
+                        listPrice: updatedItem.listPrice,
+                        discountRate: updatedItem.discountRate,
+                        profitMargin: updatedItem.profitMargin,
+                        exchangeRate: 1,
+                    });
+                    return {
+                        ...updatedItem,
+                        unitPrice: priceResult.originalSellPrice,
+                        total: priceResult.originalSellPrice * updatedItem.quantity,
+                    };
+                }
+                return item;
+            })
+        );
+    };
+    
+    const applyGlobalProfitMargin = () => {
+        setQuoteItems(prevItems =>
+            prevItems.map(item => {
+                const profitMargin = globalProfitMargin / 100;
+                const priceResult = calculatePrice({
+                    listPrice: item.listPrice,
+                    discountRate: item.discountRate,
+                    profitMargin: profitMargin,
+                    exchangeRate: 1,
+                });
+                return {
+                    ...item,
+                    profitMargin: profitMargin,
+                    unitPrice: priceResult.originalSellPrice,
+                    total: priceResult.originalSellPrice * item.quantity,
+                };
+            })
         );
     };
 
+    const handleExchangeRateChange = (currency: 'USD' | 'EUR', value: string) => {
+        const rate = parseFloat(value) || 0;
+        setExchangeRates(prev => ({...prev, [currency]: rate}));
+    }
+
     const formatCurrency = (price: number, currency: string) => {
         const displayCurrency = currency === 'TL' ? 'TRY' : currency;
-        return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: displayCurrency }).format(price);
+        return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: displayCurrency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(price);
     }
     
+    const quoteTotals = useMemo(() => {
+        const totals = {
+            TRY: 0,
+            USD: 0,
+            EUR: 0,
+            grandTotalTRY: 0,
+        };
+        quoteItems.forEach(item => {
+            totals[item.currency] += item.total;
+        });
+
+        totals.grandTotalTRY = totals.TRY + (totals.USD * exchangeRates.USD) + (totals.EUR * exchangeRates.EUR);
+        return totals;
+
+    }, [quoteItems, exchangeRates]);
+
     return (
         <div className="flex flex-col gap-4 mt-4">
-            {/* A. Üst Kontrol Paneli */}
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Teklif Oluştur / Düzenle</h1>
@@ -137,7 +209,6 @@ function CreateQuoteTab() {
                     </CardContent>
                 </Card>
 
-                {/* C. Orta Alan: Metraj Izgarası */}
                 <Card>
                     <CardHeader><CardTitle>Ürün Sepeti (Metraj Cetveli)</CardTitle></CardHeader>
                     <CardContent>
@@ -159,12 +230,14 @@ function CreateQuoteTab() {
                                 value={quantityToAdd}
                                 onChange={(e) => setQuantityToAdd(Number(e.target.value))}
                                 className="w-24" 
+                                min="1"
                             />
-                            <Button onClick={handleAddProduct} disabled={!selectedProductId}>
+                            <Button onClick={handleAddProduct} disabled={!selectedProductId || areProductsLoading}>
                                {areProductsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
                                 Ekle
                             </Button>
                         </div>
+                        <div className="overflow-x-auto">
                         <Table>
                             <TableHeader>
                             <TableRow>
@@ -172,7 +245,7 @@ function CreateQuoteTab() {
                                 <TableHead>Marka</TableHead>
                                 <TableHead className="w-[100px]">Miktar</TableHead>
                                 <TableHead>Birim</TableHead>
-                                <TableHead className="text-right">Birim Satış Fiyatı</TableHead>
+                                <TableHead className="text-right">Birim Satış F.</TableHead>
                                 <TableHead className="text-right">Toplam Tutar</TableHead>
                                 <TableHead className="text-center">% Kâr</TableHead>
                                 <TableHead className="w-[50px]"></TableHead>
@@ -187,14 +260,25 @@ function CreateQuoteTab() {
                                         <Input 
                                             type="number" 
                                             value={item.quantity} 
-                                            onChange={(e) => handleQuantityChange(item.productId, Number(e.target.value))}
+                                            onChange={(e) => updateItem(item.productId, { quantity: Number(e.target.value) })}
                                             className="h-8 w-20 text-center" 
+                                            min="1"
                                         />
                                     </TableCell>
                                     <TableCell>{item.unit}</TableCell>
                                     <TableCell className="text-right">{formatCurrency(item.unitPrice, item.currency)}</TableCell>
                                     <TableCell className="text-right font-semibold">{formatCurrency(item.total, item.currency)}</TableCell>
-                                    <TableCell className="text-center"><Badge variant={item.profit > 30 ? 'default' : 'secondary'} className="bg-green-100 text-green-800">%{item.profit.toFixed(1)}</Badge></TableCell>
+                                    <TableCell>
+                                        <div className='flex items-center justify-center'>
+                                            <Input
+                                                type="number"
+                                                value={Math.round(item.profitMargin * 100)}
+                                                onChange={(e) => updateItem(item.productId, { profitMargin: Number(e.target.value) / 100 })}
+                                                className="h-8 w-16 text-center"
+                                            />
+                                            <span className="ml-1">%</span>
+                                        </div>
+                                    </TableCell>
                                     <TableCell>
                                         <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.productId)}>
                                             <Trash2 className="h-4 w-4 text-destructive" />
@@ -211,28 +295,32 @@ function CreateQuoteTab() {
                             )}
                             </TableBody>
                         </Table>
+                        </div>
                     </CardContent>
                 </Card>
                 </div>
 
-                {/* D. Alt Panel'in bir kısmı gibi düşünülebilir (Sağda) */}
                 <div className="lg:col-span-1 flex flex-col gap-4">
                     <Card>
                         <CardHeader><CardTitle>Fatura Özeti ve Kurlar</CardTitle></CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="flex justify-between items-center font-semibold text-lg"><span>Toplam TRY</span><span>... TL</span></div>
-                            <div className="flex justify-between items-center font-semibold text-lg"><span>Toplam USD</span><span>... USD</span></div>
+                            <div className="flex justify-between items-center text-sm"><span>Ara Toplam (TRY)</span><span>{formatCurrency(quoteTotals.TRY, 'TRY')}</span></div>
+                            <div className="flex justify-between items-center text-sm"><span>Ara Toplam (USD)</span><span>{formatCurrency(quoteTotals.USD, 'USD')}</span></div>
+                            <div className="flex justify-between items-center text-sm"><span>Ara Toplam (EUR)</span><span>{formatCurrency(quoteTotals.EUR, 'EUR')}</span></div>
+                            <Separator />
+                            <div className="flex justify-between items-center font-bold text-lg"><span>Genel Toplam (TL)</span><span>{formatCurrency(quoteTotals.grandTotalTRY, 'TRY')}</span></div>
+
                             <Separator />
                             <div>
                                 <Label className="text-xs text-muted-foreground">Döviz Kurları (Teklife Özel)</Label>
                                 <div className="flex items-center gap-2 mt-1">
                                     <div className="relative flex-1">
                                         <span className="absolute left-2.5 top-2.5 text-sm text-muted-foreground">$</span>
-                                        <Input defaultValue="34.50" className="pl-6"/>
+                                        <Input defaultValue={exchangeRates.USD} onChange={(e) => handleExchangeRateChange('USD', e.target.value)} className="pl-6"/>
                                     </div>
                                     <div className="relative flex-1">
                                         <span className="absolute left-2.5 top-2.5 text-sm text-muted-foreground">€</span>
-                                        <Input defaultValue="36.20" className="pl-6"/>
+                                        <Input defaultValue={exchangeRates.EUR} onChange={(e) => handleExchangeRateChange('EUR', e.target.value)} className="pl-6"/>
                                     </div>
                                     <Button variant="outline" size="icon" aria-label="Güncel Kurları Çek">
                                         <RefreshCw className="h-4 w-4" />
@@ -242,8 +330,8 @@ function CreateQuoteTab() {
                              <Separator />
                              <div className="space-y-2">
                                 <Label>Genel Kâr Marjı (%)</Label>
-                                <Input type="number" defaultValue="25" />
-                                <Button className="w-full" variant="outline">Tüm Ürünlere Uygula</Button>
+                                <Input type="number" value={globalProfitMargin} onChange={e => setGlobalProfitMargin(Number(e.target.value))} />
+                                <Button className="w-full" variant="outline" onClick={applyGlobalProfitMargin}>Tüm Ürünlere Uygula</Button>
                              </div>
                         </CardContent>
                         <CardFooter>
