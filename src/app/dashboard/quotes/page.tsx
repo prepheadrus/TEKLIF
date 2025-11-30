@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCollection, useFirestore, useUser, useMemoFirebase, deleteDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase';
-import { collection, query, writeBatch, doc, getDocs, orderBy, limit } from 'firebase/firestore';
+import { collection, query, writeBatch, doc, getDocs, orderBy, limit, where } from 'firebase/firestore';
 import { calculatePrice } from '@/lib/pricing';
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter, FirestorePermissionError } from '@/firebase';
@@ -601,18 +601,16 @@ function QuoteArchiveTab({ refreshTrigger }: { refreshTrigger: number }) {
     const firestore = useFirestore();
     const { toast } = useToast();
 
-    const proposalsQuery = useMemoFirebase(() => 
-        firestore 
-            ? query(
-                collection(firestore, 'proposals'), 
-                orderBy("createdAt", "desc")
-              ) 
-            : null,
-        [firestore, refreshTrigger]
-    );
+    const proposalsQuery = useMemoFirebase(() => {
+        if (isUserLoading || !user || !firestore) {
+            return null;
+        }
+        return query(collection(firestore, 'proposals'), orderBy("createdAt", "desc"));
+    }, [firestore, refreshTrigger, user, isUserLoading]);
+
 
     const { data: proposals, isLoading: areProposalsLoading } = useCollection<Proposal>(proposalsQuery);
-
+    
     if (isUserLoading || (areProposalsLoading && !proposals)) {
         return (
             <Card className="mt-4">
