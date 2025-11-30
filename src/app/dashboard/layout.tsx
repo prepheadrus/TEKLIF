@@ -38,32 +38,32 @@ export default function DashboardLayout({
           </SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
-                <Link href="/dashboard" passHref>
-                    <SidebarMenuButton asChild isActive={pathname === '/dashboard'}>
+                <Link href="/dashboard" passHref legacyBehavior>
+                    <SidebarMenuButton as="a" isActive={pathname === '/dashboard'}>
                         <Home />
                         Anasayfa
                     </SidebarMenuButton>
                 </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
-                <Link href="/dashboard/customers" passHref>
-                    <SidebarMenuButton asChild isActive={pathname.startsWith('/dashboard/customers')}>
+                <Link href="/dashboard/customers" passHref legacyBehavior>
+                    <SidebarMenuButton as="a" isActive={pathname.startsWith('/dashboard/customers')}>
                         <Users />
                         Müşteriler
                     </SidebarMenuButton>
                 </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
-                <Link href="/dashboard/products" passHref>
-                    <SidebarMenuButton asChild isActive={pathname.startsWith('/dashboard/products')}>
+                <Link href="/dashboard/products" passHref legacyBehavior>
+                    <SidebarMenuButton as="a" isActive={pathname.startsWith('/dashboard/products')}>
                         <Package />
                         Ürünler
                     </SidebarMenuButton>
                 </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
-                <Link href="/dashboard/quotes" passHref>
-                    <SidebarMenuButton asChild isActive={pathname.startsWith('/dashboard/quotes')}>
+                <Link href="/dashboard/quotes" passHref legacyBehavior>
+                    <SidebarMenuButton as="a" isActive={pathname.startsWith('/dashboard/quotes')}>
                         <FileText />
                         Teklifler
                     </SidebarMenuButton>
