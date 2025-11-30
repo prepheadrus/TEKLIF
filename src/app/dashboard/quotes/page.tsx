@@ -437,15 +437,16 @@ function CreateQuoteTab({ onQuoteSaved, onSetActiveTab, quoteToEdit }: { onQuote
         let version: number;
         let quoteNumber: string;
 
-        if (isRevision) {
+        if (isRevision && editingProposal) {
             rootProposalId = editingProposal.rootProposalId;
             version = editingProposal.version + 1;
             quoteNumber = editingProposal.quoteNumber;
         } else {
-            rootProposalId = proposalRef.id;
+            rootProposalId = proposalRef.id; // New proposal's own ID is the root ID
             version = 1;
             quoteNumber = await getNextQuoteNumber(firestore);
         }
+
 
         const proposalData = {
             rootProposalId: rootProposalId,
