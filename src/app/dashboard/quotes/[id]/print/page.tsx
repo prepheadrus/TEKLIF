@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useParams } from 'next/navigation';
@@ -62,7 +63,7 @@ export default function PrintQuotePage() {
     // We need to fetch the customer details separately
     const customerRef = useMemoFirebase(
         () => (firestore && proposal?.customerId ? doc(firestore, 'customers', proposal.customerId) : null),
-        [firestore, proposal]
+        [firestore, proposal?.customerId]
     );
     const { data: customer, isLoading: isCustomerLoading } = useDoc<Customer>(customerRef);
     
@@ -71,6 +72,8 @@ export default function PrintQuotePage() {
     useEffect(() => {
         if (!isLoading && proposal) {
             document.title = `Teklif-${proposal.quoteNumber}`;
+            // Automatically trigger print dialog once everything is loaded
+            window.print();
         }
     }, [isLoading, proposal]);
     
@@ -125,7 +128,7 @@ export default function PrintQuotePage() {
                     <Printer className="mr-2" /> Yazdır veya PDF Olarak Kaydet
                 </Button>
             </div>
-            <div className="max-w-4xl mx-auto p-8">
+            <div className="max-w-4xl mx-auto p-8 print:p-0">
                 <header className="flex justify-between items-start mb-6 pb-4 border-b">
                     <div className="flex items-center gap-4">
                         <Image src="/logo-header.png" alt="Firma Logosu" width={80} height={80} className="rounded-md" />

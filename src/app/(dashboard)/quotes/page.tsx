@@ -756,31 +756,7 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
     const { data: proposals, isLoading: areProposalsLoading } = useCollection<Proposal>(proposalsQuery);
     
     const handlePrintOrDownload = (proposalId: string) => {
-        // Create a hidden iframe
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = `/dashboard/quotes/${proposalId}/print`;
-        document.body.appendChild(iframe);
-
-        // When the iframe is loaded, call its print function
-        iframe.onload = function() {
-            try {
-                iframe.contentWindow?.focus(); // Focus on the iframe
-                iframe.contentWindow?.print(); // Trigger the print dialog
-            } catch (error) {
-                console.error("Could not print from iframe:", error);
-                toast({
-                    variant: "destructive",
-                    title: "Yazdırma Hatası",
-                    description: "PDF oluşturulurken bir sorun oluştu. Lütfen tekrar deneyin.",
-                });
-            }
-
-            // Clean up the iframe after a delay
-            setTimeout(() => {
-                document.body.removeChild(iframe);
-            }, 1000); // Delay to allow print dialog to be handled
-        };
+        window.open(`/dashboard/quotes/${proposalId}/print`, '_blank');
     };
 
     const proposalGroups = useMemo((): ProposalGroup[] => {
