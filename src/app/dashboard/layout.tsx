@@ -38,36 +38,36 @@ export default function DashboardLayout({
           </SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
-                <Link href="/dashboard">
-                    <SidebarMenuButton isActive={pathname === '/dashboard'}>
+                <SidebarMenuButton asChild isActive={pathname === '/dashboard'}>
+                    <Link href="/dashboard">
                         <Home />
                         Anasayfa
-                    </SidebarMenuButton>
-                </Link>
+                    </Link>
+                </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-                <Link href="/dashboard/customers">
-                    <SidebarMenuButton isActive={pathname.startsWith('/dashboard/customers')}>
+                <SidebarMenuButton asChild isActive={pathname.startsWith('/dashboard/customers')}>
+                    <Link href="/dashboard/customers">
                         <Users />
                         Müşteriler
-                    </SidebarMenuButton>
-                </Link>
+                    </Link>
+                </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-                <Link href="/dashboard/products">
-                    <SidebarMenuButton isActive={pathname.startsWith('/dashboard/products')}>
+                <SidebarMenuButton asChild isActive={pathname.startsWith('/dashboard/products')}>
+                    <Link href="/dashboard/products">
                         <Package />
                         Ürünler
-                    </SidebarMenuButton>
-                </Link>
+                    </Link>
+                </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-                <Link href="/dashboard/quotes">
-                    <SidebarMenuButton isActive={pathname.startsWith('/dashboard/quotes')}>
+                <SidebarMenuButton asChild isActive={pathname.startsWith('/dashboard/quotes')}>
+                    <Link href="/dashboard/quotes">
                         <FileText />
                         Teklifler
-                    </SidebarMenuButton>
-                </Link>
+                    </Link>
+                </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
           <SidebarFooter>
