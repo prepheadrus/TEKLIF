@@ -24,7 +24,7 @@ const productSchema = z.object({
   category: z.string().min(1, "Kategori zorunludur."),
   unit: z.string().min(1, "Birim zorunludur."),
   listPrice: z.coerce.number().min(0, "Liste fiyatı 0'dan büyük olmalıdır."),
-  currency: z.enum(["TL", "USD", "EUR"]),
+  currency: z.enum(["TRY", "USD", "EUR"]),
   discountRate: z.coerce.number().min(0).max(1, "İskonto oranı 0 ile 1 arasında olmalıdır."),
 });
 
@@ -45,7 +45,7 @@ export default function ProductsPage() {
       category: "",
       unit: "Adet",
       listPrice: 0,
-      currency: "TL",
+      currency: "TRY",
       discountRate: 0,
     },
   });
@@ -144,7 +144,7 @@ export default function ProductsPage() {
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <FormControl><SelectTrigger><SelectValue placeholder="Seçiniz" /></SelectTrigger></FormControl>
                                 <SelectContent>
-                                    <SelectItem value="TL">TL</SelectItem>
+                                    <SelectItem value="TRY">TL</SelectItem>
                                     <SelectItem value="USD">USD</SelectItem>
                                     <SelectItem value="EUR">EUR</SelectItem>
                                 </SelectContent>
@@ -224,5 +224,3 @@ export default function ProductsPage() {
     </div>
   );
 }
-
-    
