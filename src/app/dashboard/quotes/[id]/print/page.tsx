@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useParams } from 'next/navigation';
@@ -6,8 +5,7 @@ import { useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import { useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
-import { Loader2, Printer } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
 type Proposal = {
@@ -41,8 +39,8 @@ type Customer = {
     taxNumber?: string;
 };
 
-// This page is now a "dumb" component. It only renders the data.
-// The logic to trigger the print is handled by the parent component that loads it in an iframe.
+// This page's only job is to render the printable content.
+// The logic to print is handled by the parent component that loads it in an iframe.
 export default function PrintQuotePage() {
     const params = useParams();
     const firestore = useFirestore();
@@ -62,7 +60,7 @@ export default function PrintQuotePage() {
     );
     const { data: items, isLoading: areItemsLoading } = useCollection<ProposalItem>(itemsRef);
 
-    // We need to fetch the customer details separately
+    // Fetch customer details
     const customerRef = useMemoFirebase(
         () => (firestore && proposal?.customerId ? doc(firestore, 'customers', proposal.customerId) : null),
         [firestore, proposal?.customerId]
@@ -71,9 +69,12 @@ export default function PrintQuotePage() {
     
     const isLoading = isProposalLoading || areItemsLoading || isCustomerLoading;
 
+    // This effect will send a message to the parent window when data is ready.
     useEffect(() => {
         if (!isLoading && proposal) {
             document.title = `Teklif-${proposal.quoteNumber}`;
+            // Let the parent know we are ready to be printed.
+            window.parent.postMessage('print-ready', window.location.origin);
         }
     }, [isLoading, proposal]);
     

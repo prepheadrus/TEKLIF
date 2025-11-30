@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect, useCallback }from 'react';
@@ -765,29 +764,34 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
         iframe.style.height = '0';
         iframe.style.border = '0';
         iframe.style.visibility = 'hidden';
-
         iframe.src = printUrl;
         
-        iframe.onload = () => {
-            try {
-                // Small delay to ensure content is fully rendered in the iframe
-                setTimeout(() => {
+        const handleMessage = (event: MessageEvent) => {
+            // IMPORTANT: Check the origin of the message for security
+            if (event.origin !== window.location.origin) {
+                return;
+            }
+            
+            if (event.data === 'print-ready') {
+                try {
                     iframe.contentWindow?.focus();
                     iframe.contentWindow?.print();
-                }, 500);
-            } catch (error) {
-                console.error("Could not print from iframe:", error);
-                toast({
-                    variant: "destructive",
-                    title: "Yazdırma Hatası",
-                    description: "PDF oluşturulurken bir sorun oluştu. Tarayıcı ayarlarınızı kontrol edin.",
-                });
-            } finally {
-                // Clean up the iframe after a short delay
-                setTimeout(() => document.body.removeChild(iframe), 2000);
+                } catch (error) {
+                    console.error("Could not print from iframe:", error);
+                    toast({
+                        variant: "destructive",
+                        title: "Yazdırma Hatası",
+                        description: "PDF oluşturulurken bir sorun oluştu. Tarayıcı ayarlarınızı kontrol edin.",
+                    });
+                } finally {
+                    // Clean up the iframe and the event listener
+                    window.removeEventListener('message', handleMessage);
+                    setTimeout(() => document.body.removeChild(iframe), 2000);
+                }
             }
         };
 
+        window.addEventListener('message', handleMessage);
         document.body.appendChild(iframe);
     };
 
@@ -1043,7 +1047,7 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
                                                             <DropdownMenuSubContent>
                                                                 <DropdownMenuLabel>İşlemler (V{version.version})</DropdownMenuLabel>
                                                                 <DropdownMenuSeparator />
-                                                                <DropdownMenuItem onSelect={() => handlePrintOrDownload(version.id)}>
+                                                                <DropdownMenuItem onSelect={(e) => {e.preventDefault(); handlePrintOrDownload(version.id);}}>
                                                                     <Download className="mr-2 h-4 w-4" /> Yazdır/İndir
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuSub>
