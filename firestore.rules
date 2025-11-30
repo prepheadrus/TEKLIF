@@ -6,159 +6,116 @@ rules_version = '2';
  * @description Security rules for the MechQuote Firestore database.
  *
  * ## Core Philosophy
- * This ruleset is designed for a prototyping environment. It prioritizes strict authorization
- * while allowing flexibility in data shapes. The core principle is that a user can only
- * access (read, write, delete) the data that they own. This is enforced by an `ownerId`
- * field on documents that must match the authenticated user's UID.
- *
- * ## Data Structure
- * Data is organized into top-level collections for primary entities like `suppliers`, `customers`,
- * `products`, `labor_costs`, and `recipes`. This flat structure is preferred to avoid complex
- * nested permissions.
+ * This ruleset is designed for a prototyping environment with anonymous authentication.
+ * It prioritizes rapid development by allowing any signed-in user (including anonymous ones)
+ * to read and write data. Strict owner-based rules will be re-implemented when a full
+ * authentication system is added later.
  *
  * ## Key Security Decisions
- * - **Owner-based Access Control**: A user can only interact with documents that have an `ownerId`
- *   field matching their `request.auth.uid`. This is a strict, secure-by-default model.
- * - **Secure Creation**: When a document is created, the rules enforce that the `ownerId` in the
- *   new document's data (`request.resource.data.ownerId`) MUST match the UID of the user
- *   making the request (`request.auth.uid`). This prevents users from creating documents on
- *   behalf of others.
- * - **Secure Reads & Writes**: For `get`, `list`, and `update`/`delete`, the rules check the
- *   `ownerId` of the *existing* document in the database (`resource.data.ownerId`) against the
-*   user's UID.
- * - **Query Security**: The `list` rule ensures that queries will only return documents owned
- *   by the user. This works in conjunction with client-side queries that MUST include a
- *   `where("ownerId", "==", currentUser.uid)` clause to be valid.
+ * - **Open Access for Authenticated Users**: Any authenticated user can perform CRUD
+ *   operations on any top-level collection. This simplifies development by removing
+ *   permission errors during the prototyping phase.
+ * - **Client-Side Data Integrity**: The application logic is currently responsible for
+ *   associating data with the correct user via an `ownerId`. The rules currently
+ *   do not enforce this link.
  */
 service cloud.firestore {
   match /databases/{database}/documents {
 
     // Helper Functions
     /**
-     * Returns true if the user is authenticated.
+     * Returns true if the user is authenticated (can be an anonymous user).
      */
     function isSignedIn() {
       return request.auth != null;
     }
 
     /**
-     * Returns true if the user owns the resource.
-     * Checks the `ownerId` of the document being accessed.
-     */
-    function isOwner(resource) {
-      return isSignedIn() && resource.data.ownerId == request.auth.uid;
-    }
-
-    /**
-     * Returns true if the user is the designated owner of the new resource.
-     * Checks the `ownerId` of the incoming document data.
-     */
-     function isNewOwner() {
-       return isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-     }
-
-    /**
      * @description
      *   Rules for the `suppliers` collection.
-     *   Access is restricted to the owner of the supplier document.
+     *   Allows read/write access for any signed-in user.
      * @path
      *   /suppliers/{supplierId}
      */
     match /suppliers/{supplierId} {
-      allow get, update, delete: if isOwner(resource);
-      allow create: if isNewOwner();
-      allow list: if isSignedIn(); // Queries must be filtered by ownerId on the client
-    }
+      allow read, write: if isSignedIn();
 
-    /**
-     * @description
-     *   Rules for materials, which are nested under a specific supplier.
-     *   Access is determined by ownership of the parent supplier.
-     * @path
-     *   /suppliers/{supplierId}/materials/{materialId}
-     */
-    match /suppliers/{supplierId}/materials/{materialId} {
-        allow get, list, update, delete: if exists(/databases/$(database)/documents/suppliers/$(supplierId)) && isOwner(get(/databases/$(database)/documents/suppliers/$(supplierId)));
-        allow create: if exists(/databases/$(database)/documents/suppliers/$(supplierId)) && isOwner(get(/databases/$(database)/documents/suppliers/$(supplierId)));
+      /**
+       * @description
+       *   Rules for materials, nested under a supplier.
+       *   Allows read/write access if the user is signed in.
+       * @path
+       *   /suppliers/{supplierId}/materials/{materialId}
+       */
+      match /materials/{materialId} {
+          allow read, write: if isSignedIn();
+      }
     }
-
 
     /**
      * @description
      *   Rules for the `labor_costs` collection.
-     *   Access is restricted to the owner of the labor cost document.
+     *   Allows read/write access for any signed-in user.
      * @path
      *   /labor_costs/{laborCostId}
      */
     match /labor_costs/{laborCostId} {
-      allow get, update, delete: if isOwner(resource);
-      allow create: if isNewOwner();
-      allow list: if isSignedIn();
+      allow read, write: if isSignedIn();
     }
 
     /**
      * @description
      *   Rules for the `recipes` collection.
-     *   Access is restricted to the owner of the recipe document.
+     *   Allows read/write access for any signed-in user.
      * @path
      *   /recipes/{recipeId}
      */
     match /recipes/{recipeId} {
-      allow get, update, delete: if isOwner(resource);
-      allow create: if isNewOwner();
-      allow list: if isSignedIn();
+      allow read, write: if isSignedIn();
     }
 
     /**
      * @description
      *   Rules for the `customers` collection.
-     *   A user can only create, read, update, or delete their own customer documents.
+     *   Allows read/write access for any signed-in user.
      * @path
      *   /customers/{customerId}
      */
     match /customers/{customerId} {
-      allow get, update, delete: if isOwner(resource);
-      allow create: if isNewOwner();
-      allow list: if isSignedIn();
+      allow read, write: if isSignedIn();
     }
     
     /**
      * @description
      *   Rules for the top-level `proposals` collection.
-     *   A user can manage their own proposals.
+     *   Allows read/write access for any signed-in user.
      * @path
      *   /proposals/{proposalId}
      */
     match /proposals/{proposalId} {
-      allow get, update, delete: if isOwner(resource);
-      allow create: if isNewOwner();
-      allow list: if isSignedIn(); // Client must filter by ownerId
+      allow read, write: if isSignedIn();
       
       /**
        * @description
-       *   Rules for proposal items, which are nested under a proposal.
-       *   Access is determined by ownership of the parent proposal.
+       *   Rules for proposal items, nested under a proposal.
+       *   Allows read/write access if the user is signed in.
        * @path
        *   /proposals/{proposalId}/proposal_items/{proposalItemId}
        */
       match /proposal_items/{proposalItemId} {
-          allow read, write: if isOwner(get(/databases/$(database)/documents/proposals/$(proposalId)));
+          allow read, write: if isSignedIn();
       }
     }
 
     /**
      * @description
      *   Rules for the `products` collection.
-     *   Access is restricted to the owner of the product document.
+     *   Allows read/write access for any signed-in user.
      * @path
      *   /products/{productId}
      */
     match /products/{productId} {
-      allow get, update, delete: if isOwner(resource);
-      allow create: if isNewOwner();
-      allow list: if isSignedIn();
+      allow read, write: if isSignedIn();
     }
   }
 }
-
-    
