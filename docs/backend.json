@@ -1,196 +1,423 @@
-
 {
   "entities": {
-    "customer": {
-      "title": "Customer",
-      "description": "Represents a customer or a company.",
+    "Material": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Material",
       "type": "object",
+      "description": "Represents a material used in the mechanical proposal.",
       "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Material entity."
+        },
         "name": {
           "type": "string",
-          "description": "Company or customer name."
+          "description": "Name of the material."
         },
-        "address": {
+        "unit": {
           "type": "string",
-          "description": "Physical address."
+          "description": "Unit of measurement for the material (e.g., meter, piece)."
         },
-        "phone": {
+        "currency": {
           "type": "string",
-          "description": "Contact phone number."
+          "description": "Currency of the material's base price (e.g., USD, EUR, TL)."
         },
-        "email": {
-          "type": "string",
-          "format": "email",
-          "description": "Contact email address."
+        "basePrice": {
+          "type": "number",
+          "description": "Base price of the material."
         },
-        "taxNumber": {
+        "supplierId": {
           "type": "string",
-          "description": "Tax identification number."
+          "description": "Reference to Supplier. (Relationship: Supplier 1:N Material)"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "unit",
+        "currency",
+        "basePrice",
+        "supplierId"
+      ]
+    },
+    "LaborCost": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "LaborCost",
+      "type": "object",
+      "description": "Represents the cost of labor for a specific role.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the LaborCost entity."
+        },
+        "role": {
+          "type": "string",
+          "description": "The role of the laborer (e.g., usta/kalfa)."
+        },
+        "hourlyRate": {
+          "type": "number",
+          "description": "The hourly rate for the labor role."
+        }
+      },
+      "required": [
+        "id",
+        "role",
+        "hourlyRate"
+      ]
+    },
+    "Recipe": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Recipe",
+      "type": "object",
+      "description": "Represents a recipe or bill of materials, defining the materials and labor required for a composite item.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Recipe entity."
+        },
+        "productId": {
+          "type": "string",
+          "description": "Reference to Product. (Relationship: Product 1:N Recipe)"
+        },
+        "materialId": {
+          "type": "string",
+          "description": "Reference to Material. (Relationship: Material 1:N Recipe)"
+        },
+        "materialQuantity": {
+          "type": "number",
+          "description": "Quantity of the material required in the recipe."
+        },
+        "laborCostId": {
+          "type": "string",
+          "description": "Reference to LaborCost. (Relationship: LaborCost 1:N Recipe)"
+        },
+        "laborHours": {
+          "type": "number",
+          "description": "Hours of labor required in the recipe."
+        }
+      },
+      "required": [
+        "id",
+        "productId",
+        "materialId",
+        "materialQuantity",
+        "laborCostId",
+        "laborHours"
+      ]
+    },
+    "Proposal": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Proposal",
+      "type": "object",
+      "description": "Represents a quotation or proposal.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Proposal entity."
+        },
+        "customerId": {
+          "type": "string",
+          "description": "Reference to Customer. (Relationship: Customer 1:N Proposal)"
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "Total amount of the proposal."
+        },
+        "marginPercent": {
+          "type": "number",
+          "description": "Profit margin percentage for the proposal."
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the proposal (e.g., Draft, Approved, Sent)."
         },
         "createdAt": {
           "type": "string",
-          "format": "date-time",
-          "description": "The date and time the customer was created."
-        },
-        "updatedAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The date and time the customer was last updated."
+          "description": "Date and time when the proposal was created.",
+          "format": "date-time"
         }
       },
-      "required": ["name"]
+      "required": [
+        "id",
+        "customerId",
+        "totalAmount",
+        "marginPercent",
+        "status",
+        "createdAt"
+      ]
     },
-    "product": {
-      "title": "Product",
-      "description": "Represents a product or material.",
+    "ProposalItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ProposalItem",
       "type": "object",
+      "description": "Represents an individual item within a proposal.",
       "properties": {
-        "code": {
+        "id": {
           "type": "string",
-          "description": "Stock keeping unit or product code."
+          "description": "Unique identifier for the ProposalItem entity."
+        },
+        "proposalId": {
+          "type": "string",
+          "description": "Reference to Proposal. (Relationship: Proposal 1:N ProposalItem)"
+        },
+        "productId": {
+          "type": "string",
+          "description": "Reference to Product. (Relationship: Product 1:N ProposalItem)"
+        },
+        "quantity": {
+          "type": "number",
+          "description": "Quantity of the product in the proposal item."
+        },
+        "basePrice": {
+          "type": "number",
+          "description": "Base price for the item."
+        },
+        "currency": {
+          "type": "string",
+          "description": "Currency of the base price."
+        },
+        "targetMargin": {
+          "type": "number",
+          "description": "Target profit margin for this item."
+        }
+      },
+      "required": [
+        "id",
+        "proposalId",
+        "productId",
+        "quantity",
+        "basePrice",
+        "currency",
+        "targetMargin"
+      ]
+    },
+    "Customer": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Customer",
+      "type": "object",
+      "description": "Represents a customer.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Customer entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the customer."
+        },
+        "contactEmail": {
+          "type": "string",
+          "description": "Contact email address for the customer.",
+          "format": "email"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "contactEmail"
+      ]
+    },
+    "Product": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Product",
+      "type": "object",
+      "description": "Represents a product or service offered.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Product entity."
         },
         "name": {
           "type": "string",
           "description": "Name of the product."
         },
-        "brand": {
-          "type": "string",
-          "description": "Brand of the product."
-        },
         "category": {
           "type": "string",
-          "description": "Category of the product."
-        },
-        "unit": {
-          "type": "string",
-          "description": "Unit of measure (e.g., piece, meter, kg).",
-          "default": "Adet"
-        },
-        "listPrice": {
-          "type": "number",
-          "description": "The list price of the product."
-        },
-        "currency": {
-          "type": "string",
-          "description": "Currency of the list price (e.g., TL, USD, EUR).",
-          "default": "TL"
-        },
-        "discount": {
-          "type": "number",
-          "description": "Discount rate (e.g., 0.15 for 15%)."
-        },
-        "displayName": {
-          "type": "string",
-          "description": "Display name in 'Brand - Name' format."
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The date and time the product was created."
+          "description": "Category of the product (e.g., Heating, Cooling)."
         }
       },
-      "required": ["name", "listPrice"]
+      "required": [
+        "id",
+        "name",
+        "category"
+      ]
     },
-    "quote": {
-      "title": "Quote",
-      "description": "Represents a price quote for a customer.",
+    "Supplier": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Supplier",
       "type": "object",
+      "description": "Represents a supplier of materials.",
       "properties": {
-        "quoteNumber": {
+        "id": {
           "type": "string",
-          "description": "Unique quote number (e.g., MMYYYY/001)."
+          "description": "Unique identifier for the Supplier entity."
         },
-        "customerId": {
+        "name": {
           "type": "string",
-          "description": "Reference to the customer."
+          "description": "Name of the supplier."
         },
-        "customerName": {
+        "contactEmail": {
           "type": "string",
-          "description": "Denormalized customer name for quick access."
-        },
-        "projectName": {
-          "type": "string",
-          "description": "Name of the project or job."
-        },
-        "date": {
-          "type": "string",
-          "format": "date",
-          "description": "Date of the quote."
-        },
-        "summary": {
-          "type": "string",
-          "description": "A brief summary or description of the quote."
-        },
-        "totalAmount": {
-          "type": "number",
-          "description": "The total amount of the quote in the base currency (TL)."
-        },
-        "currencyMode": {
-          "type": "string",
-          "description": "The currency mode of the quote."
-        },
-        "vatStatus": {
-          "type": "string",
-          "description": "VAT status, e.g., 'VAT Included' or 'VAT Excluded'."
-        },
-        "notes": {
-          "type": "string",
-          "description": "Notes and conditions for the quote."
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The date and time the quote was created."
-        },
-        "updatedAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The date and time the quote was last updated."
+          "description": "Contact email for the supplier.",
+          "format": "email"
         }
       },
-      "required": ["quoteNumber", "customerId"]
-    },
-    "quoteItem": {
-      "title": "Quote Item",
-      "description": "Represents a single item within a quote.",
-      "type": "object",
-      "properties": {
-        "productName": { "type": "string" },
-        "brand": { "type": "string" },
-        "quantity": { "type": "number" },
-        "unit": { "type": "string" },
-        "currency": { "type": "string" },
-        "listPrice": { "type": "number" },
-        "discountRate": { "type": "number" },
-        "cost": { "type": "number" },
-        "profitMargin": { "type": "number" },
-        "originalUnitSellPrice": { "type": "number" },
-        "originalTotalAmount": { "type": "number" },
-        "tlUnitSellPrice": { "type": "number" },
-        "tlTotalAmount": { "type": "number" }
-      },
-      "required": ["productName", "quantity", "listPrice"]
+      "required": [
+        "id",
+        "name",
+        "contactEmail"
+      ]
     }
   },
   "auth": {
-    "providers": ["anonymous"]
+    "providers": [
+      "password",
+      "anonymous"
+    ]
   },
   "firestore": {
-    "/customers/{customerId}": {
-      "schema": { "$ref": "#/entities/customer" },
-      "description": "Stores individual customer data."
-    },
-    "/products/{productId}": {
-      "schema": { "$ref": "#/entities/product" },
-      "description": "Stores product and material information."
-    },
-    "/quotes/{quoteId}": {
-      "schema": { "$ref": "#/entities/quote" },
-      "description": "Stores high-level information about a quote."
-    },
-    "/quotes/{quoteId}/items/{itemId}": {
-      "schema": { "$ref": "#/entities/quoteItem" },
-      "description": "Stores the individual line items for a specific quote."
-    }
+    "structure": [
+      {
+        "path": "/suppliers/{supplierId}",
+        "definition": {
+          "entityName": "Supplier",
+          "schema": {
+            "$ref": "#/backend/entities/Supplier"
+          },
+          "description": "Represents a supplier of materials.",
+          "params": [
+            {
+              "name": "supplierId",
+              "description": "Unique identifier for the Supplier entity."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/suppliers/{supplierId}/materials/{materialId}",
+        "definition": {
+          "entityName": "Material",
+          "schema": {
+            "$ref": "#/backend/entities/Material"
+          },
+          "description": "Represents a material provided by a supplier.  Materials are nested under suppliers for easy access.",
+          "params": [
+            {
+              "name": "supplierId",
+              "description": "Unique identifier for the Supplier entity."
+            },
+            {
+              "name": "materialId",
+              "description": "Unique identifier for the Material entity."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/labor_costs/{laborCostId}",
+        "definition": {
+          "entityName": "LaborCost",
+          "schema": {
+            "$ref": "#/backend/entities/LaborCost"
+          },
+          "description": "Represents the cost of labor for a specific role.",
+          "params": [
+            {
+              "name": "laborCostId",
+              "description": "Unique identifier for the LaborCost entity."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/recipes/{recipeId}",
+        "definition": {
+          "entityName": "Recipe",
+          "schema": {
+            "$ref": "#/backend/entities/Recipe"
+          },
+          "description": "Represents a recipe or bill of materials.",
+          "params": [
+            {
+              "name": "recipeId",
+              "description": "Unique identifier for the Recipe entity."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/customers/{customerId}",
+        "definition": {
+          "entityName": "Customer",
+          "schema": {
+            "$ref": "#/backend/entities/Customer"
+          },
+          "description": "Represents a customer.",
+          "params": [
+            {
+              "name": "customerId",
+              "description": "Unique identifier for the Customer entity."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/customers/{customerId}/proposals/{proposalId}",
+        "definition": {
+          "entityName": "Proposal",
+          "schema": {
+            "$ref": "#/backend/entities/Proposal"
+          },
+          "description": "Represents a proposal for a specific customer.",
+          "params": [
+            {
+              "name": "customerId",
+              "description": "Unique identifier for the Customer entity."
+            },
+            {
+              "name": "proposalId",
+              "description": "Unique identifier for the Proposal entity."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/proposals/{proposalId}/proposal_items/{proposalItemId}",
+        "definition": {
+          "entityName": "ProposalItem",
+          "schema": {
+            "$ref": "#/backend/entities/ProposalItem"
+          },
+          "description": "Represents an item within a proposal.",
+          "params": [
+            {
+              "name": "proposalId",
+              "description": "Unique identifier for the Proposal entity."
+            },
+            {
+              "name": "proposalItemId",
+              "description": "Unique identifier for the ProposalItem entity."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/products/{productId}",
+        "definition": {
+          "entityName": "Product",
+          "schema": {
+            "$ref": "#/backend/entities/Product"
+          },
+          "description": "Represents a product.",
+          "params": [
+            {
+              "name": "productId",
+              "description": "Unique identifier for the Product entity."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to support the MechQuote application's requirements for managing materials, labor costs, recipes, proposals, customers, products, and suppliers. The structure emphasizes authorization independence, clarity, and scalability.\n\n**Authorization Independence:** To avoid hierarchical authorization dependencies and enable atomic operations, authorization-related data is denormalized. For example, if proposal access depends on customer attributes, those attributes would ideally be copied into the `Proposal` document. However, given the entities and their relationships, path-based ownership is prioritized where applicable.\n\n**Structural Segregation:** Data with different access requirements are stored in separate collections. User-specific data is segregated under `/users/{userId}` to simplify security rules.\n\n**Access Modeling:** Path-based ownership is employed for user-related data (although user entities aren't explicitly defined in the provided schema, the assumption is made they will exist). Membership maps are used for collaborative data, if any such data existed. Global roles can be managed using dedicated collections like `/roles_admin/{uid}`.\n\n**QAPs (Rules Are Not Filters):** The structure supports secure list operations (QAPs) through structural segregation and path-based ownership. Listing proposals for a specific customer can be secured by querying the `/customers/{customerId}/proposals` collection, where security rules can easily validate the user's access to the customer's data.\n\n**Invariants:** The structure will enforce invariants through the use of server-side functions and Firebase Triggers to ensure data integrity, particularly for ownership and timestamp management, and denormalized data consistency.\n\n**Specific Implementation Details:**\n\n*   `/suppliers/{supplierId}/materials/{materialId}`: Materials are nested under Suppliers to reflect their relationship and to facilitate querying materials by supplier. While it introduces a hierarchy, this structure is appropriate since materials are tightly coupled to suppliers and are not typically shared across different ones. Rules can be written to allow only the supplier to manage their own materials.\n*   `/customers/{customerId}/proposals/{proposalId}`: Proposals are nested under Customers, enforcing customer-specific access. This structure makes it straightforward to list proposals for a specific customer and to enforce security rules based on the customer's ID.\n*   The other entities, not associated to a specific user, are placed on root collections."
   }
 }
