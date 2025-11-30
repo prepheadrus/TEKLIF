@@ -1,0 +1,196 @@
+
+{
+  "entities": {
+    "customer": {
+      "title": "Customer",
+      "description": "Represents a customer or a company.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Company or customer name."
+        },
+        "address": {
+          "type": "string",
+          "description": "Physical address."
+        },
+        "phone": {
+          "type": "string",
+          "description": "Contact phone number."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Contact email address."
+        },
+        "taxNumber": {
+          "type": "string",
+          "description": "Tax identification number."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The date and time the customer was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The date and time the customer was last updated."
+        }
+      },
+      "required": ["name"]
+    },
+    "product": {
+      "title": "Product",
+      "description": "Represents a product or material.",
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "Stock keeping unit or product code."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the product."
+        },
+        "brand": {
+          "type": "string",
+          "description": "Brand of the product."
+        },
+        "category": {
+          "type": "string",
+          "description": "Category of the product."
+        },
+        "unit": {
+          "type": "string",
+          "description": "Unit of measure (e.g., piece, meter, kg).",
+          "default": "Adet"
+        },
+        "listPrice": {
+          "type": "number",
+          "description": "The list price of the product."
+        },
+        "currency": {
+          "type": "string",
+          "description": "Currency of the list price (e.g., TL, USD, EUR).",
+          "default": "TL"
+        },
+        "discount": {
+          "type": "number",
+          "description": "Discount rate (e.g., 0.15 for 15%)."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Display name in 'Brand - Name' format."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The date and time the product was created."
+        }
+      },
+      "required": ["name", "listPrice"]
+    },
+    "quote": {
+      "title": "Quote",
+      "description": "Represents a price quote for a customer.",
+      "type": "object",
+      "properties": {
+        "quoteNumber": {
+          "type": "string",
+          "description": "Unique quote number (e.g., MMYYYY/001)."
+        },
+        "customerId": {
+          "type": "string",
+          "description": "Reference to the customer."
+        },
+        "customerName": {
+          "type": "string",
+          "description": "Denormalized customer name for quick access."
+        },
+        "projectName": {
+          "type": "string",
+          "description": "Name of the project or job."
+        },
+        "date": {
+          "type": "string",
+          "format": "date",
+          "description": "Date of the quote."
+        },
+        "summary": {
+          "type": "string",
+          "description": "A brief summary or description of the quote."
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "The total amount of the quote in the base currency (TL)."
+        },
+        "currencyMode": {
+          "type": "string",
+          "description": "The currency mode of the quote."
+        },
+        "vatStatus": {
+          "type": "string",
+          "description": "VAT status, e.g., 'VAT Included' or 'VAT Excluded'."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Notes and conditions for the quote."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The date and time the quote was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The date and time the quote was last updated."
+        }
+      },
+      "required": ["quoteNumber", "customerId"]
+    },
+    "quoteItem": {
+      "title": "Quote Item",
+      "description": "Represents a single item within a quote.",
+      "type": "object",
+      "properties": {
+        "productName": { "type": "string" },
+        "brand": { "type": "string" },
+        "quantity": { "type": "number" },
+        "unit": { "type": "string" },
+        "currency": { "type": "string" },
+        "listPrice": { "type": "number" },
+        "discountRate": { "type": "number" },
+        "cost": { "type": "number" },
+        "profitMargin": { "type": "number" },
+        "originalUnitSellPrice": { "type": "number" },
+        "originalTotalAmount": { "type": "number" },
+        "tlUnitSellPrice": { "type": "number" },
+        "tlTotalAmount": { "type": "number" }
+      },
+      "required": ["productName", "quantity", "listPrice"]
+    }
+  },
+  "auth": {
+    "providers": ["anonymous"]
+  },
+  "firestore": {
+    "/customers/{customerId}": {
+      "schema": { "$ref": "#/entities/customer" },
+      "description": "Stores individual customer data."
+    },
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/product" },
+      "description": "Stores product and material information."
+    },
+    "/quotes/{quoteId}": {
+      "schema": { "$ref": "#/entities/quote" },
+      "description": "Stores high-level information about a quote."
+    },
+    "/quotes/{quoteId}/items/{itemId}": {
+      "schema": { "$ref": "#/entities/quoteItem" },
+      "description": "Stores the individual line items for a specific quote."
+    }
+  }
+}
