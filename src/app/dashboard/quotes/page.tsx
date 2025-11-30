@@ -432,6 +432,7 @@ function CreateQuoteTab({ onQuoteSaved, onSetActiveTab, quoteToEdit }: { onQuote
         const selectedCustomer = customers?.find(c => c.id === selectedCustomerId);
 
         const isRevision = !!editingProposal;
+        
         const rootProposalId = isRevision ? editingProposal.rootProposalId : proposalRef.id;
         const version = isRevision ? editingProposal.version + 1 : 1;
         const quoteNumber = isRevision ? editingProposal.quoteNumber : await getNextQuoteNumber(firestore);
