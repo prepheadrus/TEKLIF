@@ -22,6 +22,7 @@ const productSchema = z.object({
   name: z.string().min(2, "Ad en az 2 karakter olmalıdır."),
   brand: z.string().min(1, "Marka zorunludur."),
   category: z.string().min(1, "Kategori zorunludur."),
+  installationTypeId: z.string().min(1, "Tesisat türü zorunludur."),
   unit: z.string().min(1, "Birim zorunludur."),
   listPrice: z.coerce.number().min(0, "Liste fiyatı 0'dan büyük olmalıdır."),
   currency: z.enum(["TRY", "USD", "EUR"]),
@@ -29,6 +30,7 @@ const productSchema = z.object({
 });
 
 type ProductFormValues = z.infer<typeof productSchema>;
+type InstallationType = { id: string, name: string };
 
 export default function ProductsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -43,6 +45,7 @@ export default function ProductsPage() {
       name: "",
       brand: "",
       category: "",
+      installationTypeId: "",
       unit: "Adet",
       listPrice: 0,
       currency: "TRY",
@@ -56,6 +59,14 @@ export default function ProductsPage() {
   }, [firestore]);
 
   const { data: products, isLoading: areProductsLoading } = useCollection<ProductFormValues>(productsQuery);
+
+  const installationTypesQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, 'installation_types');
+  }, [firestore]);
+
+  const { data: installationTypes, isLoading: areInstallationTypesLoading } = useCollection<InstallationType>(installationTypesQuery);
+
 
   const onSubmit = (values: ProductFormValues) => {
     if (!firestore) {
@@ -88,11 +99,15 @@ export default function ProductsPage() {
     });
   };
 
-  const isLoading = isUserLoading || areProductsLoading;
+  const isLoading = isUserLoading || areProductsLoading || areInstallationTypesLoading;
 
   const formatCurrency = (price: number, currency: string) => {
     const displayCurrency = currency === 'TL' ? 'TRY' : currency;
     return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: displayCurrency }).format(price);
+  }
+
+  const getInstallationTypeName = (typeId: string) => {
+    return installationTypes?.find(t => t.id === typeId)?.name || 'Bilinmiyor';
   }
 
   return (
@@ -126,7 +141,17 @@ export default function ProductsPage() {
                     <FormField control={form.control} name="brand" render={({ field }) => (
                         <FormItem><FormLabel>Marka</FormLabel><FormControl><Input placeholder="Grundfos" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
-                    <FormField control={form.control} name="category" render={({ field }) => (
+                    <FormField control={form.control} name="installationTypeId" render={({ field }) => (
+                        <FormItem><FormLabel>Tesisat Türü</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl><SelectTrigger><SelectValue placeholder={areInstallationTypesLoading ? "Yükleniyor..." : "Tesisat türü seçin"} /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                    {installationTypes?.map(type => <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        <FormMessage /></FormItem>
+                    )} />
+                     <FormField control={form.control} name="category" render={({ field }) => (
                         <FormItem><FormLabel>Kategori</FormLabel><FormControl><Input placeholder="Pompa" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="listPrice" render={({ field }) => (
@@ -178,6 +203,7 @@ export default function ProductsPage() {
                 <TableHead>Kod</TableHead>
                 <TableHead>Ad</TableHead>
                 <TableHead>Marka</TableHead>
+                <TableHead>Tesisat Türü</TableHead>
                 <TableHead>Liste Fiyatı</TableHead>
                 <TableHead className="text-right">İşlemler</TableHead>
               </TableRow>
@@ -185,7 +211,7 @@ export default function ProductsPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center">
+                  <TableCell colSpan={6} className="text-center">
                     <Loader2 className="mx-auto h-8 w-8 animate-spin text-muted-foreground" />
                   </TableCell>
                 </TableRow>
@@ -195,6 +221,7 @@ export default function ProductsPage() {
                     <TableCell className="font-medium">{product.code}</TableCell>
                     <TableCell>{product.name}</TableCell>
                     <TableCell>{product.brand}</TableCell>
+                    <TableCell>{getInstallationTypeName(product.installationTypeId)}</TableCell>
                     <TableCell>{formatCurrency(product.listPrice, product.currency)}</TableCell>
                     <TableCell className="text-right">
                        <Button variant="ghost" size="icon" onClick={() => handleDeleteProduct(product.id)}>
@@ -205,7 +232,7 @@ export default function ProductsPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center">
+                  <TableCell colSpan={6} className="text-center">
                     Henüz ürün eklenmemiş.
                   </TableCell>
                 </TableRow>
@@ -217,5 +244,7 @@ export default function ProductsPage() {
     </div>
   );
 }
+
+    
 
     
