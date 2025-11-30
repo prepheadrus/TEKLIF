@@ -438,9 +438,9 @@ function CreateQuoteTab({ onQuoteSaved, onSetActiveTab, quoteToEdit }: { onQuote
         const quoteNumber = isRevision ? editingProposal.quoteNumber : await getNextQuoteNumber(firestore);
 
         const proposalData = {
-            rootProposalId,
-            version,
-            quoteNumber,
+            rootProposalId: rootProposalId,
+            version: version,
+            quoteNumber: quoteNumber,
             customerId: selectedCustomerId,
             customerName: selectedCustomer?.name || 'Bilinmeyen Müşteri',
             projectName: projectName || 'Genel Teklif',
@@ -490,7 +490,7 @@ function CreateQuoteTab({ onQuoteSaved, onSetActiveTab, quoteToEdit }: { onQuote
             toast({
                 variant: "destructive",
                 title: "Teklif kaydedilirken bir sorun oluştu",
-                description: "Gerekli izinlere sahip olmayabilirsiniz. Lütfen konsolu kontrol edin.",
+                description: error.message || "Gerekli izinlere sahip olmayabilirsiniz. Lütfen konsolu kontrol edin.",
             });
         } finally {
             setIsSaving(false);
