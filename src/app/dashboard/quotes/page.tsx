@@ -598,13 +598,19 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
 }
 
 function QuoteArchiveTab({ refreshTrigger }: { refreshTrigger: number }) {
-    const { user } = useUser();
+    const { user, isUserLoading } = useUser();
     const firestore = useFirestore();
     const { toast } = useToast();
 
     const proposalsQuery = useMemoFirebase(() => 
-        user && firestore ? query(collection(firestore, 'proposals'), where("ownerId", "==", user.uid), orderBy("createdAt", "desc")) : null,
-        [user, firestore, refreshTrigger]
+        !isUserLoading && user && firestore 
+            ? query(
+                collection(firestore, 'proposals'), 
+                where("ownerId", "==", user.uid), 
+                orderBy("createdAt", "desc")
+              ) 
+            : null,
+        [user, isUserLoading, firestore, refreshTrigger]
     );
 
     const { data: proposals, isLoading: areProposalsLoading } = useCollection<Proposal>(proposalsQuery);
@@ -641,6 +647,7 @@ function QuoteArchiveTab({ refreshTrigger }: { refreshTrigger: number }) {
         }
     }
 
+    const isLoading = isUserLoading || areProposalsLoading;
 
     return (
         <Card className="mt-4">
@@ -673,7 +680,7 @@ function QuoteArchiveTab({ refreshTrigger }: { refreshTrigger: number }) {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {areProposalsLoading ? (
+                        {isLoading ? (
                             <TableRow>
                                 <TableCell colSpan={8} className="text-center">
                                     <Loader2 className="mx-auto h-8 w-8 animate-spin text-muted-foreground" />
