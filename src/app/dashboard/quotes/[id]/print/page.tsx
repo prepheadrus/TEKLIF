@@ -72,8 +72,12 @@ export default function PrintQuotePage() {
     useEffect(() => {
         if (!isLoading && proposal) {
             document.title = `Teklif-${proposal.quoteNumber}`;
-            // Automatically trigger print dialog once everything is loaded
-            setTimeout(() => window.print(), 500); // A small delay can help ensure all content is rendered
+            // A small delay helps ensure all content, especially images, are rendered before printing.
+            const timer = setTimeout(() => {
+                window.print();
+            }, 500); 
+            
+            return () => clearTimeout(timer); // Cleanup timer on unmount
         }
     }, [isLoading, proposal]);
     
