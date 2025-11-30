@@ -3,21 +3,25 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  SidebarProvider,
-  Sidebar,
-  SidebarHeader,
-  SidebarTrigger,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupLabel,
-} from '@/components/ui/sidebar';
-import { Home, Users, Package, FileText, Settings, LogOut, Bot } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Bot, Home, Users, Package, FileText, Settings, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { cn } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+
+const navItems = [
+    { href: '/dashboard', label: 'Anasayfa', icon: Home },
+    { href: '/dashboard/customers', label: 'Müşteriler', icon: Users },
+    { href: '/dashboard/products', label: 'Ürünler', icon: Package },
+    { href: '/dashboard/quotes', label: 'Teklifler', icon: FileText },
+];
 
 export default function DashboardLayout({
   children,
@@ -27,81 +31,83 @@ export default function DashboardLayout({
   const pathname = usePathname();
 
   return (
-    <SidebarProvider>
-      <div className="flex h-screen">
-        <Sidebar>
-          <SidebarHeader>
-            <div className="flex items-center gap-2">
-              <Bot size={24} className="text-primary" />
-              <h1 className="text-xl font-semibold">MechQuote</h1>
-            </div>
-          </SidebarHeader>
-          <SidebarMenu>
-            <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname === '/dashboard'}>
-                    <Link href="/dashboard">
-                        <Home />
-                        Anasayfa
-                    </Link>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname.startsWith('/dashboard/customers')}>
-                    <Link href="/dashboard/customers">
-                        <Users />
-                        Müşteriler
-                    </Link>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname.startsWith('/dashboard/products')}>
-                    <Link href="/dashboard/products">
-                        <Package />
-                        Ürünler
-                    </Link>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname.startsWith('/dashboard/quotes')}>
-                    <Link href="/dashboard/quotes">
-                        <FileText />
-                        Teklifler
-                    </Link>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-          <SidebarFooter>
-            <SidebarGroup>
-              <SidebarGroupLabel>Ayarlar</SidebarGroupLabel>
-              <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <Settings />
-                  Genel Ayarlar
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarGroup>
-            <div className="flex items-center justify-between p-2">
-              <div className="flex items-center gap-2">
+    <div className="flex min-h-screen w-full flex-col">
+      <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-50">
+        <nav className="hidden flex-col gap-6 text-lg font-medium md:flex md:flex-row md:items-center md:gap-5 md:text-sm lg:gap-6">
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-2 text-lg font-semibold md:text-base"
+          >
+            <Bot className="h-6 w-6 text-primary" />
+            <span className="sr-only">MechQuote</span>
+          </Link>
+          {navItems.map((item) => (
+            <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                    "transition-colors hover:text-foreground",
+                    pathname === item.href ? "text-foreground" : "text-muted-foreground"
+                )}
+            >
+                {item.label}
+            </Link>
+          ))}
+        </nav>
+        
+        {/* Mobile Menu */}
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0 md:hidden"
+                >
+                    <Home className="h-5 w-5" />
+                    <span className="sr-only">Toggle navigation menu</span>
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="bottom" align="start">
+                <DropdownMenuLabel>Menü</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                 {navItems.map((item) => (
+                    <DropdownMenuItem key={item.href} asChild>
+                        <Link href={item.href}>{item.label}</Link>
+                    </DropdownMenuItem>
+                ))}
+            </DropdownMenuContent>
+        </DropdownMenu>
+
+        <div className="flex w-full items-center justify-end gap-4 md:ml-auto md:gap-2 lg:gap-4">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="secondary" size="icon" className="rounded-full">
                 <Avatar className="h-8 w-8">
                   <AvatarImage src="https://picsum.photos/seed/1/100/100" />
                   <AvatarFallback>MK</AvatarFallback>
                 </Avatar>
-                <span className="text-sm font-medium">Murat Kaya</span>
-              </div>
-              <Button variant="ghost" size="icon">
-                <LogOut className="h-5 w-5" />
+                <span className="sr-only">Toggle user menu</span>
               </Button>
-            </div>
-          </SidebarFooter>
-        </Sidebar>
-        <div className="flex-1 flex flex-col">
-           <header className="flex h-14 items-center justify-between border-b bg-background px-4">
-               <SidebarTrigger className="md:hidden" />
-               <h2 className="text-lg font-semibold">Yönetim Paneli</h2>
-           </header>
-           <main className="flex-1 overflow-y-auto p-4">{children}</main>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Hesabım</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Ayarlar</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Çıkış Yap</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-      </div>
-    </SidebarProvider>
+      </header>
+      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+        {children}
+      </main>
+    </div>
   );
 }
