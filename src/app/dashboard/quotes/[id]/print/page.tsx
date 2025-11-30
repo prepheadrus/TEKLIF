@@ -13,6 +13,7 @@ type Proposal = {
     createdAt: { seconds: number };
     customerName: string;
     projectName: string;
+    customerId: string;
     totalAmount: number;
     exchangeRates: { USD: number, EUR: number };
 };
@@ -59,7 +60,7 @@ export default function PrintQuotePage() {
     // We need to fetch the customer details separately
     const customerRef = useMemoFirebase(
         () => (firestore && proposal?.customerId ? doc(firestore, 'customers', proposal.customerId) : null),
-        [firestore, proposal.customerId]
+        [firestore, proposal?.customerId]
     );
     const { data: customer, isLoading: isCustomerLoading } = useDoc<Customer>(customerRef);
     
