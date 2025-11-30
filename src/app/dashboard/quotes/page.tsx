@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useMemo, useEffect, useCallback }from 'react';
@@ -756,6 +755,34 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
 
     const { data: proposals, isLoading: areProposalsLoading } = useCollection<Proposal>(proposalsQuery);
     
+    const handlePrintOrDownload = (proposalId: string) => {
+        // Create a hidden iframe
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = `/quotes/${proposalId}/print`;
+        document.body.appendChild(iframe);
+
+        // When the iframe is loaded, call its print function
+        iframe.onload = function() {
+            try {
+                iframe.contentWindow?.focus(); // Focus on the iframe
+                iframe.contentWindow?.print(); // Trigger the print dialog
+            } catch (error) {
+                console.error("Could not print from iframe:", error);
+                toast({
+                    variant: "destructive",
+                    title: "Yazdırma Hatası",
+                    description: "PDF oluşturulurken bir sorun oluştu. Lütfen tekrar deneyin.",
+                });
+            }
+
+            // Clean up the iframe after a delay
+            setTimeout(() => {
+                document.body.removeChild(iframe);
+            }, 1000); // Delay to allow print dialog to be handled
+        };
+    };
+
     const proposalGroups = useMemo((): ProposalGroup[] => {
         if (!proposals) return [];
         
@@ -1008,7 +1035,7 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
                                                             <DropdownMenuSubContent>
                                                                 <DropdownMenuLabel>İşlemler (V{version.version})</DropdownMenuLabel>
                                                                 <DropdownMenuSeparator />
-                                                                <DropdownMenuItem onSelect={() => window.open(`/dashboard/quotes/${version.id}/print`, '_blank')}>
+                                                                <DropdownMenuItem onSelect={() => handlePrintOrDownload(version.id)}>
                                                                     <Download className="mr-2 h-4 w-4" /> Yazdır/İndir
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuSub>
@@ -1038,10 +1065,8 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
                                     </TableCell>
                                     <TableCell className="text-right font-semibold">{formatCurrency(group.latest.totalAmount)}</TableCell>
                                     <TableCell className="text-center flex justify-center gap-1">
-                                        <Button variant="ghost" size="icon" aria-label="Son Versiyonu İndir" asChild>
-                                            <Link href={`/dashboard/quotes/${group.latest.id}/print`} target="_blank">
-                                                <Download className="h-4 w-4" />
-                                            </Link>
+                                        <Button variant="ghost" size="icon" aria-label="Son Versiyonu İndir" onClick={() => handlePrintOrDownload(group.latest.id)}>
+                                            <Download className="h-4 w-4" />
                                         </Button>
                                         <Button variant="ghost" size="icon" aria-label="Son Versiyonu Düzenle" onClick={() => onEditQuote(group.latest)}><Edit className="h-4 w-4" /></Button>
                                         <Button variant="ghost" size="icon" aria-label="Tüm Teklifi Sil" onClick={() => handleDeleteGroup(group)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
