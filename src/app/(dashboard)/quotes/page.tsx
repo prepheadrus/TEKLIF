@@ -759,7 +759,7 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
         // Create a hidden iframe
         const iframe = document.createElement('iframe');
         iframe.style.display = 'none';
-        iframe.src = `/quotes/${proposalId}/print`;
+        iframe.src = `/dashboard/quotes/${proposalId}/print`;
         document.body.appendChild(iframe);
 
         // When the iframe is loaded, call its print function
