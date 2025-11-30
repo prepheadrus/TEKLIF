@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { errorEmitter, FirestorePermissionError } from '@/firebase';
 import { suggestMissingParts } from '@/ai/flows/suggest-missing-parts';
 import { QuickAddProduct } from '@/components/app/quick-add-product';
+import Link from 'next/link';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -440,11 +441,10 @@ function CreateQuoteTab({ onQuoteSaved, onSetActiveTab, quoteToEdit }: { onQuote
 
         setIsSaving(true);
         const selectedCustomer = customers?.find(c => c.id === currentCustomerId);
+        const proposalRef = doc(collection(firestore, 'proposals'));
         
         try {
             const batch = writeBatch(firestore);
-            const proposalRef = doc(collection(firestore, 'proposals'));
-
             const isRevision = !!currentEditingProposal;
             
             let rootProposalId: string;
@@ -452,12 +452,10 @@ function CreateQuoteTab({ onQuoteSaved, onSetActiveTab, quoteToEdit }: { onQuote
             let quoteNumber: string;
 
             if (isRevision && currentEditingProposal) {
-                // REVİZYON SENARYOSU
                 rootProposalId = currentEditingProposal.rootProposalId;
                 version = currentEditingProposal.version + 1;
                 quoteNumber = currentEditingProposal.quoteNumber;
             } else {
-                // YENİ TEKLİF SENARYOSU
                 rootProposalId = proposalRef.id;
                 version = 1;
                 quoteNumber = await getNextQuoteNumber(firestore);
@@ -870,7 +868,6 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
                 const siblingVersions = allProposals.filter(p => p.rootProposalId === proposalToUpdate.rootProposalId && p.id !== proposalToUpdate.id);
                 
                 siblingVersions.forEach(version => {
-                    // We can be aggressive and reset any other version, not just approved ones
                     const otherVersionRef = doc(firestore, 'proposals', version.id);
                     batch.update(otherVersionRef, { status: 'Draft' });
                 });
@@ -1038,7 +1035,11 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
                                     </TableCell>
                                     <TableCell className="text-right font-semibold">{formatCurrency(group.latest.totalAmount)}</TableCell>
                                     <TableCell className="text-center flex justify-center gap-1">
-                                        <Button variant="ghost" size="icon" aria-label="Son Versiyonu İndir"><Download className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="icon" aria-label="Son Versiyonu İndir" asChild>
+                                            <Link href={`/dashboard/quotes/${group.latest.id}/print`} target="_blank">
+                                                <Download className="h-4 w-4" />
+                                            </Link>
+                                        </Button>
                                         <Button variant="ghost" size="icon" aria-label="Son Versiyonu Düzenle" onClick={() => onEditQuote(group.latest)}><Edit className="h-4 w-4" /></Button>
                                         <Button variant="ghost" size="icon" aria-label="Tüm Teklifi Sil" onClick={() => handleDeleteGroup(group)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                     </TableCell>
