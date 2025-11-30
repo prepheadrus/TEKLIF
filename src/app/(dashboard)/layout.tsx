@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -18,11 +17,11 @@ import {
 
 const navItems = [
     { href: '/dashboard', label: 'Anasayfa', icon: Home },
-    { href: '/quotes', label: 'Teklifler', icon: FileText },
-    { href: '/customers', label: 'Müşteriler', icon: Users },
-    { href: '/products', label: 'Ürünler', icon: Package },
-    { href: '/recipes', label: 'Reçeteler', icon: BookCopy },
-    { href: '/resources', label: 'Kaynaklar', icon: Wrench },
+    { href: '/dashboard/quotes', label: 'Teklifler', icon: FileText },
+    { href: '/dashboard/customers', label: 'Müşteriler', icon: Users },
+    { href: '/dashboard/products', label: 'Ürünler', icon: Package },
+    { href: '/dashboard/recipes', label: 'Reçeteler', icon: BookCopy },
+    { href: '/dashboard/resources', label: 'Kaynaklar', icon: Wrench },
 ];
 
 export default function DashboardLayout({

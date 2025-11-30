@@ -125,7 +125,7 @@ export default function PrintQuotePage() {
                     <Printer className="mr-2" /> Yazdır veya PDF Olarak Kaydet
                 </Button>
             </div>
-            <div className="max-w-4xl mx-auto p-8">
+            <div className="max-w-4xl mx-auto p-8 print:p-0">
                 <header className="flex justify-between items-start mb-6 pb-4 border-b">
                     <div className="flex items-center gap-4">
                         <Image src="/logo-header.png" alt="Firma Logosu" width={80} height={80} className="rounded-md" />
