@@ -854,23 +854,22 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
         }
     };
     
-    const handleChangeStatus = async (proposalToUpdate: Proposal, newStatus: ProposalStatus, allVersions: Proposal[]) => {
+    const handleChangeStatus = async (proposalToUpdate: Proposal, newStatus: ProposalStatus) => {
         if (!firestore) return;
 
         try {
             const batch = writeBatch(firestore);
 
-            // Update the selected proposal's status
             const proposalDocRef = doc(firestore, 'proposals', proposalToUpdate.id);
             batch.update(proposalDocRef, { status: newStatus });
 
-            // If the new status is "Approved", reset other versions of the same quote group to "Draft"
             if (newStatus === 'Approved') {
-                allVersions.forEach(version => {
-                    if (version.id !== proposalToUpdate.id) {
-                        const otherVersionRef = doc(firestore, 'proposals', version.id);
-                        batch.update(otherVersionRef, { status: 'Draft' });
-                    }
+                const allProposals = proposals || [];
+                const siblingVersions = allProposals.filter(p => p.rootProposalId === proposalToUpdate.rootProposalId && p.id !== proposalToUpdate.id);
+                
+                siblingVersions.forEach(version => {
+                    const otherVersionRef = doc(firestore, 'proposals', version.id);
+                    batch.update(otherVersionRef, { status: 'Draft' });
                 });
             }
 
@@ -955,7 +954,7 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
                             <TableHead className="w-[100px]">Son Tarih</TableHead>
                             <TableHead>Müşteri</TableHead>
                             <TableHead>Proje</TableHead>
-                            <TableHead className="w-[130px]">Durum</TableHead>
+                            <TableHead className="w-[130px]">Son Durum</TableHead>
                             <TableHead className="w-[180px]">Versiyonlar</TableHead>
                             <TableHead className="text-right w-[150px]">Son Tutar</TableHead>
                             <TableHead className="text-center w-[120px]">İşlemler</TableHead>
@@ -976,22 +975,7 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
                                     <TableCell>{group.latest.customerName}</TableCell>
                                     <TableCell>{group.latest.projectName}</TableCell>
                                     <TableCell>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant={getStatusBadgeVariant(group.latest.status)} className="w-full justify-start text-left font-normal">
-                                                     <Badge variant={getStatusBadgeVariant(group.latest.status)}>{group.latest.status}</Badge>
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent>
-                                                <DropdownMenuLabel>Durumu Değiştir</DropdownMenuLabel>
-                                                <DropdownMenuSeparator />
-                                                {statusOptions.map(status => (
-                                                    <DropdownMenuItem key={status} onSelect={() => handleChangeStatus(group.latest, status, group.versions)}>
-                                                        {status}
-                                                    </DropdownMenuItem>
-                                                ))}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
+                                        <Badge variant={getStatusBadgeVariant(group.latest.status)}>{group.latest.status}</Badge>
                                     </TableCell>
                                     <TableCell>
                                         <DropdownMenu>
@@ -1002,20 +986,50 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
                                                     <Badge variant="secondary" className="rounded-full">{group.versions.length}</Badge>
                                                 </Button>
                                             </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="start">
+                                            <DropdownMenuContent align="start" className="w-[500px]">
                                                 <DropdownMenuLabel>Versiyon Geçmişi</DropdownMenuLabel>
                                                 <DropdownMenuSeparator />
                                                 {group.versions.map(version => (
                                                     <DropdownMenuItem key={version.id} className="flex justify-between items-center">
-                                                        <div>
-                                                            <span className="font-semibold">V{version.version}</span>
-                                                            <span className="text-xs text-muted-foreground ml-2">({formatDate(version.createdAt)})</span>
-                                                             <p className="text-xs text-muted-foreground">{version.versionNote}</p>
+                                                        <div className="flex flex-col">
+                                                            <div className="flex items-center">
+                                                                <span className="font-semibold mr-2">V{version.version}</span>
+                                                                <Badge variant={getStatusBadgeVariant(version.status)}>{version.status}</Badge>
+                                                                <span className="text-xs text-muted-foreground ml-2">({formatDate(version.createdAt)})</span>
+                                                            </div>
+                                                            <p className="text-xs text-muted-foreground mt-1">{version.versionNote}</p>
                                                         </div>
                                                         <div className='flex items-center'>
                                                             <span className='mr-4 font-mono'>{formatCurrency(version.totalAmount)}</span>
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEditQuote(version)}><Edit className="h-4 w-4" /></Button>
-                                                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteProposal(version.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                                            
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger asChild>
+                                                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>...</Button>
+                                                                </DropdownMenuTrigger>
+                                                                <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
+                                                                    <DropdownMenuLabel>İşlemler (V{version.version})</DropdownMenuLabel>
+                                                                    <DropdownMenuSeparator />
+                                                                    <DropdownMenuSub>
+                                                                        <DropdownMenuSubTrigger>Durumu Değiştir</DropdownMenuSubTrigger>
+                                                                        <DropdownMenuPortal>
+                                                                            <DropdownMenuSubContent>
+                                                                            {statusOptions.map(status => (
+                                                                                <DropdownMenuItem key={status} onSelect={() => handleChangeStatus(version, status)}>
+                                                                                    {status}
+                                                                                </DropdownMenuItem>
+                                                                            ))}
+                                                                            </DropdownMenuSubContent>
+                                                                        </DropdownMenuPortal>
+                                                                    </DropdownMenuSub>
+                                                                    <DropdownMenuItem onSelect={() => onEditQuote(version)}>
+                                                                        <Edit className="mr-2 h-4 w-4" /> Revize Et (Yeni Versiyon)
+                                                                    </DropdownMenuItem>
+                                                                     <DropdownMenuItem onSelect={() => handleDeleteProposal(version.id)} className="text-red-600">
+                                                                        <Trash2 className="mr-2 h-4 w-4" /> Bu Versiyonu Sil
+                                                                    </DropdownMenuItem>
+                                                                </DropdownMenuContent>
+                                                            </DropdownMenu>
+
                                                         </div>
                                                     </DropdownMenuItem>
                                                 ))}
@@ -1091,4 +1105,4 @@ export default function QuotesPage() {
   );
 }
 
-
+    

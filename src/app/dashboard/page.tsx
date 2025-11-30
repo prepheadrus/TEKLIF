@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useMemo } from 'react';
@@ -25,7 +26,7 @@ const calculatePercentageChange = (current: number, previous: number) => {
     }
     const change = ((current - previous) / previous) * 100;
     if (change > 0) {
-        return `+${change.toFixed(1)}% geçen aydan`;
+        return `+%${change.toFixed(1)} geçen aydan`;
     } else if (change < 0) {
         return `${change.toFixed(1)}% geçen aydan`;
     }
@@ -63,7 +64,7 @@ export default function DashboardPage() {
     const currentMonthProposals = proposals.filter(p => p.createdAt.seconds >= firstDayOfCurrentMonth);
     const lastMonthProposals = proposals.filter(p => p.createdAt.seconds >= firstDayOfLastMonth && p.createdAt.seconds < firstDayOfCurrentMonth);
 
-    // Group proposals by rootProposalId to handle versions correctly
+    // Group all proposals by rootProposalId
     const proposalGroups: { [key: string]: Proposal[] } = {};
     proposals.forEach(p => {
         if (!proposalGroups[p.rootProposalId]) {
@@ -75,17 +76,18 @@ export default function DashboardPage() {
     let totalRevenue = 0;
     let approvedQuotesCount = 0;
     
-    // Calculate revenue and count from the latest approved version in each group
+    // Calculate revenue and count from the latest approved version in each group, if any
     Object.values(proposalGroups).forEach(group => {
         const approvedVersions = group.filter(p => p.status === 'Approved');
         if (approvedVersions.length > 0) {
-            // Find the one with the highest version number
+            // If there are approved versions, find the one with the highest version number
             const latestApproved = approvedVersions.reduce((latest, current) => current.version > latest.version ? current : latest);
             totalRevenue += latestApproved.totalAmount;
-            approvedQuotesCount++;
+            approvedQuotesCount++; // Count each group with an approved version as one approved quote
         }
     });
 
+    // An active quote is a group where the latest version is Draft or Sent
     const activeQuotes = Object.values(proposalGroups).filter(group => {
        const latestVersion = group.reduce((latest, current) => current.version > latest.version ? current : latest);
        return latestVersion.status === 'Draft' || latestVersion.status === 'Sent';
@@ -187,3 +189,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
