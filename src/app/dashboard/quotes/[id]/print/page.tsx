@@ -120,23 +120,26 @@ export default function PrintQuotePage() {
                 </Button>
             </div>
             <div className="max-w-4xl mx-auto p-8 sm:p-12">
-                <header className="w-full mb-10">
-                    <Image src="/logo-header.png" alt="Firma Logosu" width={1000} height={150} className="w-full h-auto" />
-                    <div className="flex justify-between items-start mt-4">
-                         <div>
-                            <p className="font-semibold">Mekanik Tesisat Çözümleri</p>
-                            <p className="text-xs">Sanayi Mah. Teknoloji Cad. No:1 D:2, İstanbul</p>
-                            <p className="text-xs">iletisim@mechquote.com | +90 212 123 45 67</p>
-                        </div>
-                        <div className="text-right">
-                            <h2 className="text-2xl font-bold uppercase tracking-wider">TEKLİF</h2>
-                            <p className="mt-1">
-                                <span className="font-semibold">Teklif No:</span> {proposal.quoteNumber}
+                <header className="flex justify-between items-start mb-10 pb-4 border-b">
+                    <div className="flex items-start gap-4">
+                        <Image src="/logo-header.png" alt="Firma Logosu" width={100} height={100} className="rounded-md" />
+                        <div>
+                            <h2 className="text-xl font-bold text-primary">IMS.M Mühendislik</h2>
+                            <p className="text-xs max-w-xs mt-1">
+                                Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA
                             </p>
-                            <p>
-                                <span className="font-semibold">Tarih:</span> {formatDate(proposal.createdAt)}
-                            </p>
+                            <p className="text-xs mt-1">ims.m.muhendislik@gmail.com</p>
+                            <p className="text-xs">(553) 469 75 01</p>
                         </div>
+                    </div>
+                    <div className="text-right">
+                        <h2 className="text-2xl font-bold uppercase tracking-wider">TEKLİF</h2>
+                        <p className="mt-1">
+                            <span className="font-semibold">Teklif No:</span> {proposal.quoteNumber}
+                        </p>
+                        <p>
+                            <span className="font-semibold">Tarih:</span> {formatDate(proposal.createdAt)}
+                        </p>
                     </div>
                 </header>
 
@@ -205,15 +208,14 @@ export default function PrintQuotePage() {
                     </div>
                 </section>
 
-                <footer className="w-full mt-16 pt-4">
+                <footer className="w-full mt-16 pt-4 border-t">
                      <div className="text-xs text-gray-500 text-center mb-4">
                         <p>
                             Teklifin geçerlilik süresi 15 gündür. Fiyatlarımıza KDV dahildir.
                             Belirtilen döviz kurları ({`USD: ${proposal.exchangeRates.USD.toFixed(2)}`}, {`EUR: ${proposal.exchangeRates.EUR.toFixed(2)}`}) teklif tarihindeki TCMB efektif satış kurudur. Ödeme anındaki kur geçerli olacaktır.
                         </p>
-                        <p className="mt-2 font-semibold">MechQuote A.Ş. | Teşekkür Ederiz!</p>
+                        <p className="mt-2 font-semibold">IMS.M Mühendislik | Teşekkür Ederiz!</p>
                     </div>
-                    <Image src="/logo-footer.png" alt="Firma Alt Bilgi Logosu" width={1000} height={100} className="w-full h-auto" />
                 </footer>
             </div>
         </div>
