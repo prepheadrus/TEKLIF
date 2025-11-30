@@ -1,6 +1,7 @@
 
 'use client';
 
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   SidebarProvider,
@@ -37,35 +38,43 @@ export default function DashboardLayout({
           </SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/dashboard" isActive={pathname === '/dashboard'}>
-                <Home />
-                Anasayfa
-              </SidebarMenuButton>
+                <Link href="/dashboard" passHref>
+                    <SidebarMenuButton asChild isActive={pathname === '/dashboard'}>
+                        <Home />
+                        Anasayfa
+                    </SidebarMenuButton>
+                </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/dashboard/customers" isActive={pathname.startsWith('/dashboard/customers')}>
-                <Users />
-                Müşteriler
-              </SidebarMenuButton>
+                <Link href="/dashboard/customers" passHref>
+                    <SidebarMenuButton asChild isActive={pathname.startsWith('/dashboard/customers')}>
+                        <Users />
+                        Müşteriler
+                    </SidebarMenuButton>
+                </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/dashboard/products" isActive={pathname.startsWith('/dashboard/products')}>
-                <Package />
-                Ürünler
-              </SidebarMenuButton>
+                <Link href="/dashboard/products" passHref>
+                    <SidebarMenuButton asChild isActive={pathname.startsWith('/dashboard/products')}>
+                        <Package />
+                        Ürünler
+                    </SidebarMenuButton>
+                </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/dashboard/quotes" isActive={pathname.startsWith('/dashboard/quotes')}>
-                <FileText />
-                Teklifler
-              </SidebarMenuButton>
+                <Link href="/dashboard/quotes" passHref>
+                    <SidebarMenuButton asChild isActive={pathname.startsWith('/dashboard/quotes')}>
+                        <FileText />
+                        Teklifler
+                    </SidebarMenuButton>
+                </Link>
             </SidebarMenuItem>
           </SidebarMenu>
           <SidebarFooter>
             <SidebarGroup>
               <SidebarGroupLabel>Ayarlar</SidebarGroupLabel>
               <SidebarMenuItem>
-                <SidebarMenuButton href="#">
+                <SidebarMenuButton>
                   <Settings />
                   Genel Ayarlar
                 </SidebarMenuButton>
