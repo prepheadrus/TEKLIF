@@ -1,4 +1,6 @@
+'use client';
 
+import { usePathname } from 'next/navigation';
 import {
   SidebarProvider,
   Sidebar,
@@ -21,6 +23,8 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+
   return (
     <SidebarProvider>
       <Sidebar>
@@ -32,25 +36,25 @@ export default function DashboardLayout({
         </SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton href="/dashboard" isActive>
+            <SidebarMenuButton href="/dashboard" isActive={pathname === '/dashboard'}>
               <Home />
               Anasayfa
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton href="#">
+            <SidebarMenuButton href="/dashboard/customers" isActive={pathname.startsWith('/dashboard/customers')}>
               <Users />
               Müşteriler
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton href="#">
+            <SidebarMenuButton href="/dashboard/products" isActive={pathname.startsWith('/dashboard/products')}>
               <Package />
               Ürünler
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton href="#">
+            <SidebarMenuButton href="/dashboard/quotes" isActive={pathname.startsWith('/dashboard/quotes')}>
               <FileText />
               Teklifler
             </SidebarMenuButton>
@@ -64,7 +68,7 @@ export default function DashboardLayout({
                 <Settings />
                 Genel Ayarlar
               </SidebarMenuButton>
-            </SidebarMenuItem>
+            </MenuItem>
           </SidebarGroup>
           <div className="flex items-center justify-between p-2">
             <div className="flex items-center gap-2">
