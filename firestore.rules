@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 /**
@@ -52,8 +53,8 @@ service cloud.firestore {
      * Returns true if the user is the designated owner of the new resource.
      * Checks the `ownerId` of the incoming document data.
      */
-     function isNewOwner(resource) {
-       return isSignedIn() && resource.data.ownerId == request.auth.uid;
+     function isNewOwner() {
+       return isSignedIn() && request.resource.data.ownerId == request.auth.uid;
      }
 
     /**
@@ -65,7 +66,7 @@ service cloud.firestore {
      */
     match /suppliers/{supplierId} {
       allow get, update, delete: if isOwner(resource);
-      allow create: if isNewOwner(request.resource);
+      allow create: if isNewOwner();
       allow list: if isSignedIn(); // Queries must be filtered by ownerId on the client
     }
 
@@ -77,8 +78,8 @@ service cloud.firestore {
      *   /suppliers/{supplierId}/materials/{materialId}
      */
     match /suppliers/{supplierId}/materials/{materialId} {
-        allow get, list, update, delete: if exists(/databases/$(database)/documents/suppliers/$(supplierId)) && isOwner(get(/databases/$(database)/documents/suppliers/$(supplierId)).data);
-        allow create: if exists(/databases/$(database)/documents/suppliers/$(supplierId)) && isOwner(get(/databases/$(database)/documents/suppliers/$(supplierId)).data);
+        allow get, list, update, delete: if exists(/databases/$(database)/documents/suppliers/$(supplierId)) && isOwner(get(/databases/$(database)/documents/suppliers/$(supplierId)));
+        allow create: if exists(/databases/$(database)/documents/suppliers/$(supplierId)) && isOwner(get(/databases/$(database)/documents/suppliers/$(supplierId)));
     }
 
 
@@ -91,7 +92,7 @@ service cloud.firestore {
      */
     match /labor_costs/{laborCostId} {
       allow get, update, delete: if isOwner(resource);
-      allow create: if isNewOwner(request.resource);
+      allow create: if isNewOwner();
       allow list: if isSignedIn();
     }
 
@@ -104,7 +105,7 @@ service cloud.firestore {
      */
     match /recipes/{recipeId} {
       allow get, update, delete: if isOwner(resource);
-      allow create: if isNewOwner(request.resource);
+      allow create: if isNewOwner();
       allow list: if isSignedIn();
     }
 
@@ -116,55 +117,37 @@ service cloud.firestore {
      *   /customers/{customerId}
      */
     match /customers/{customerId} {
-      // Allow read, update, delete if the user is the owner of the existing doc.
       allow get, update, delete: if isOwner(resource);
-      // Allow create if the user is the owner of the new doc.
-      allow create: if isNewOwner(request.resource);
-      // Allow list, but queries MUST be secured on the client-side
-      // e.g., query(collection(db, 'customers'), where('ownerId', '==', user.uid))
+      allow create: if isNewOwner();
       allow list: if isSignedIn();
     }
-
-
-    /**
-     * @description
-     *   Rules for proposals, which are nested under a specific customer.
-     *   Access is determined by ownership of the parent customer.
-     * @path
-     *   /customers/{customerId}/proposals/{proposalId}
-     */
-    match /customers/{customerId}/proposals/{proposalId} {
-      allow get, list, update, delete: if exists(/databases/$(database)/documents/customers/$(customerId)) && isOwner(get(/databases/$(database)/documents/customers/$(customerId)).data);
-      allow create: if exists(/databases/$(database)/documents/customers/$(customerId)) && isOwner(get(/databases/$(database)/documents/customers/$(customerId)).data) && request.resource.data.customerId == customerId;
-    }
-
+    
     /**
      * @description
      *   Rules for the top-level `proposals` collection.
-     *   Access is restricted to the owner of the proposal document.
+     *   A user can manage their own proposals.
      * @path
      *   /proposals/{proposalId}
      */
     match /proposals/{proposalId} {
       allow get, update, delete: if isOwner(resource);
-      allow create: if isNewOwner(request.resource);
-      allow list: if isSignedIn();
+      allow create: if isNewOwner();
+      allow list: if isSignedIn(); // Client must filter by ownerId
+      
+      /**
+       * @description
+       *   Rules for proposal items, which are nested under a proposal.
+       *   Access is determined by ownership of the parent proposal.
+       * @path
+       *   /proposals/{proposalId}/proposal_items/{proposalItemId}
+       */
+      match /proposal_items/{proposalItemId} {
+          allow get, list, create, update, delete: if isOwner(get(/databases/$(database)/documents/proposals/$(proposalId)));
+      }
     }
 
     /**
      * @description
-     *   Rules for proposal items, which are nested under a proposal.
-     *   Access is determined by ownership of the parent proposal.
-     * @path
-     *   /proposals/{proposalId}/proposal_items/{proposalItemId}
-     */
-    match /proposals/{proposalId}/proposal_items/{proposalItemId} {
-      allow get, list, update, delete: if exists(/databases/$(database)/documents/proposals/$(proposalId)) && isOwner(get(/databases/$(database)/documents/proposals/$(proposalId)).data);
-      allow create: if exists(/databases/$(database)/documents/proposals/$(proposalId)) && isOwner(get(/databases/$(database)/documents/proposals/$(proposalId)).data) && request.resource.data.proposalId == proposalId;
-    }
-
-    /**
-* @description
      *   Rules for the `products` collection.
      *   Access is restricted to the owner of the product document.
      * @path
@@ -172,9 +155,8 @@ service cloud.firestore {
      */
     match /products/{productId} {
       allow get, update, delete: if isOwner(resource);
-      allow create: if isNewOwner(request.resource);
+      allow create: if isNewOwner();
       allow list: if isSignedIn();
     }
   }
 }
-    

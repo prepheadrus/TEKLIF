@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect }from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -12,9 +12,11 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { useCollection, useFirestore, useUser, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
+import { collection, query, where, writeBatch, doc } from 'firebase/firestore';
 import { calculatePrice } from '@/lib/pricing';
+import { useToast } from "@/hooks/use-toast";
+
 
 type Customer = { id: string; name: string; [key: string]: any };
 type Product = { 
@@ -29,6 +31,8 @@ type Product = {
 };
 
 type QuoteItem = {
+    // ID is just the product ID for client-side uniqueness
+    id: string;
     productId: string;
     name: string;
     brand: string;
@@ -37,9 +41,9 @@ type QuoteItem = {
     listPrice: number;
     currency: 'TRY' | 'USD' | 'EUR';
     discountRate: number;
+    profitMargin: number; // 0.25 for 25%
     // Calculated fields
     cost: number;
-    profitMargin: number; // 0.25 for 25%
     unitPrice: number; // sell price in original currency
     total: number; // total sell price in original currency
 };
@@ -53,6 +57,7 @@ const mockQuotes = [
 function CreateQuoteTab() {
     const { user } = useUser();
     const firestore = useFirestore();
+    const { toast } = useToast();
 
     // State definitions
     const [quoteItems, setQuoteItems] = useState<QuoteItem[]>([]);
@@ -60,6 +65,11 @@ function CreateQuoteTab() {
     const [quantityToAdd, setQuantityToAdd] = useState<number>(1);
     const [exchangeRates, setExchangeRates] = useState({ USD: 34.50, EUR: 36.20 });
     const [globalProfitMargin, setGlobalProfitMargin] = useState(25);
+    const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+    const [projectName, setProjectName] = useState('');
+    const [versionNote, setVersionNote] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+
 
     // Data fetching
     const customersQuery = useMemoFirebase(() => 
@@ -79,6 +89,16 @@ function CreateQuoteTab() {
         const productToAdd = products.find(p => p.id === selectedProductId);
         if (!productToAdd) return;
 
+         // Prevent adding the same product twice
+        if (quoteItems.some(item => item.productId === productToAdd.id)) {
+            toast({
+                variant: "destructive",
+                title: "Uyarı",
+                description: "Bu ürün zaten sepete eklenmiş.",
+            });
+            return;
+        }
+
         const priceResult = calculatePrice({
             listPrice: productToAdd.listPrice,
             discountRate: productToAdd.discountRate,
@@ -87,6 +107,7 @@ function CreateQuoteTab() {
         });
 
         const newItem: QuoteItem = {
+            id: productToAdd.id, // Use product id for client-side key
             productId: productToAdd.id,
             name: productToAdd.name,
             brand: productToAdd.brand,
@@ -95,8 +116,8 @@ function CreateQuoteTab() {
             listPrice: productToAdd.listPrice,
             currency: productToAdd.currency,
             discountRate: productToAdd.discountRate,
-            cost: priceResult.cost,
             profitMargin: globalProfitMargin / 100,
+            cost: priceResult.cost,
             unitPrice: priceResult.originalSellPrice,
             total: priceResult.originalSellPrice * quantityToAdd,
         };
@@ -106,14 +127,14 @@ function CreateQuoteTab() {
         setQuantityToAdd(1);
     };
     
-    const handleRemoveItem = (productId: string) => {
-        setQuoteItems(prevItems => prevItems.filter(item => item.productId !== productId));
+    const handleRemoveItem = (itemId: string) => {
+        setQuoteItems(prevItems => prevItems.filter(item => item.id !== itemId));
     };
 
-    const updateItem = (productId: string, newValues: Partial<QuoteItem>) => {
+    const updateItem = (itemId: string, newValues: Partial<QuoteItem>) => {
         setQuoteItems(prevItems =>
             prevItems.map(item => {
-                if (item.productId === productId) {
+                if (item.id === itemId) {
                     const updatedItem = { ...item, ...newValues };
                     const priceResult = calculatePrice({
                         listPrice: updatedItem.listPrice,
@@ -178,6 +199,81 @@ function CreateQuoteTab() {
 
     }, [quoteItems, exchangeRates]);
 
+    const clearForm = () => {
+        setQuoteItems([]);
+        setSelectedCustomerId(null);
+        setProjectName('');
+        setVersionNote('');
+        setGlobalProfitMargin(25);
+        toast({
+            title: "Form Temizlendi",
+            description: "Yeni bir teklif oluşturmaya hazırsınız.",
+        });
+    };
+
+    const handleSaveQuote = async () => {
+        if (!firestore || !user) {
+            toast({ variant: "destructive", title: "Hata", description: "Veritabanı bağlantısı yok veya kullanıcı girişi yapılmamış." });
+            return;
+        }
+        if (!selectedCustomerId) {
+            toast({ variant: "destructive", title: "Eksik Bilgi", description: "Lütfen bir müşteri seçin." });
+            return;
+        }
+        if (quoteItems.length === 0) {
+            toast({ variant: "destructive", title: "Eksik Bilgi", description: "Lütfen sepete en az bir ürün ekleyin." });
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            const batch = writeBatch(firestore);
+
+            // 1. Create Proposal document
+            const proposalRef = doc(collection(firestore, 'proposals'));
+            const proposalData = {
+                customerId: selectedCustomerId,
+                projectName: projectName || 'Genel Teklif',
+                quoteNumber: '', // Will be generated server-side or in a later step
+                status: 'Draft',
+                totalAmount: quoteTotals.grandTotalTRY,
+                exchangeRates,
+                versionNote,
+                createdAt: new Date(),
+                ownerId: user.uid,
+            };
+            batch.set(proposalRef, proposalData);
+
+            // 2. Create ProposalItem documents
+            for (const item of quoteItems) {
+                const itemRef = doc(collection(proposalRef, 'proposal_items'));
+                const { id, ...itemData } = item; // Exclude client-side id
+                batch.set(itemRef, {
+                    ...itemData,
+                    proposalId: proposalRef.id
+                });
+            }
+
+            await batch.commit();
+
+            toast({
+                title: "Başarılı!",
+                description: "Teklifiniz başarıyla kaydedildi.",
+            });
+            clearForm(); // Clear form after successful save
+
+        } catch (error) {
+            console.error("Teklif kaydedilirken hata oluştu:", error);
+            toast({
+                variant: "destructive",
+                title: "Hata",
+                description: "Teklif kaydedilirken bir sorun oluştu. Lütfen tekrar deneyin.",
+            });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     return (
         <div className="flex flex-col gap-4 mt-4">
             <div className="flex items-center justify-between">
@@ -186,9 +282,12 @@ function CreateQuoteTab() {
                     <p className="text-muted-foreground">Teklif No: (Yeni)</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button variant="outline"><Eraser className="mr-2 h-4 w-4" /> Temizle</Button>
-                    <Input placeholder="Versiyon Notu Girin (Örn: Müşteri isteği üzerine pompa değişti)" className="w-96" />
-                    <Button><Save className="mr-2 h-4 w-4" /> Kaydet</Button>
+                    <Button variant="outline" onClick={clearForm} disabled={isSaving}><Eraser className="mr-2 h-4 w-4" /> Temizle</Button>
+                    <Input placeholder="Versiyon Notu Girin (Örn: Müşteri isteği üzerine pompa değişti)" className="w-96" value={versionNote} onChange={e => setVersionNote(e.target.value)} />
+                    <Button onClick={handleSaveQuote} disabled={isSaving}>
+                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                        Kaydet
+                    </Button>
                 </div>
             </div>
 
@@ -197,7 +296,11 @@ function CreateQuoteTab() {
                 <Card>
                     <CardHeader><CardTitle>Cari & Proje Bilgileri</CardTitle></CardHeader>
                     <CardContent className="grid md:grid-cols-2 gap-4">
-                        <Select disabled={areCustomersLoading}>
+                        <Select 
+                            onValueChange={setSelectedCustomerId} 
+                            value={selectedCustomerId || ""} 
+                            disabled={areCustomersLoading || isSaving}
+                        >
                             <SelectTrigger>
                                <SelectValue placeholder={areCustomersLoading ? "Müşteriler yükleniyor..." : "Müşteri Seçiniz..."} />
                             </SelectTrigger>
@@ -205,7 +308,12 @@ function CreateQuoteTab() {
                                 {customers?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                             </SelectContent>
                         </Select>
-                        <Input placeholder="Proje Adı (Örn: Villa Mekanik Tesisat İşleri)" />
+                        <Input 
+                            placeholder="Proje Adı (Örn: Villa Mekanik Tesisat İşleri)" 
+                            value={projectName}
+                            onChange={e => setProjectName(e.target.value)}
+                            disabled={isSaving}
+                        />
                     </CardContent>
                 </Card>
 
@@ -216,7 +324,7 @@ function CreateQuoteTab() {
                             <Select 
                                 value={selectedProductId || ""}
                                 onValueChange={setSelectedProductId}
-                                disabled={areProductsLoading}
+                                disabled={areProductsLoading || isSaving}
                             >
                                 <SelectTrigger className="flex-1">
                                     <SelectValue placeholder={areProductsLoading ? "Ürünler yükleniyor..." : "Ürün Seçiniz veya Arayın..."} />
@@ -231,8 +339,9 @@ function CreateQuoteTab() {
                                 onChange={(e) => setQuantityToAdd(Number(e.target.value))}
                                 className="w-24" 
                                 min="1"
+                                disabled={isSaving}
                             />
-                            <Button onClick={handleAddProduct} disabled={!selectedProductId || areProductsLoading}>
+                            <Button onClick={handleAddProduct} disabled={!selectedProductId || areProductsLoading || isSaving}>
                                {areProductsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
                                 Ekle
                             </Button>
@@ -253,16 +362,17 @@ function CreateQuoteTab() {
                             </TableHeader>
                             <TableBody>
                             {quoteItems.map((item) => (
-                                <TableRow key={item.productId}>
+                                <TableRow key={item.id}>
                                     <TableCell className="font-medium">{item.name}</TableCell>
                                     <TableCell>{item.brand}</TableCell>
                                     <TableCell>
                                         <Input 
                                             type="number" 
                                             value={item.quantity} 
-                                            onChange={(e) => updateItem(item.productId, { quantity: Number(e.target.value) })}
+                                            onChange={(e) => updateItem(item.id, { quantity: Number(e.target.value) })}
                                             className="h-8 w-20 text-center" 
                                             min="1"
+                                            disabled={isSaving}
                                         />
                                     </TableCell>
                                     <TableCell>{item.unit}</TableCell>
@@ -273,14 +383,15 @@ function CreateQuoteTab() {
                                             <Input
                                                 type="number"
                                                 value={Math.round(item.profitMargin * 100)}
-                                                onChange={(e) => updateItem(item.productId, { profitMargin: Number(e.target.value) / 100 })}
+                                                onChange={(e) => updateItem(item.id, { profitMargin: Number(e.target.value) / 100 })}
                                                 className="h-8 w-16 text-center"
+                                                disabled={isSaving}
                                             />
                                             <span className="ml-1">%</span>
                                         </div>
                                     </TableCell>
                                     <TableCell>
-                                        <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.productId)}>
+                                        <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)} disabled={isSaving}>
                                             <Trash2 className="h-4 w-4 text-destructive" />
                                         </Button>
                                     </TableCell>
@@ -316,13 +427,13 @@ function CreateQuoteTab() {
                                 <div className="flex items-center gap-2 mt-1">
                                     <div className="relative flex-1">
                                         <span className="absolute left-2.5 top-2.5 text-sm text-muted-foreground">$</span>
-                                        <Input defaultValue={exchangeRates.USD} onChange={(e) => handleExchangeRateChange('USD', e.target.value)} className="pl-6"/>
+                                        <Input defaultValue={exchangeRates.USD} onChange={(e) => handleExchangeRateChange('USD', e.target.value)} className="pl-6" disabled={isSaving}/>
                                     </div>
                                     <div className="relative flex-1">
                                         <span className="absolute left-2.5 top-2.5 text-sm text-muted-foreground">€</span>
-                                        <Input defaultValue={exchangeRates.EUR} onChange={(e) => handleExchangeRateChange('EUR', e.target.value)} className="pl-6"/>
+                                        <Input defaultValue={exchangeRates.EUR} onChange={(e) => handleExchangeRateChange('EUR', e.target.value)} className="pl-6" disabled={isSaving}/>
                                     </div>
-                                    <Button variant="outline" size="icon" aria-label="Güncel Kurları Çek">
+                                    <Button variant="outline" size="icon" aria-label="Güncel Kurları Çek" disabled={isSaving}>
                                         <RefreshCw className="h-4 w-4" />
                                     </Button>
                                 </div>
@@ -330,13 +441,13 @@ function CreateQuoteTab() {
                              <Separator />
                              <div className="space-y-2">
                                 <Label>Genel Kâr Marjı (%)</Label>
-                                <Input type="number" value={globalProfitMargin} onChange={e => setGlobalProfitMargin(Number(e.target.value))} />
-                                <Button className="w-full" variant="outline" onClick={applyGlobalProfitMargin}>Tüm Ürünlere Uygula</Button>
+                                <Input type="number" value={globalProfitMargin} onChange={e => setGlobalProfitMargin(Number(e.target.value))} disabled={isSaving}/>
+                                <Button className="w-full" variant="outline" onClick={applyGlobalProfitMargin} disabled={isSaving}>Tüm Ürünlere Uygula</Button>
                              </div>
                         </CardContent>
                         <CardFooter>
-                            <Button size="lg" className="w-full">
-                                <Save className="mr-2 h-4 w-4" />
+                            <Button size="lg" className="w-full" onClick={handleSaveQuote} disabled={isSaving}>
+                                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                                 Teklifi Kaydet
                             </Button>
                         </CardFooter>
@@ -433,5 +544,3 @@ export default function QuotesPage() {
     </Tabs>
   );
 }
-
-    
