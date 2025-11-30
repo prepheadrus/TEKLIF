@@ -152,10 +152,6 @@
           "type": "string",
           "description": "Date and time when the proposal was created.",
           "format": "date-time"
-        },
-        "ownerId": {
-            "type": "string",
-            "description": "The UID of the user who created this proposal."
         }
       },
       "required": [
@@ -165,8 +161,7 @@
         "quoteNumber",
         "totalAmount",
         "status",
-        "createdAt",
-        "ownerId"
+        "createdAt"
       ]
     },
     "ProposalItem": {
@@ -253,16 +248,11 @@
         "taxNumber": {
           "type": "string",
           "description": "Tax identification number for the customer."
-        },
-        "ownerId": {
-          "type": "string",
-          "description": "The UID of the user who created this customer."
         }
       },
       "required": [
         "name",
-        "email",
-        "ownerId"
+        "email"
       ]
     },
     "Product": {
@@ -302,10 +292,6 @@
         "discountRate": {
           "type": "number",
           "description": "Discount rate for the product (0 to 1, e.g., 0.15 for 15%)."
-        },
-        "ownerId": {
-          "type": "string",
-          "description": "The UID of the user who created this product."
         }
       },
       "required": [
@@ -316,8 +302,7 @@
         "unit",
         "listPrice",
         "currency",
-        "discountRate",
-        "ownerId"
+        "discountRate"
       ]
     },
     "Supplier": {

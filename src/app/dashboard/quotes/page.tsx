@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect }from 'react';
@@ -14,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCollection, useFirestore, useUser, useMemoFirebase, deleteDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase';
-import { collection, query, writeBatch, doc, getDocs, orderBy, limit, where } from 'firebase/firestore';
+import { collection, query, writeBatch, doc, getDocs, orderBy, limit, where, getDoc } from 'firebase/firestore';
 import { calculatePrice } from '@/lib/pricing';
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter, FirestorePermissionError } from '@/firebase';
@@ -59,14 +58,15 @@ type Proposal = {
     createdAt: { seconds: number, nanoseconds: number };
     customerName: string;
     projectName: string;
+    customerId: string;
     totalAmount: number;
     versionNote: string;
     status: 'Draft' | 'Sent' | 'Approved' | 'Rejected';
+    exchangeRates: { USD: number, EUR: number };
 };
 
 
-function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
-    const { user } = useUser();
+function CreateQuoteTab({ onQuoteSaved, activeTab, onSetActiveTab, quoteToEdit, onQuoteEdited }: { onQuoteSaved: () => void, activeTab: string, onSetActiveTab: (tab: string) => void, quoteToEdit: Proposal | null, onQuoteEdited: () => void }) {
     const firestore = useFirestore();
     const { toast } = useToast();
 
@@ -83,7 +83,9 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
     const [isSuggesting, setIsSuggesting] = useState(false);
     const [isVatIncluded, setIsVatIncluded] = useState(false);
     const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+    const [isFetchingRates, setIsFetchingRates] = useState(false);
     const [productsTrigger, setProductsTrigger] = useState(0);
+    const [quoteHeader, setQuoteHeader] = useState('Teklif Oluştur / Düzenle');
     const VAT_RATE = 0.20;
 
 
@@ -99,6 +101,51 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
         [firestore, productsTrigger]
     );
     const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
+
+    useEffect(() => {
+        const loadQuoteForEditing = async () => {
+            if (quoteToEdit && firestore) {
+                setQuoteHeader(`Teklifi Düzenle: ${quoteToEdit.quoteNumber} (Revizyon)`);
+                setProjectName(quoteToEdit.projectName);
+                setSelectedCustomerId(quoteToEdit.customerId);
+                setVersionNote(quoteToEdit.versionNote ? `${quoteToEdit.versionNote} (revizyon)` : `Revizyon: ${new Date().toLocaleDateString('tr-TR')}`);
+                setExchangeRates(quoteToEdit.exchangeRates || { USD: 34.50, EUR: 36.20 });
+
+                const itemsSnapshot = await getDocs(collection(firestore, 'proposals', quoteToEdit.id, 'proposal_items'));
+                const loadedItems: QuoteItem[] = itemsSnapshot.docs.map(doc => {
+                    const data = doc.data();
+                    const newItem: QuoteItem = {
+                        id: doc.id, // Firestore doc id
+                        productId: data.productId,
+                        name: data.name,
+                        brand: data.brand,
+                        quantity: data.quantity,
+                        unit: data.unit,
+                        listPrice: data.listPrice,
+                        currency: data.currency,
+                        discountRate: data.discountRate,
+                        profitMargin: data.profitMargin,
+                        cost: data.cost,
+                        unitPrice: data.unitPrice,
+                        unitProfit: data.unitProfit,
+                        total: data.total,
+                    };
+                    return newItem;
+                });
+                
+                if (loadedItems.length > 0) {
+                   const firstItemProfitMargin = loadedItems[0].profitMargin;
+                   setGlobalProfitMargin(Math.round(firstItemProfitMargin * 100));
+                }
+                
+                setQuoteItems(loadedItems);
+                onQuoteEdited(); // Reset quoteToEdit in parent
+            }
+        };
+
+        loadQuoteForEditing();
+    }, [quoteToEdit, firestore, onQuoteEdited]);
+
 
     const updateItem = (itemId: string, newValues: Partial<Omit<QuoteItem, 'id'>>) => {
         setQuoteItems(prevItems =>
@@ -134,23 +181,21 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
         const existingItem = quoteItems.find(item => item.productId === productToAdd.id);
 
         if (existingItem) {
-            // If item exists, update its quantity
             updateItem(existingItem.id, { quantity: existingItem.quantity + quantityToAdd });
             toast({
                 title: "Miktar Güncellendi",
                 description: `${productToAdd.name} ürününün miktarı ${quantityToAdd} adet artırıldı.`,
             });
         } else {
-            // If item does not exist, add it as a new item
             const priceResult = calculatePrice({
                 listPrice: productToAdd.listPrice,
                 discountRate: productToAdd.discountRate,
                 profitMargin: globalProfitMargin / 100,
-                exchangeRate: 1, // Will be applied in the summary
+                exchangeRate: 1,
             });
 
             const newItem: QuoteItem = {
-                id: productToAdd.id, // Use product id for client-side key
+                id: productToAdd.id,
                 productId: productToAdd.id,
                 name: productToAdd.name,
                 brand: productToAdd.brand,
@@ -168,7 +213,6 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
             
             const updatedItems = [...quoteItems, newItem];
             setQuoteItems(updatedItems);
-             // AI Suggestions
             setIsSuggesting(true);
             try {
                 const existingParts = updatedItems.map(item => item.name);
@@ -184,7 +228,6 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
                         duration: 8000,
                     });
                 }
-
             } catch (error) {
                 console.error("AI suggestion failed:", error);
             } finally {
@@ -230,6 +273,46 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
         setExchangeRates(prev => ({...prev, [currency]: rate}));
     }
 
+    const fetchExchangeRates = async () => {
+        setIsFetchingRates(true);
+        toast({ title: "Kurlar Alınıyor...", description: "TCMB'den güncel döviz kurları çekiliyor." });
+        try {
+            // Using a CORS proxy to access the XML data from the client
+            const response = await fetch('https://thingproxy.freeboard.io/fetch/https://www.tcmb.gov.tr/kurlar/today.xml');
+            if (!response.ok) throw new Error('Network response was not ok.');
+            const data = await response.text();
+            const parser = new DOMParser();
+            const xml = parser.parseFromString(data, "application/xml");
+            
+            const usdRate = xml.querySelector('Currency[Kod="USD"] BanknoteSelling')?.textContent;
+            const eurRate = xml.querySelector('Currency[Kod="EUR"] BanknoteSelling')?.textContent;
+
+            if (usdRate && eurRate) {
+                const updatedRates = {
+                    USD: parseFloat(usdRate),
+                    EUR: parseFloat(eurRate)
+                };
+                setExchangeRates(updatedRates);
+                toast({
+                    title: "Kurlar Güncellendi!",
+                    description: `USD: ${updatedRates.USD.toFixed(4)} - EUR: ${updatedRates.EUR.toFixed(4)}`,
+                });
+            } else {
+                 throw new Error("XML'den kurlar ayrıştırılamadı.");
+            }
+        } catch (error) {
+            console.error("Failed to fetch exchange rates:", error);
+            toast({
+                variant: "destructive",
+                title: "Hata",
+                description: "Döviz kurları alınamadı. Lütfen daha sonra tekrar deneyin veya manuel girin.",
+            });
+        } finally {
+            setIsFetchingRates(false);
+        }
+    };
+
+
     const formatCurrency = (price: number, currency: string) => {
         const displayCurrency = currency === 'TL' ? 'TRY' : currency;
         return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: displayCurrency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(price);
@@ -266,6 +349,7 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
         setProjectName('');
         setVersionNote('');
         setGlobalProfitMargin(25);
+        setQuoteHeader('Teklif Oluştur / Düzenle');
         toast({
             title: "Form Temizlendi",
             description: "Yeni bir teklif oluşturmaya hazırsınız.",
@@ -318,7 +402,6 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
         const selectedCustomer = customers?.find(c => c.id === selectedCustomerId);
         const newQuoteNumber = await getNextQuoteNumber(firestore);
 
-
         const proposalData = {
             customerId: selectedCustomerId,
             customerName: selectedCustomer?.name || 'Bilinmeyen Müşteri',
@@ -338,6 +421,7 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
     
             for (const item of quoteItems) {
                 const itemRef = doc(collection(proposalRef, 'proposal_items'));
+                // Make sure 'id' (which is the client-side key) is not written to Firestore
                 const { id, ...itemData } = item;
                 batch.set(itemRef, {
                     ...itemData,
@@ -390,8 +474,8 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
         <div className="flex flex-col gap-4 mt-4">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Teklif Oluştur / Düzenle</h1>
-                    <p className="text-muted-foreground">Teklif No: (Yeni)</p>
+                    <h1 className="text-2xl font-bold tracking-tight">{quoteHeader}</h1>
+                    <p className="text-muted-foreground">Teklif No: (Yeni Kayıtta Otomatik Oluşturulur)</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <Button variant="outline" onClick={clearForm} disabled={isSaving}><Eraser className="mr-2 h-4 w-4" /> Temizle</Button>
@@ -469,13 +553,13 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
                                 <TableHead className="w-[10%] min-w-[120px]">Marka</TableHead>
                                 <TableHead className="w-[80px]">Miktar</TableHead>
                                 <TableHead className="w-[70px]">Birim</TableHead>
-                                <TableHead className="text-right w-[140px]">Liste Fiyatı</TableHead>
+                                <TableHead className="text-right min-w-[150px]">Liste Fiyatı</TableHead>
                                 <TableHead className="text-center w-[90px]">% İsk.</TableHead>
-                                <TableHead className="text-right w-[140px]">Maliyet</TableHead>
-                                <TableHead className="text-right w-[140px]">Birim Satış</TableHead>
+                                <TableHead className="text-right min-w-[150px]">Maliyet</TableHead>
+                                <TableHead className="text-right min-w-[150px]">Birim Satış</TableHead>
                                 <TableHead className="text-center w-[90px]">% Kâr</TableHead>
-                                <TableHead className="text-right w-[120px]">Birim Kâr</TableHead>
-                                <TableHead className="text-right w-[140px]">Toplam Tutar</TableHead>
+                                <TableHead className="text-right min-w-[150px]">Birim Kâr</TableHead>
+                                <TableHead className="text-right min-w-[150px]">Toplam Tutar</TableHead>
                                 <TableHead className="w-[50px]"></TableHead>
                             </TableRow>
                             </TableHeader>
@@ -564,14 +648,14 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
                                 <div className="flex items-center gap-2 mt-1">
                                     <div className="relative flex-1">
                                         <span className="absolute left-2.5 top-2.5 text-sm text-muted-foreground">$</span>
-                                        <Input defaultValue={exchangeRates.USD} onChange={(e) => handleExchangeRateChange('USD', e.target.value)} className="pl-6" disabled={isSaving}/>
+                                        <Input value={exchangeRates.USD} onChange={(e) => handleExchangeRateChange('USD', e.target.value)} className="pl-6" disabled={isSaving || isFetchingRates}/>
                                     </div>
                                     <div className="relative flex-1">
                                         <span className="absolute left-2.5 top-2.5 text-sm text-muted-foreground">€</span>
-                                        <Input defaultValue={exchangeRates.EUR} onChange={(e) => handleExchangeRateChange('EUR', e.target.value)} className="pl-6" disabled={isSaving}/>
+                                        <Input value={exchangeRates.EUR} onChange={(e) => handleExchangeRateChange('EUR', e.target.value)} className="pl-6" disabled={isSaving || isFetchingRates}/>
                                     </div>
-                                    <Button variant="outline" size="icon" aria-label="Güncel Kurları Çek" disabled={isSaving}>
-                                        <RefreshCw className="h-4 w-4" />
+                                    <Button variant="outline" size="icon" aria-label="Güncel Kurları Çek" onClick={fetchExchangeRates} disabled={isSaving || isFetchingRates}>
+                                        {isFetchingRates ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                                     </Button>
                                 </div>
                             </div>
@@ -596,22 +680,19 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
     );
 }
 
-function QuoteArchiveTab({ refreshTrigger }: { refreshTrigger: number }) {
+function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: number, onEditQuote: (quote: Proposal) => void }) {
     const { user, isUserLoading } = useUser();
     const firestore = useFirestore();
     const { toast } = useToast();
 
     const proposalsQuery = useMemoFirebase(() => {
-        if (isUserLoading || !user || !firestore) {
-            return null;
-        }
+        if (!firestore) return null;
         return query(collection(firestore, 'proposals'), orderBy("createdAt", "desc"));
-    }, [firestore, refreshTrigger, user, isUserLoading]);
-
+    }, [firestore, refreshTrigger]);
 
     const { data: proposals, isLoading: areProposalsLoading } = useCollection<Proposal>(proposalsQuery);
     
-    if (isUserLoading || (areProposalsLoading && !proposals)) {
+    if (areProposalsLoading && !proposals) {
         return (
             <Card className="mt-4">
                 <CardHeader>
@@ -713,7 +794,7 @@ function QuoteArchiveTab({ refreshTrigger }: { refreshTrigger: number }) {
                                     <TableCell className="text-right font-semibold">{formatCurrency(proposal.totalAmount)}</TableCell>
                                     <TableCell className="text-center flex justify-center gap-1">
                                         <Button variant="ghost" size="icon" aria-label="Teklifi İndir"><Download className="h-4 w-4" /></Button>
-                                        <Button variant="ghost" size="icon" aria-label="Teklifi Düzenle"><Edit className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="icon" aria-label="Teklifi Düzenle" onClick={() => onEditQuote(proposal)}><Edit className="h-4 w-4" /></Button>
                                         <Button variant="ghost" size="icon" aria-label="Teklifi Sil" onClick={() => handleDeleteProposal(proposal.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                     </TableCell>
                                 </TableRow>
@@ -737,8 +818,9 @@ function QuoteArchiveTab({ refreshTrigger }: { refreshTrigger: number }) {
 
 
 export default function QuotesPage() {
-  const [activeTab, setActiveTab] = useState("new");
+  const [activeTab, setActiveTab] = useState("archive");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [quoteToEdit, setQuoteToEdit] = useState<Proposal | null>(null);
 
   const handleQuoteSaved = () => {
     // Switch to archive tab
@@ -747,6 +829,15 @@ export default function QuotesPage() {
     setRefreshTrigger(prev => prev + 1);
   };
   
+  const handleEditQuote = (quote: Proposal) => {
+    setQuoteToEdit(quote);
+    setActiveTab("new");
+  };
+
+  const handleQuoteEdited = () => {
+      setQuoteToEdit(null);
+  }
+
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
@@ -754,13 +845,11 @@ export default function QuotesPage() {
             <TabsTrigger value="new">Yeni Teklif Oluştur</TabsTrigger>
         </TabsList>
         <TabsContent value="archive">
-            <QuoteArchiveTab refreshTrigger={refreshTrigger} />
+            <QuoteArchiveTab refreshTrigger={refreshTrigger} onEditQuote={handleEditQuote} />
         </TabsContent>
         <TabsContent value="new">
-            <CreateQuoteTab onQuoteSaved={handleQuoteSaved} />
+            <CreateQuoteTab onQuoteSaved={handleQuoteSaved} activeTab={activeTab} onSetActiveTab={setActiveTab} quoteToEdit={quoteToEdit} onQuoteEdited={handleQuoteEdited} />
         </TabsContent>
     </Tabs>
   );
 }
-
-    
