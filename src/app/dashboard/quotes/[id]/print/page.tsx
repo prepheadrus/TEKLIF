@@ -119,28 +119,27 @@ export default function PrintQuotePage() {
     }
 
     return (
-        <div className="bg-white text-black min-h-screen">
+        <div className="bg-white text-black min-h-screen text-xs">
              <div className="fixed top-4 right-4 print:hidden z-50">
                 <Button onClick={() => window.print()}>
                     <Printer className="mr-2" /> Yazdır veya PDF Olarak Kaydet
                 </Button>
             </div>
-            <div className="max-w-4xl mx-auto p-8 sm:p-12">
-                <header className="flex justify-between items-start mb-10 pb-4 border-b">
-                    <div className="flex items-start gap-4">
-                        <Image src="/logo-header.png" alt="Firma Logosu" width={100} height={100} className="rounded-md" />
+            <div className="max-w-4xl mx-auto p-8">
+                <header className="flex justify-between items-start mb-6 pb-4 border-b">
+                    <div className="flex items-center gap-4">
+                        <Image src="/logo-header.png" alt="Firma Logosu" width={80} height={80} className="rounded-md" />
                         <div>
-                            <h2 className="text-2xl font-bold text-primary">İMS Mühendislik</h2>
-                             <p className="text-sm font-semibold text-gray-600">Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
+                            <h2 className="text-xl font-bold text-primary">İMS Mühendislik</h2>
+                             <p className="text-xs font-semibold text-gray-600">Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
                             <p className="text-xs max-w-xs mt-2">
                                 Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA
                             </p>
-                            <p className="text-xs mt-1">ims.m.muhendislik@gmail.com</p>
-                            <p className="text-xs">(553) 469 75 01</p>
+                            <p className="text-xs mt-1">ims.m.muhendislik@gmail.com | (553) 469 75 01</p>
                         </div>
                     </div>
                     <div className="text-right">
-                        <h2 className="text-2xl font-bold uppercase tracking-wider">TEKLİF</h2>
+                        <h2 className="text-xl font-bold uppercase tracking-wider">TEKLİF</h2>
                         <p className="mt-1">
                             <span className="font-semibold">Teklif No:</span> {proposal.quoteNumber}
                         </p>
@@ -150,12 +149,12 @@ export default function PrintQuotePage() {
                     </div>
                 </header>
 
-                <section className="mb-8">
-                    <div className="border p-4 rounded-md bg-gray-50">
-                        <h3 className="text-lg font-semibold mb-2">Müşteri Bilgileri</h3>
+                <section className="mb-6">
+                    <div className="border p-3 rounded-md bg-gray-50">
+                        <h3 className="text-base font-semibold mb-1">Müşteri Bilgileri</h3>
                         {isCustomerLoading ? <p>Yükleniyor...</p> : customer ? (
                              <>
-                                <p className="font-bold text-lg">{customer.name}</p>
+                                <p className="font-bold text-base">{customer.name}</p>
                                 <p>{customer.address || 'Adres belirtilmemiş'}</p>
                                 <p>{customer.email} | {customer.phone || 'Telefon belirtilmemiş'}</p>
                                 {customer.taxNumber && <p>Vergi No: {customer.taxNumber}</p>}
@@ -163,42 +162,42 @@ export default function PrintQuotePage() {
                         ) : <p>Müşteri detayı bulunamadı.</p>}
                         
                     </div>
-                     <div className="mt-4">
+                     <div className="mt-3">
                         <span className="font-semibold">Proje:</span> {proposal.projectName}
                     </div>
                 </section>
 
-                <section className="mb-8">
-                    <table className="w-full text-sm text-left">
+                <section className="mb-6">
+                    <table className="w-full text-xs text-left">
                         <thead className="bg-gray-100">
                             <tr>
-                                <th className="p-3 font-semibold">#</th>
-                                <th className="p-3 font-semibold">Açıklama</th>
-                                <th className="p-3 font-semibold">Marka</th>
-                                <th className="p-3 text-center font-semibold">Miktar</th>
-                                <th className="p-3 font-semibold">Birim</th>
-                                <th className="p-3 text-right font-semibold">Birim Fiyat</th>
-                                <th className="p-3 text-right font-semibold">Toplam Tutar</th>
+                                <th className="p-2 font-semibold">#</th>
+                                <th className="p-2 font-semibold">Açıklama</th>
+                                <th className="p-2 font-semibold">Marka</th>
+                                <th className="p-2 text-center font-semibold">Miktar</th>
+                                <th className="p-2 font-semibold">Birim</th>
+                                <th className="p-2 text-right font-semibold">Birim Fiyat</th>
+                                <th className="p-2 text-right font-semibold">Toplam Tutar</th>
                             </tr>
                         </thead>
                         <tbody>
                             {items.map((item, index) => (
                                 <tr key={item.id} className="border-b">
-                                    <td className="p-3">{index + 1}</td>
-                                    <td className="p-3 font-medium">{item.name}</td>
-                                    <td className="p-3">{item.brand}</td>
-                                    <td className="p-3 text-center">{item.quantity}</td>
-                                    <td className="p-3">{item.unit}</td>
-                                    <td className="p-3 text-right">{formatCurrency(item.unitPrice, item.currency)}</td>
-                                    <td className="p-3 text-right font-semibold">{formatCurrency(item.total, item.currency)}</td>
+                                    <td className="p-2">{index + 1}</td>
+                                    <td className="p-2 font-medium">{item.name}</td>
+                                    <td className="p-2">{item.brand}</td>
+                                    <td className="p-2 text-center">{item.quantity}</td>
+                                    <td className="p-2">{item.unit}</td>
+                                    <td className="p-2 text-right">{formatCurrency(item.unitPrice, item.currency)}</td>
+                                    <td className="p-2 text-right font-semibold">{formatCurrency(item.total, item.currency)}</td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                 </section>
 
-                <section className="flex justify-end mb-8">
-                    <div className="w-full sm:w-1/2 lg:w-1/3 space-y-2">
+                <section className="flex justify-end mb-6">
+                    <div className="w-full sm:w-1/2 lg:w-2/5 space-y-1">
                         <div className="flex justify-between">
                             <span className="font-semibold">Ara Toplam:</span>
                             <span>{formatCurrency(totals.subtotal)}</span>
@@ -208,15 +207,15 @@ export default function PrintQuotePage() {
                             <span>{formatCurrency(totals.vat)}</span>
                         </div>
                         <Separator />
-                        <div className="flex justify-between text-xl font-bold text-primary">
+                        <div className="flex justify-between text-base font-bold text-primary">
                             <span>Genel Toplam:</span>
                             <span>{formatCurrency(totals.grandTotal)}</span>
                         </div>
                     </div>
                 </section>
 
-                <footer className="w-full mt-16 pt-4 border-t">
-                     <div className="text-xs text-gray-500 text-center mb-4">
+                <footer className="w-full mt-8 pt-4 border-t">
+                     <div className="text-xs text-gray-500 text-center">
                         <p>
                             Teklifin geçerlilik süresi 15 gündür. Fiyatlarımıza KDV dahildir.
                             Belirtilen döviz kurları ({`USD: ${proposal.exchangeRates.USD.toFixed(2)}`}, {`EUR: ${proposal.exchangeRates.EUR.toFixed(2)}`}) teklif tarihindeki TCMB efektif satış kurudur. Ödeme anındaki kur geçerli olacaktır.
