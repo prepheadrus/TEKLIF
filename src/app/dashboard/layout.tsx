@@ -1,9 +1,8 @@
-
 'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Bot, Home, Users, Package, FileText, Settings, LogOut } from 'lucide-react';
+import { Bot, Home, Users, Package, FileText, Settings, LogOut, Wrench, BookCopy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
@@ -18,9 +17,11 @@ import {
 
 const navItems = [
     { href: '/dashboard', label: 'Anasayfa', icon: Home },
+    { href: '/dashboard/quotes', label: 'Teklifler', icon: FileText },
     { href: '/dashboard/customers', label: 'Müşteriler', icon: Users },
     { href: '/dashboard/products', label: 'Ürünler', icon: Package },
-    { href: '/dashboard/quotes', label: 'Teklifler', icon: FileText },
+    { href: '/dashboard/recipes', label: 'Reçeteler', icon: BookCopy },
+    { href: '/dashboard/resources', label: 'Kaynaklar', icon: Wrench },
 ];
 
 export default function DashboardLayout({
@@ -47,7 +48,7 @@ export default function DashboardLayout({
                 href={item.href}
                 className={cn(
                     "transition-colors hover:text-foreground",
-                    pathname === item.href ? "text-foreground" : "text-muted-foreground"
+                    pathname.startsWith(item.href) ? "text-foreground" : "text-muted-foreground"
                 )}
             >
                 {item.label}

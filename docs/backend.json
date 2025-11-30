@@ -6,10 +6,6 @@
       "type": "object",
       "description": "Represents a material used in the mechanical proposal.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Material entity."
-        },
         "name": {
           "type": "string",
           "description": "Name of the material."
@@ -28,11 +24,10 @@
         },
         "supplierId": {
           "type": "string",
-          "description": "Reference to Supplier. (Relationship: Supplier 1:N Material)"
+          "description": "Reference to Supplier."
         }
       },
       "required": [
-        "id",
         "name",
         "unit",
         "currency",
@@ -46,10 +41,6 @@
       "type": "object",
       "description": "Represents the cost of labor for a specific role.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the LaborCost entity."
-        },
         "role": {
           "type": "string",
           "description": "The role of the laborer (e.g., usta/kalfa)."
@@ -60,7 +51,6 @@
         }
       },
       "required": [
-        "id",
         "role",
         "hourlyRate"
       ]
@@ -69,40 +59,39 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Recipe",
       "type": "object",
-      "description": "Represents a recipe or bill of materials, defining the materials and labor required for a composite item.",
+      "description": "Defines the materials and labor required to produce a single unit of a product.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Recipe entity."
-        },
         "productId": {
           "type": "string",
-          "description": "Reference to Product. (Relationship: Product 1:N Recipe)"
+          "description": "The ID of the product this recipe is for. (Links to a Product document)"
         },
-        "materialId": {
-          "type": "string",
-          "description": "Reference to Material. (Relationship: Material 1:N Recipe)"
-        },
-        "materialQuantity": {
-          "type": "number",
-          "description": "Quantity of the material required in the recipe."
-        },
-        "laborCostId": {
-          "type": "string",
-          "description": "Reference to LaborCost. (Relationship: LaborCost 1:N Recipe)"
-        },
-        "laborHours": {
-          "type": "number",
-          "description": "Hours of labor required in the recipe."
+        "recipeItems": {
+          "type": "array",
+          "description": "A list of materials and labor that make up the product.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "description": "The type of the item, either 'material' or 'labor'.",
+                "enum": ["material", "labor"]
+              },
+              "itemId": {
+                "type": "string",
+                "description": "The ID of the Material or LaborCost document."
+              },
+              "quantity": {
+                "type": "number",
+                "description": "The quantity of the material or the number of hours for labor."
+              }
+            },
+            "required": ["type", "itemId", "quantity"]
+          }
         }
       },
       "required": [
-        "id",
         "productId",
-        "materialId",
-        "materialQuantity",
-        "laborCostId",
-        "laborHours"
+        "recipeItems"
       ]
     },
     "Proposal": {
@@ -124,8 +113,8 @@
           "description": "Reference to the Customer who the proposal is for."
         },
         "customerName": {
-            "type": "string",
-            "description": "Denormalized name of the customer for quick display."
+          "type": "string",
+          "description": "Denormalized name of the customer for quick display."
         },
         "projectName": {
           "type": "string",
@@ -142,19 +131,28 @@
         "exchangeRates": {
           "type": "object",
           "properties": {
-            "USD": {"type": "number"},
-            "EUR": {"type": "number"}
+            "USD": {
+              "type": "number"
+            },
+            "EUR": {
+              "type": "number"
+            }
           },
           "description": "Exchange rates (USD, EUR to TRY) used at the time of proposal creation."
         },
         "versionNote": {
-            "type": "string",
-            "description": "A note describing the changes in this version of the proposal."
+          "type": "string",
+          "description": "A note describing the changes in this version of the proposal."
         },
         "status": {
           "type": "string",
           "description": "Status of the proposal (e.g., Draft, Approved, Sent).",
-          "enum": ["Draft", "Sent", "Approved", "Rejected"]
+          "enum": [
+            "Draft",
+            "Sent",
+            "Approved",
+            "Rejected"
+          ]
         },
         "createdAt": {
           "type": "string",
@@ -189,20 +187,20 @@
           "description": "Reference to the Product."
         },
         "name": {
-            "type": "string",
-            "description": "Name of the product at the time of adding."
+          "type": "string",
+          "description": "Name of the product at the time of adding."
         },
         "brand": {
-            "type": "string",
-            "description": "Brand of the product."
+          "type": "string",
+          "description": "Brand of the product."
         },
         "quantity": {
           "type": "number",
           "description": "Quantity of the product in the proposal item."
         },
         "unit": {
-            "type": "string",
-            "description": "Unit of the product."
+          "type": "string",
+          "description": "Unit of the product."
         },
         "listPrice": {
           "type": "number",
@@ -213,8 +211,8 @@
           "description": "Currency of the list price."
         },
         "discountRate": {
-            "type": "number",
-            "description": "Discount rate applied to the list price."
+          "type": "number",
+          "description": "Discount rate applied to the list price."
         },
         "profitMargin": {
           "type": "number",
@@ -321,10 +319,6 @@
       "type": "object",
       "description": "Represents a supplier of materials.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Supplier entity."
-        },
         "name": {
           "type": "string",
           "description": "Name of the supplier."
@@ -336,7 +330,6 @@
         }
       },
       "required": [
-        "id",
         "name",
         "contactEmail"
       ]
@@ -356,33 +349,15 @@
           "schema": {
             "$ref": "#/backend/entities/Supplier"
           },
-          "description": "Represents a supplier of materials.",
-          "params": [
-            {
-              "name": "supplierId",
-              "description": "Unique identifier for the Supplier entity."
-            }
-          ]
+          "description": "Represents a supplier of materials."
         }
       },
       {
-        "path": "/suppliers/{supplierId}/materials/{materialId}",
+        "path": "/materials/{materialId}",
         "definition": {
-          "entityName": "Material",
-          "schema": {
-            "$ref": "#/backend/entities/Material"
-          },
-          "description": "Represents a material provided by a supplier.  Materials are nested under suppliers for easy access.",
-          "params": [
-            {
-              "name": "supplierId",
-              "description": "Unique identifier for the Supplier entity."
-            },
-            {
-              "name": "materialId",
-              "description": "Unique identifier for the Material entity."
-            }
-          ]
+            "entityName": "Material",
+            "schema": { "$ref": "#/backend/entities/Material" },
+            "description": "Represents a material used in recipes."
         }
       },
       {
@@ -392,13 +367,7 @@
           "schema": {
             "$ref": "#/backend/entities/LaborCost"
           },
-          "description": "Represents the cost of labor for a specific role.",
-          "params": [
-            {
-              "name": "laborCostId",
-              "description": "Unique identifier for the LaborCost entity."
-            }
-          ]
+          "description": "Represents the cost of labor for a specific role."
         }
       },
       {
@@ -408,13 +377,7 @@
           "schema": {
             "$ref": "#/backend/entities/Recipe"
           },
-          "description": "Represents a recipe or bill of materials.",
-          "params": [
-            {
-              "name": "recipeId",
-              "description": "Unique identifier for the Recipe entity."
-            }
-          ]
+          "description": "Represents a recipe or bill of materials for a product."
         }
       },
       {
@@ -424,29 +387,17 @@
           "schema": {
             "$ref": "#/backend/entities/Customer"
           },
-          "description": "Represents a customer.",
-          "params": [
-            {
-              "name": "customerId",
-              "description": "Unique identifier for the Customer entity."
-            }
-          ]
+          "description": "Represents a customer."
         }
       },
-       {
+      {
         "path": "/proposals/{proposalId}",
         "definition": {
           "entityName": "Proposal",
           "schema": {
             "$ref": "#/backend/entities/Proposal"
           },
-          "description": "Represents a proposal document. Each document is a specific version of a proposal.",
-          "params": [
-            {
-              "name": "proposalId",
-              "description": "Unique identifier for a specific Proposal version."
-            }
-          ]
+          "description": "Represents a proposal document. Each document is a specific version of a proposal."
         }
       },
       {
@@ -456,17 +407,7 @@
           "schema": {
             "$ref": "#/backend/entities/ProposalItem"
           },
-          "description": "Represents an individual line item within a specific proposal version.",
-          "params": [
-            {
-              "name": "proposalId",
-              "description": "Unique identifier for the parent Proposal version."
-            },
-            {
-              "name": "proposalItemId",
-              "description": "Unique identifier for the ProposalItem."
-            }
-          ]
+          "description": "Represents an individual line item within a specific proposal version."
         }
       },
       {
@@ -476,16 +417,10 @@
           "schema": {
             "$ref": "#/backend/entities/Product"
           },
-          "description": "Represents a product.",
-          "params": [
-            {
-              "name": "productId",
-              "description": "Unique identifier for the Product entity."
-            }
-          ]
+          "description": "Represents a product."
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to support the MechQuote application's requirements for managing materials, labor costs, recipes, proposals, customers, products, and suppliers. The structure emphasizes authorization independence, clarity, and scalability.\n\n**Authorization Independence:** To avoid hierarchical authorization dependencies and enable atomic operations, authorization-related data is denormalized. For example, if proposal access depends on customer attributes, those attributes would ideally be copied into the `Proposal` document. However, given the entities and their relationships, path-based ownership is prioritized where applicable.\n\n**Structural Segregation:** Data with different access requirements are stored in separate collections. User-specific data is segregated under `/users/{userId}` to simplify security rules.\n\n**Access Modeling:** Path-based ownership is employed for user-related data (although user entities aren't explicitly defined in the provided schema, the assumption is made they will exist). Membership maps are used for collaborative data, if any such data existed. Global roles can be managed using dedicated collections like `/roles_admin/{uid}`.\n\n**QAPs (Rules Are Not Filters):** The structure supports secure list operations (QAPs) through structural segregation and path-based ownership. Listing proposals for a specific customer can be secured by querying the `/customers/{customerId}/proposals` collection, where security rules can easily validate the user's access to the customer's data.\n\n**Invariants:** The structure will enforce invariants through the use of server-side functions and Firebase Triggers to ensure data integrity, particularly for ownership and timestamp management, and denormalized data consistency.\n\n**Specific Implementation Details:**\n\n*   `/suppliers/{supplierId}/materials/{materialId}`: Materials are nested under Suppliers to reflect their relationship and to facilitate querying materials by supplier. While it introduces a hierarchy, this structure is appropriate since materials are tightly coupled to suppliers and are not typically shared across different ones. Rules can be written to allow only the supplier to manage their own materials.\n*   `/customers/{customerId}/proposals/{proposalId}`: Proposals are nested under Customers, enforcing customer-specific access. This structure makes it straightforward to list proposals for a specific customer and to enforce security rules based on the customer's ID.\n*   The other entities, not associated to a specific user, are placed on root collections."
+    "reasoning": "The Firestore structure is updated to support a more robust cost analysis system. Key collections like `materials`, `labor_costs`, `suppliers`, and `recipes` are now top-level collections. This flat structure simplifies security rules and queries, avoiding deep nesting. The `Recipe` entity is redesigned to hold an array of `recipeItems`, allowing a single product to be composed of multiple materials and labor types, which is a more realistic representation of a bill of materials. All other collections remain as they were to support existing functionality for customers, products, and proposals."
   }
 }
