@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useCollection, useFirestore, useUser, useMemoFirebase, addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
+import { useCollection, useFirestore, useUser, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, query, where, writeBatch, doc } from 'firebase/firestore';
 import { calculatePrice } from '@/lib/pricing';
 import { useToast } from "@/hooks/use-toast";
@@ -35,7 +35,7 @@ type QuoteItem = {
     id: string;
     productId: string;
     name: string;
-    brand: string;
+    brand:string;
     quantity: number;
     unit: string;
     listPrice: number;
@@ -48,13 +48,18 @@ type QuoteItem = {
     total: number; // total sell price in original currency
 };
 
+type Proposal = {
+    id: string;
+    quoteNumber: string;
+    createdAt: { seconds: number, nanoseconds: number };
+    customerName: string;
+    projectName: string;
+    totalAmount: number;
+    // Assuming exchangeRates are stored but not shown in this specific table
+};
 
-const mockQuotes = [
-    { id: '1', quoteNo: '2025/002', date: '30.11.2025', customer: 'Ersen Kazar', project: 'Mekanik Tesisat İşleri', total: 5720614.80, currency: 'TRY', versions: 8 },
-    { id: '2', quoteNo: '2025/001', date: '30.11.2025', customer: 'Ersen Kazar', project: 'deneme', total: 127107.94, currency: 'TRY', versions: 3 },
-];
 
-function CreateQuoteTab() {
+function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
     const { user } = useUser();
     const firestore = useFirestore();
     const { toast } = useToast();
@@ -227,13 +232,15 @@ function CreateQuoteTab() {
     
         setIsSaving(true);
         try {
-            // Firestore batch write
             const batch = writeBatch(firestore);
     
-            // 1. Create Proposal document
             const proposalRef = doc(collection(firestore, 'proposals'));
+
+            const selectedCustomer = customers?.find(c => c.id === selectedCustomerId);
+    
             const proposalData = {
                 customerId: selectedCustomerId,
+                customerName: selectedCustomer?.name || 'Bilinmeyen Müşteri',
                 projectName: projectName || 'Genel Teklif',
                 quoteNumber: '', // Will be generated server-side or in a later step
                 status: 'Draft',
@@ -245,10 +252,9 @@ function CreateQuoteTab() {
             };
             batch.set(proposalRef, proposalData);
     
-            // 2. Create ProposalItem documents
             for (const item of quoteItems) {
                 const itemRef = doc(collection(proposalRef, 'proposal_items'));
-                const { id, ...itemData } = item; // Exclude client-side id
+                const { id, ...itemData } = item;
                 batch.set(itemRef, {
                     ...itemData,
                     proposalId: proposalRef.id,
@@ -261,7 +267,8 @@ function CreateQuoteTab() {
                 title: "Başarılı!",
                 description: "Teklifiniz başarıyla kaydedildi.",
             });
-            clearForm(); // Clear form after successful save
+            clearForm();
+            onQuoteSaved();
     
         } catch (error) {
             console.error("Teklif kaydedilirken hata oluştu:", error);
@@ -459,7 +466,39 @@ function CreateQuoteTab() {
     );
 }
 
-function QuoteArchiveTab() {
+function QuoteArchiveTab({ refreshTrigger }: { refreshTrigger: number }) {
+    const { user } = useUser();
+    const firestore = useFirestore();
+    const { toast } = useToast();
+
+    const proposalsQuery = useMemoFirebase(() => 
+        user && firestore ? query(collection(firestore, 'proposals'), where("ownerId", "==", user.uid)) : null,
+        [user, firestore, refreshTrigger]
+    );
+
+    const { data: proposals, isLoading: areProposalsLoading } = useCollection<Proposal>(proposalsQuery);
+
+    const handleDeleteProposal = (id: string) => {
+        if (!firestore) return;
+        
+        // TODO: Also delete sub-collection items in a batch or cloud function
+        const proposalDocRef = doc(firestore, 'proposals', id);
+        deleteDocumentNonBlocking(proposalDocRef);
+        toast({
+          title: "Başarılı",
+          description: "Teklif silindi. Arşivin güncellenmesi biraz zaman alabilir.",
+        });
+    };
+
+    const formatDate = (timestamp: { seconds: number, nanoseconds: number }) => {
+        if (!timestamp) return '-';
+        return new Date(timestamp.seconds * 1000).toLocaleDateString('tr-TR');
+    }
+
+    const formatCurrency = (price: number) => {
+        return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(price);
+    }
+
     return (
         <Card className="mt-4">
             <CardHeader>
@@ -473,7 +512,6 @@ function QuoteArchiveTab() {
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input placeholder="Teklif, müşteri veya projede ara..." className="pl-8 w-64" />
                         </div>
-                        <Button variant="outline"><RefreshCw className="mr-2 h-4 w-4" /> Yenile</Button>
                     </div>
                 </div>
             </CardHeader>
@@ -485,33 +523,40 @@ function QuoteArchiveTab() {
                             <TableHead>Tarih</TableHead>
                             <TableHead>Müşteri</TableHead>
                             <TableHead>Proje</TableHead>
-                            <TableHead>Geçmiş</TableHead>
+                            <TableHead>Versiyon</TableHead>
                             <TableHead className="text-right">Son Tutar</TableHead>
                             <TableHead className="text-center">İşlemler</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {mockQuotes.map((quote) => (
-                            <TableRow key={quote.id}>
-                                <TableCell className="font-medium">{quote.quoteNo}</TableCell>
-                                <TableCell>{quote.date}</TableCell>
-                                <TableCell>{quote.customer}</TableCell>
-                                <TableCell>{quote.project}</TableCell>
-                                <TableCell>
-                                    <Badge variant="outline" className="flex items-center gap-1.5 w-fit">
-                                        <History className="h-3 w-3" />
-                                        {quote.versions} versiyon
-                                    </Badge>
-                                </TableCell>
-                                <TableCell className="text-right font-semibold">{quote.total.toLocaleString('tr-TR', { style: 'currency', currency: quote.currency })}</TableCell>
-                                <TableCell className="text-center flex justify-center gap-1">
-                                    <Button variant="ghost" size="icon" aria-label="Teklifi İndir"><Download className="h-4 w-4" /></Button>
-                                    <Button variant="ghost" size="icon" aria-label="Teklifi Düzenle"><Edit className="h-4 w-4" /></Button>
-                                    <Button variant="ghost" size="icon" aria-label="Teklifi Sil"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        {areProposalsLoading ? (
+                            <TableRow>
+                                <TableCell colSpan={7} className="text-center">
+                                    <Loader2 className="mx-auto h-8 w-8 animate-spin text-muted-foreground" />
                                 </TableCell>
                             </TableRow>
-                        ))}
-                         {mockQuotes.length === 0 && (
+                        ) : proposals && proposals.length > 0 ? (
+                            proposals.map((proposal) => (
+                                <TableRow key={proposal.id}>
+                                    <TableCell className="font-medium">{proposal.quoteNumber || proposal.id.slice(0,6)}</TableCell>
+                                    <TableCell>{formatDate(proposal.createdAt)}</TableCell>
+                                    <TableCell>{proposal.customerName}</TableCell>
+                                    <TableCell>{proposal.projectName}</TableCell>
+                                    <TableCell>
+                                        <Badge variant="outline" className="flex items-center gap-1.5 w-fit">
+                                            <History className="h-3 w-3" />
+                                            {proposal.versionNote || 'İlk Versiyon'}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right font-semibold">{formatCurrency(proposal.totalAmount)}</TableCell>
+                                    <TableCell className="text-center flex justify-center gap-1">
+                                        <Button variant="ghost" size="icon" aria-label="Teklifi İndir"><Download className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="icon" aria-label="Teklifi Düzenle"><Edit className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="icon" aria-label="Teklifi Sil" onClick={() => handleDeleteProposal(proposal.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
                             <TableRow>
                                 <TableCell colSpan={7} className="text-center h-24">
                                     Henüz arşivlenmiş bir teklif bulunmuyor.
@@ -530,17 +575,27 @@ function QuoteArchiveTab() {
 
 
 export default function QuotesPage() {
+  const [activeTab, setActiveTab] = useState("archive");
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const handleQuoteSaved = () => {
+    // Switch to archive tab
+    setActiveTab("archive");
+    // Trigger a refresh of the archive list
+    setRefreshTrigger(prev => prev + 1);
+  };
+  
   return (
-    <Tabs defaultValue="new">
+    <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
             <TabsTrigger value="archive">Teklif Arşivi</TabsTrigger>
             <TabsTrigger value="new">Yeni Teklif Oluştur</TabsTrigger>
         </TabsList>
         <TabsContent value="archive">
-            <QuoteArchiveTab />
+            <QuoteArchiveTab refreshTrigger={refreshTrigger} />
         </TabsContent>
         <TabsContent value="new">
-            <CreateQuoteTab />
+            <CreateQuoteTab onQuoteSaved={handleQuoteSaved} />
         </TabsContent>
     </Tabs>
   );

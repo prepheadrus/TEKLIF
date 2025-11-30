@@ -115,6 +115,10 @@
           "type": "string",
           "description": "Reference to the Customer who the proposal is for."
         },
+        "customerName": {
+            "type": "string",
+            "description": "Denormalized name of the customer for quick display."
+        },
         "projectName": {
           "type": "string",
           "description": "The name of the project this proposal is for."
@@ -156,6 +160,7 @@
       },
       "required": [
         "customerId",
+        "customerName",
         "projectName",
         "totalAmount",
         "status",
