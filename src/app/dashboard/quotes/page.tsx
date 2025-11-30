@@ -991,3 +991,4 @@ export default function QuotesPage() {
     </Tabs>
   );
 }
+
