@@ -2,6 +2,7 @@
 
 import { useParams } from 'next/navigation';
 import { useMemo } from 'react';
+import Image from 'next/image';
 import { useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 import { Loader2, Printer } from 'lucide-react';
@@ -121,8 +122,8 @@ export default function PrintQuotePage() {
             <div className="max-w-4xl mx-auto p-8 sm:p-12">
                 <header className="flex justify-between items-start mb-8">
                     <div>
-                        <h1 className="text-3xl font-bold text-primary">MechQuote A.Ş.</h1>
-                        <p>Mekanik Tesisat Çözümleri</p>
+                        <Image src="/logo-header.png" alt="Firma Logosu" width={250} height={100} />
+                        <p className="mt-2">Mekanik Tesisat Çözümleri</p>
                         <p>Sanayi Mah. Teknoloji Cad. No:1 D:2, İstanbul</p>
                         <p>iletisim@mechquote.com | +90 212 123 45 67</p>
                     </div>
@@ -203,11 +204,16 @@ export default function PrintQuotePage() {
                 </section>
 
                 <footer className="text-xs text-gray-500 mt-12 pt-4 border-t">
-                    <p>
-                        Teklifin geçerlilik süresi 15 gündür. Fiyatlarımıza KDV dahildir.
-                        Belirtilen döviz kurları ({`USD: ${proposal.exchangeRates.USD.toFixed(2)}`}, {`EUR: ${proposal.exchangeRates.EUR.toFixed(2)}`}) teklif tarihindeki TCMB efektif satış kurudur. Ödeme anındaki kur geçerli olacaktır.
-                    </p>
-                    <p className="mt-4 text-center font-semibold">MechQuote A.Ş. | Teşekkür Ederiz!</p>
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <p>
+                                Teklifin geçerlilik süresi 15 gündür. Fiyatlarımıza KDV dahildir.
+                                Belirtilen döviz kurları ({`USD: ${proposal.exchangeRates.USD.toFixed(2)}`}, {`EUR: ${proposal.exchangeRates.EUR.toFixed(2)}`}) teklif tarihindeki TCMB efektif satış kurudur. Ödeme anındaki kur geçerli olacaktır.
+                            </p>
+                            <p className="mt-4 font-semibold">MechQuote A.Ş. | Teşekkür Ederiz!</p>
+                        </div>
+                        <Image src="/logo-footer.png" alt="Firma Sertifika Logosu" width={100} height={100} />
+                    </div>
                 </footer>
             </div>
         </div>
