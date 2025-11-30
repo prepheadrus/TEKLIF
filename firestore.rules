@@ -142,7 +142,7 @@ service cloud.firestore {
        *   /proposals/{proposalId}/proposal_items/{proposalItemId}
        */
       match /proposal_items/{proposalItemId} {
-          allow get, list, create, update, delete: if isOwner(get(/databases/$(database)/documents/proposals/$(proposalId)));
+          allow read, write: if isOwner(get(/databases/$(database)/documents/proposals/$(proposalId)));
       }
     }
 
