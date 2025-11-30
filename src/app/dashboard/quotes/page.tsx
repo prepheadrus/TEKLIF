@@ -42,7 +42,7 @@ type QuoteItem = {
     unit: string;
     listPrice: number;
     currency: 'TRY' | 'USD' | 'EUR';
-    discountRate: number;
+    discountRate: number; // 0.15 for 15%
     profitMargin: number; // 0.25 for 25%
     // Calculated fields
     cost: number;
@@ -422,14 +422,17 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
                         <Table>
                             <TableHeader>
                             <TableRow>
-                                <TableHead className="w-[30%]">Açıklama</TableHead>
+                                <TableHead className="w-[25%]">Açıklama</TableHead>
                                 <TableHead>Marka</TableHead>
-                                <TableHead className="w-[100px]">Miktar</TableHead>
+                                <TableHead className="w-[80px]">Miktar</TableHead>
                                 <TableHead>Birim</TableHead>
+                                <TableHead className="text-right">Liste Fiyatı</TableHead>
+                                <TableHead className="text-center w-[100px]">% İsk.</TableHead>
+                                <TableHead className="text-right">Maliyet</TableHead>
                                 <TableHead className="text-right">Birim Satış</TableHead>
-                                <TableHead className="text-right">Birim Kâr (TL)</TableHead>
+                                <TableHead className="text-center w-[100px]">% Kâr</TableHead>
+                                <TableHead className="text-right">Birim Kâr</TableHead>
                                 <TableHead className="text-right">Toplam Tutar</TableHead>
-                                <TableHead className="text-center w-[120px]">% Kâr</TableHead>
                                 <TableHead className="w-[50px]"></TableHead>
                             </TableRow>
                             </TableHeader>
@@ -450,17 +453,27 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
                                             type="number" 
                                             value={item.quantity} 
                                             onChange={(e) => updateItem(item.id, { quantity: Number(e.target.value) })}
-                                            className="h-8 w-20 text-center" 
+                                            className="h-8 w-16 text-center" 
                                             min="1"
                                             disabled={isSaving}
                                         />
                                     </TableCell>
                                     <TableCell>{item.unit}</TableCell>
-                                    <TableCell className="text-right">{formatCurrency(item.unitPrice, item.currency)}</TableCell>
-                                    <TableCell className="text-right text-green-600 font-medium">
-                                        {formatCurrency(item.unitProfit, 'TRY')}
+                                    <TableCell className="text-right">{formatCurrency(item.listPrice, item.currency)}</TableCell>
+                                    <TableCell>
+                                        <div className='flex items-center justify-center'>
+                                            <Input
+                                                type="number"
+                                                value={Math.round(item.discountRate * 100)}
+                                                onChange={(e) => updateItem(item.id, { discountRate: Number(e.target.value) / 100 })}
+                                                className="h-8 w-16 text-center"
+                                                disabled={isSaving}
+                                            />
+                                             <span className="ml-1 text-xs">%</span>
+                                        </div>
                                     </TableCell>
-                                    <TableCell className="text-right font-semibold">{formatCurrency(item.total, item.currency)}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(item.cost, item.currency)}</TableCell>
+                                    <TableCell className="text-right font-semibold">{formatCurrency(item.unitPrice, item.currency)}</TableCell>
                                     <TableCell>
                                         <div className='flex items-center justify-center'>
                                             <Input
@@ -470,9 +483,13 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
                                                 className="h-8 w-16 text-center"
                                                 disabled={isSaving}
                                             />
-                                            <span className="ml-1">%</span>
+                                            <span className="ml-1 text-xs">%</span>
                                         </div>
                                     </TableCell>
+                                    <TableCell className="text-right text-green-600 font-medium">
+                                        {formatCurrency(item.unitProfit, 'TRY')}
+                                    </TableCell>
+                                    <TableCell className="text-right font-bold">{formatCurrency(item.total, item.currency)}</TableCell>
                                     <TableCell>
                                         <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)} disabled={isSaving}>
                                             <Trash2 className="h-4 w-4 text-destructive" />
@@ -482,7 +499,7 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
                             ))}
                              {quoteItems.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={9} className="text-center h-24">
+                                    <TableCell colSpan={12} className="text-center h-24">
                                         Sepete eklemek için yukarıdan bir ürün seçin.
                                     </TableCell>
                                 </TableRow>
