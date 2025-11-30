@@ -102,6 +102,11 @@ export default function ProductsPage() {
 
   const isLoading = isUserLoading || areProductsLoading;
 
+  const formatCurrency = (price: number, currency: string) => {
+    const displayCurrency = currency === 'TL' ? 'TRY' : currency;
+    return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: displayCurrency }).format(price);
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -202,7 +207,7 @@ export default function ProductsPage() {
                     <TableCell className="font-medium">{product.code}</TableCell>
                     <TableCell>{product.name}</TableCell>
                     <TableCell>{product.brand}</TableCell>
-                    <TableCell>{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: product.currency }).format(product.listPrice)}</TableCell>
+                    <TableCell>{formatCurrency(product.listPrice, product.currency)}</TableCell>
                     <TableCell className="text-right">
                        <Button variant="ghost" size="icon" onClick={() => handleDeleteProduct(product.id)}>
                           <Trash2 className="h-4 w-4" />
