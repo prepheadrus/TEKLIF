@@ -71,17 +71,8 @@ export default function PrintQuotePage() {
     
     const isLoading = isProposalLoading || areItemsLoading || isCustomerLoading;
 
-    // This effect will run once data is loaded and trigger the print dialog.
-    useEffect(() => {
-        if (!isLoading && proposal) {
-            document.title = `Teklif-${proposal.quoteNumber}`;
-            // A small delay ensures all content is rendered before printing
-            const timer = setTimeout(() => {
-                window.print();
-            }, 500); 
-            return () => clearTimeout(timer);
-        }
-    }, [isLoading, proposal]);
+    const allDataLoaded = !!proposal && !!items && !!customer;
+
     
     const formatDate = (timestamp?: { seconds: number }) => {
         if (!timestamp) return '-';
@@ -108,131 +99,116 @@ export default function PrintQuotePage() {
     }, [items, proposal]);
 
 
-    if (isLoading) {
-        return (
-            <div className="flex h-screen items-center justify-center bg-white text-black">
-                <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                <p className="ml-4 text-lg">Teklif verileri yükleniyor...</p>
-            </div>
-        );
-    }
-
-    if (!proposal || !items) {
-        return (
-            <div className="p-8 text-center text-red-500 bg-white text-black">
-                <p>Teklif bulunamadı veya yüklenemedi.</p>
-                <p className="mt-4">
-                    <Button onClick={() => window.close()}>Bu Sekmeyi Kapat</Button>
-                </p>
-            </div>
-        );
-    }
-
     return (
         <div className="bg-white text-black min-h-screen text-xs print:p-0 p-8">
-             <div className="fixed top-4 right-4 print:hidden z-50">
-                <Button onClick={() => window.print()}>
-                    <Printer className="mr-2" /> Yazdır veya PDF Olarak Kaydet
-                </Button>
-            </div>
-            <div className="max-w-4xl mx-auto">
-                <header className="flex justify-between items-start mb-6 pb-4 border-b">
-                    <div className="flex items-center gap-4">
-                        <Image src="/logo-header.png" alt="Firma Logosu" width={80} height={80} className="rounded-md" />
-                        <div>
-                            <h2 className="text-xl font-bold text-primary">İMS Mühendislik</h2>
-                             <p className="text-xs font-semibold text-gray-600">Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
-                            <p className="text-xs max-w-xs mt-2">
-                                Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA
+            {isLoading || !allDataLoaded ? (
+                 <div className="flex h-screen items-center justify-center">
+                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                    <p className="ml-4 text-lg">Teklif verileri yükleniyor...</p>
+                </div>
+            ) : (
+                <>
+                <div className="fixed top-4 right-4 print:hidden z-50">
+                    <Button onClick={() => window.print()}>
+                        <Printer className="mr-2" /> Yazdır veya PDF Olarak Kaydet
+                    </Button>
+                </div>
+                <div className="max-w-4xl mx-auto">
+                    <header className="flex justify-between items-start mb-6 pb-4 border-b">
+                        <div className="flex items-center gap-4">
+                            <Image src="/logo-header.png" alt="Firma Logosu" width={80} height={80} className="rounded-md" />
+                            <div>
+                                <h2 className="text-xl font-bold text-primary">İMS Mühendislik</h2>
+                                <p className="text-xs font-semibold text-gray-600">Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
+                                <p className="text-xs max-w-xs mt-2">
+                                    Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA
+                                </p>
+                                <p className="text-xs mt-1">ims.m.muhendislik@gmail.com | (553) 469 75 01</p>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <h2 className="text-xl font-bold uppercase tracking-wider">TEKLİF</h2>
+                            <p className="mt-1">
+                                <span className="font-semibold">Teklif No:</span> {proposal.quoteNumber}
                             </p>
-                            <p className="text-xs mt-1">ims.m.muhendislik@gmail.com | (553) 469 75 01</p>
+                            <p>
+                                <span className="font-semibold">Tarih:</span> {formatDate(proposal.createdAt)}
+                            </p>
                         </div>
-                    </div>
-                    <div className="text-right">
-                        <h2 className="text-xl font-bold uppercase tracking-wider">TEKLİF</h2>
-                        <p className="mt-1">
-                            <span className="font-semibold">Teklif No:</span> {proposal.quoteNumber}
-                        </p>
-                        <p>
-                            <span className="font-semibold">Tarih:</span> {formatDate(proposal.createdAt)}
-                        </p>
-                    </div>
-                </header>
+                    </header>
 
-                <section className="mb-6">
-                    <div className="border p-3 rounded-md bg-gray-50">
-                        <h3 className="text-base font-semibold mb-1">Müşteri Bilgileri</h3>
-                        {isCustomerLoading ? <p>Yükleniyor...</p> : customer ? (
-                             <>
-                                <p className="font-bold text-base">{customer.name}</p>
-                                <p>{customer.address || 'Adres belirtilmemiş'}</p>
-                                <p>{customer.email} | {customer.phone || 'Telefon belirtilmemiş'}</p>
-                                {customer.taxNumber && <p>Vergi No: {customer.taxNumber}</p>}
-                             </>
-                        ) : <p>Müşteri detayı bulunamadı.</p>}
-                        
-                    </div>
-                     <div className="mt-3">
-                        <span className="font-semibold">Proje:</span> {proposal.projectName}
-                    </div>
-                </section>
+                    <section className="mb-6">
+                        <div className="border p-3 rounded-md bg-gray-50">
+                            <h3 className="text-base font-semibold mb-1">Müşteri Bilgileri</h3>
+                            <p className="font-bold text-base">{customer.name}</p>
+                            <p>{customer.address || 'Adres belirtilmemiş'}</p>
+                            <p>{customer.email} | {customer.phone || 'Telefon belirtilmemiş'}</p>
+                            {customer.taxNumber && <p>Vergi No: {customer.taxNumber}</p>}
+                            
+                        </div>
+                        <div className="mt-3">
+                            <span className="font-semibold">Proje:</span> {proposal.projectName}
+                        </div>
+                    </section>
 
-                <section className="mb-6">
-                    <table className="w-full text-xs text-left">
-                        <thead className="bg-gray-100">
-                            <tr>
-                                <th className="p-2 font-semibold">#</th>
-                                <th className="p-2 font-semibold">Açıklama</th>
-                                <th className="p-2 font-semibold">Marka</th>
-                                <th className="p-2 text-center font-semibold">Miktar</th>
-                                <th className="p-2 font-semibold">Birim</th>
-                                <th className="p-2 text-right font-semibold">Birim Fiyat</th>
-                                <th className="p-2 text-right font-semibold">Toplam Tutar</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {items.map((item, index) => (
-                                <tr key={item.id} className="border-b">
-                                    <td className="p-2">{index + 1}</td>
-                                    <td className="p-2 font-medium">{item.name}</td>
-                                    <td className="p-2">{item.brand}</td>
-                                    <td className="p-2 text-center">{item.quantity}</td>
-                                    <td className="p-2">{item.unit}</td>
-                                    <td className="p-2 text-right">{formatCurrency(item.unitPrice, item.currency)}</td>
-                                    <td className="p-2 text-right font-semibold">{formatCurrency(item.total, item.currency)}</td>
+                    <section className="mb-6">
+                        <table className="w-full text-xs text-left">
+                            <thead className="bg-gray-100">
+                                <tr>
+                                    <th className="p-2 font-semibold">#</th>
+                                    <th className="p-2 font-semibold">Açıklama</th>
+                                    <th className="p-2 font-semibold">Marka</th>
+                                    <th className="p-2 text-center font-semibold">Miktar</th>
+                                    <th className="p-2 font-semibold">Birim</th>
+                                    <th className="p-2 text-right font-semibold">Birim Fiyat</th>
+                                    <th className="p-2 text-right font-semibold">Toplam Tutar</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </section>
+                            </thead>
+                            <tbody>
+                                {items.map((item, index) => (
+                                    <tr key={item.id} className="border-b">
+                                        <td className="p-2">{index + 1}</td>
+                                        <td className="p-2 font-medium">{item.name}</td>
+                                        <td className="p-2">{item.brand}</td>
+                                        <td className="p-2 text-center">{item.quantity}</td>
+                                        <td className="p-2">{item.unit}</td>
+                                        <td className="p-2 text-right">{formatCurrency(item.unitPrice, item.currency)}</td>
+                                        <td className="p-2 text-right font-semibold">{formatCurrency(item.total, item.currency)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </section>
 
-                <section className="flex justify-end mb-6">
-                    <div className="w-full sm:w-1/2 lg:w-2/5 space-y-1">
-                        <div className="flex justify-between">
-                            <span className="font-semibold">Ara Toplam:</span>
-                            <span>{formatCurrency(totals.subtotal)}</span>
+                    <section className="flex justify-end mb-6">
+                        <div className="w-full sm:w-1/2 lg:w-2/5 space-y-1">
+                            <div className="flex justify-between">
+                                <span className="font-semibold">Ara Toplam:</span>
+                                <span>{formatCurrency(totals.subtotal)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="font-semibold">KDV (%20):</span>
+                                <span>{formatCurrency(totals.vat)}</span>
+                            </div>
+                            <Separator />
+                            <div className="flex justify-between text-base font-bold text-primary">
+                                <span>Genel Toplam:</span>
+                                <span>{formatCurrency(totals.grandTotal)}</span>
+                            </div>
                         </div>
-                        <div className="flex justify-between">
-                            <span className="font-semibold">KDV (%20):</span>
-                            <span>{formatCurrency(totals.vat)}</span>
-                        </div>
-                        <Separator />
-                        <div className="flex justify-between text-base font-bold text-primary">
-                            <span>Genel Toplam:</span>
-                            <span>{formatCurrency(totals.grandTotal)}</span>
-                        </div>
-                    </div>
-                </section>
+                    </section>
 
-                <footer className="w-full mt-8 pt-4 border-t">
-                     <div className="text-xs text-gray-500 text-center">
-                        <p>
-                            Teklifin geçerlilik süresi 15 gündür. Fiyatlarımıza KDV dahildir.
-                        </p>
-                        <p className="mt-2 font-semibold">İMS Mühendislik | Teşekkür Ederiz!</p>
-                    </div>
-                </footer>
-            </div>
+                    <footer className="w-full mt-8 pt-4 border-t">
+                        <div className="text-xs text-gray-500 text-center">
+                            <p>
+                                Teklifin geçerlilik süresi 15 gündür. Fiyatlarımıza KDV dahildir.
+                            </p>
+                            <p className="mt-2 font-semibold">İMS Mühendislik | Teşekkür Ederiz!</p>
+                        </div>
+                    </footer>
+                </div>
+                </>
+            )}
         </div>
     );
 }
