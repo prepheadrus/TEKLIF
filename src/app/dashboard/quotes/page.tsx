@@ -378,7 +378,7 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
         }
     };
     
-    const tableInputClass = "h-8 bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0";
+    const tableInputClass = "h-8 bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 p-0";
 
 
     return (
@@ -615,6 +615,20 @@ function QuoteArchiveTab({ refreshTrigger }: { refreshTrigger: number }) {
 
     const { data: proposals, isLoading: areProposalsLoading } = useCollection<Proposal>(proposalsQuery);
 
+    if (isUserLoading || (areProposalsLoading && !proposals)) {
+        return (
+            <Card className="mt-4">
+                <CardHeader>
+                    <CardTitle>Teklif Arşivi</CardTitle>
+                    <p className="text-sm text-muted-foreground mt-1">Geçmişte oluşturduğunuz tüm teklifleri burada bulabilirsiniz.</p>
+                </CardHeader>
+                <CardContent className="flex justify-center items-center h-64">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </CardContent>
+            </Card>
+        );
+    }
+
     const handleDeleteProposal = (id: string) => {
         if (!firestore) return;
         
@@ -647,8 +661,6 @@ function QuoteArchiveTab({ refreshTrigger }: { refreshTrigger: number }) {
         }
     }
 
-    const isLoading = isUserLoading || areProposalsLoading;
-
     return (
         <Card className="mt-4">
             <CardHeader>
@@ -680,7 +692,7 @@ function QuoteArchiveTab({ refreshTrigger }: { refreshTrigger: number }) {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {isLoading ? (
+                        {areProposalsLoading ? (
                             <TableRow>
                                 <TableCell colSpan={8} className="text-center">
                                     <Loader2 className="mx-auto h-8 w-8 animate-spin text-muted-foreground" />
