@@ -1008,6 +1008,9 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
                                                             <DropdownMenuSubContent>
                                                                 <DropdownMenuLabel>İşlemler (V{version.version})</DropdownMenuLabel>
                                                                 <DropdownMenuSeparator />
+                                                                <DropdownMenuItem onSelect={() => window.open(`/dashboard/quotes/${version.id}/print`, '_blank')}>
+                                                                    <Download className="mr-2 h-4 w-4" /> Yazdır/İndir
+                                                                </DropdownMenuItem>
                                                                 <DropdownMenuSub>
                                                                     <DropdownMenuSubTrigger>Durumu Değiştir</DropdownMenuSubTrigger>
                                                                     <DropdownMenuPortal>

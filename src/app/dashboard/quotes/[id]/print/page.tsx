@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import { useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
@@ -68,6 +68,12 @@ export default function PrintQuotePage() {
     
     const isLoading = isProposalLoading || areItemsLoading || isCustomerLoading;
 
+    useEffect(() => {
+        if (!isLoading && proposal) {
+            document.title = `Teklif-${proposal.quoteNumber}`;
+        }
+    }, [isLoading, proposal]);
+    
     const formatDate = (timestamp?: { seconds: number }) => {
         if (!timestamp) return '-';
         return new Date(timestamp.seconds * 1000).toLocaleDateString('tr-TR');
@@ -101,7 +107,7 @@ export default function PrintQuotePage() {
 
     if (isLoading) {
         return (
-            <div className="flex h-screen items-center justify-center">
+            <div className="flex h-screen items-center justify-center bg-white text-black">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
                 <p className="ml-4 text-lg">Teklif verileri yükleniyor...</p>
             </div>
@@ -109,12 +115,12 @@ export default function PrintQuotePage() {
     }
 
     if (!proposal || !items) {
-        return <div className="p-8 text-center text-red-500">Teklif bulunamadı veya yüklenemedi.</div>;
+        return <div className="p-8 text-center text-red-500 bg-white text-black">Teklif bulunamadı veya yüklenemedi.</div>;
     }
 
     return (
         <div className="bg-white text-black min-h-screen">
-             <div className="fixed top-4 right-4 print:hidden">
+             <div className="fixed top-4 right-4 print:hidden z-50">
                 <Button onClick={() => window.print()}>
                     <Printer className="mr-2" /> Yazdır veya PDF Olarak Kaydet
                 </Button>
