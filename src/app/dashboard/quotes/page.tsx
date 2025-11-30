@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/componen
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, RefreshCw, Save, Eraser, Download, Edit, History, Search, Loader2, Sparkles } from "lucide-react";
+import { Plus, Trash2, RefreshCw, Save, Eraser, Download, Edit, History, Search, Loader2, Sparkles, PlusCircle } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Label } from "@/components/ui/label";
@@ -18,6 +18,7 @@ import { calculatePrice } from '@/lib/pricing';
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter, FirestorePermissionError } from '@/firebase';
 import { suggestMissingParts } from '@/ai/flows/suggest-missing-parts';
+import { QuickAddProduct } from '@/components/app/quick-add-product';
 
 
 type Customer = { id: string; name: string; [key: string]: any };
@@ -80,6 +81,8 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
     const [isSaving, setIsSaving] = useState(false);
     const [isSuggesting, setIsSuggesting] = useState(false);
     const [isVatIncluded, setIsVatIncluded] = useState(false);
+    const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+    const [productsTrigger, setProductsTrigger] = useState(0);
     const VAT_RATE = 0.20;
 
 
@@ -92,7 +95,7 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
 
     const productsQuery = useMemoFirebase(() =>
         user && firestore ? query(collection(firestore, 'products'), where("ownerId", "==", user.uid)) : null,
-        [user, firestore]
+        [user, firestore, productsTrigger]
     );
     const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
 
@@ -242,7 +245,8 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
 
         if (isVatIncluded) {
             // Grand total is fixed, subtotal and VAT are derived from it.
-            vatAmount = grandTotal - (grandTotal / (1 + VAT_RATE));
+             grandTotal = subtotalTRY;
+             vatAmount = grandTotal / (1 + VAT_RATE) * VAT_RATE;
         } else {
             // Subtotal is fixed, VAT and grand total are derived from it.
             vatAmount = subtotalTRY * VAT_RATE;
@@ -250,7 +254,7 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
         }
 
         return {
-            subtotal: subtotalTRY,
+            subtotal: isVatIncluded ? grandTotal - vatAmount : subtotalTRY,
             vat: vatAmount,
             grandTotal: grandTotal
         };
@@ -327,7 +331,7 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
             console.error("Teklif kaydedilirken hata oluştu:", error);
 
             const permissionError = new FirestorePermissionError({
-              path: `proposals/${proposalRef.id}`,
+              path: `proposals/${proposalRef.id} or subcollections`,
               operation: 'write',
               requestResourceData: {
                   proposal: proposalData,
@@ -347,6 +351,12 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
     };
 
     return (
+        <>
+        <QuickAddProduct 
+            isOpen={isQuickAddOpen} 
+            onOpenChange={setIsQuickAddOpen}
+            onProductAdded={() => setProductsTrigger(t => t + 1)}
+        />
         <div className="flex flex-col gap-4 mt-4">
             <div className="flex items-center justify-between">
                 <div>
@@ -417,22 +427,25 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
                                {isSuggesting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
                                 Ekle
                             </Button>
+                            <Button variant="outline" onClick={() => setIsQuickAddOpen(true)} disabled={isSaving}>
+                                <PlusCircle className="mr-2 h-4 w-4" /> Hızlı Ekle
+                            </Button>
                         </div>
                         <div className="overflow-x-auto">
                         <Table>
                             <TableHeader>
                             <TableRow>
-                                <TableHead className="w-[25%]">Açıklama</TableHead>
-                                <TableHead>Marka</TableHead>
+                                <TableHead className="w-[20%]">Açıklama</TableHead>
+                                <TableHead className="w-[10%]">Marka</TableHead>
                                 <TableHead className="w-[80px]">Miktar</TableHead>
-                                <TableHead>Birim</TableHead>
-                                <TableHead className="text-right">Liste Fiyatı</TableHead>
+                                <TableHead className="w-[70px]">Birim</TableHead>
+                                <TableHead className="text-right w-[130px]">Liste Fiyatı</TableHead>
                                 <TableHead className="text-center w-[100px]">% İsk.</TableHead>
-                                <TableHead className="text-right">Maliyet</TableHead>
-                                <TableHead className="text-right">Birim Satış</TableHead>
+                                <TableHead className="text-right w-[130px]">Maliyet</TableHead>
+                                <TableHead className="text-right w-[130px]">Birim Satış</TableHead>
                                 <TableHead className="text-center w-[100px]">% Kâr</TableHead>
-                                <TableHead className="text-right">Birim Kâr</TableHead>
-                                <TableHead className="text-right">Toplam Tutar</TableHead>
+                                <TableHead className="text-right w-[130px]">Birim Kâr</TableHead>
+                                <TableHead className="text-right w-[130px]">Toplam Tutar</TableHead>
                                 <TableHead className="w-[50px]"></TableHead>
                             </TableRow>
                             </TableHeader>
@@ -440,35 +453,23 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
                             {quoteItems.map((item) => (
                                 <TableRow key={item.id}>
                                     <TableCell className="font-medium">
-                                        <Input
-                                            value={item.name}
-                                            onChange={(e) => updateItem(item.id, { name: e.target.value })}
-                                            className="h-8"
-                                            disabled={isSaving}
-                                        />
+                                        <Input value={item.name} onChange={(e) => updateItem(item.id, { name: e.target.value })} className="h-8" disabled={isSaving} />
                                     </TableCell>
-                                    <TableCell>{item.brand}</TableCell>
+                                     <TableCell>
+                                        <Input value={item.brand} onChange={(e) => updateItem(item.id, { brand: e.target.value })} className="h-8" disabled={isSaving} />
+                                    </TableCell>
                                     <TableCell>
-                                        <Input 
-                                            type="number" 
-                                            value={item.quantity} 
-                                            onChange={(e) => updateItem(item.id, { quantity: Number(e.target.value) })}
-                                            className="h-8 w-16 text-center" 
-                                            min="1"
-                                            disabled={isSaving}
-                                        />
+                                        <Input type="number" value={item.quantity} onChange={(e) => updateItem(item.id, { quantity: Number(e.target.value) })} className="h-8 w-16 text-center" min="1" disabled={isSaving} />
                                     </TableCell>
-                                    <TableCell>{item.unit}</TableCell>
-                                    <TableCell className="text-right">{formatCurrency(item.listPrice, item.currency)}</TableCell>
+                                    <TableCell>
+                                        <Input value={item.unit} onChange={(e) => updateItem(item.id, { unit: e.target.value })} className="h-8" disabled={isSaving} />
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                         <Input type="number" value={item.listPrice} onChange={(e) => updateItem(item.id, { listPrice: Number(e.target.value) })} className="h-8 text-right" disabled={isSaving} />
+                                    </TableCell>
                                     <TableCell>
                                         <div className='flex items-center justify-center'>
-                                            <Input
-                                                type="number"
-                                                value={Math.round(item.discountRate * 100)}
-                                                onChange={(e) => updateItem(item.id, { discountRate: Number(e.target.value) / 100 })}
-                                                className="h-8 w-16 text-center"
-                                                disabled={isSaving}
-                                            />
+                                            <Input type="number" value={Math.round(item.discountRate * 100)} onChange={(e) => updateItem(item.id, { discountRate: Number(e.target.value) / 100 })} className="h-8 w-16 text-center" disabled={isSaving} />
                                              <span className="ml-1 text-xs">%</span>
                                         </div>
                                     </TableCell>
@@ -476,19 +477,11 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
                                     <TableCell className="text-right font-semibold">{formatCurrency(item.unitPrice, item.currency)}</TableCell>
                                     <TableCell>
                                         <div className='flex items-center justify-center'>
-                                            <Input
-                                                type="number"
-                                                value={Math.round(item.profitMargin * 100)}
-                                                onChange={(e) => updateItem(item.id, { profitMargin: Number(e.target.value) / 100 })}
-                                                className="h-8 w-16 text-center"
-                                                disabled={isSaving}
-                                            />
+                                            <Input type="number" value={Math.round(item.profitMargin * 100)} onChange={(e) => updateItem(item.id, { profitMargin: Number(e.target.value) / 100 })} className="h-8 w-16 text-center" disabled={isSaving} />
                                             <span className="ml-1 text-xs">%</span>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="text-right text-green-600 font-medium">
-                                        {formatCurrency(item.unitProfit, 'TRY')}
-                                    </TableCell>
+                                    <TableCell className="text-right text-green-600 font-medium">{formatCurrency(item.unitProfit, item.currency)}</TableCell>
                                     <TableCell className="text-right font-bold">{formatCurrency(item.total, item.currency)}</TableCell>
                                     <TableCell>
                                         <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)} disabled={isSaving}>
@@ -518,7 +511,7 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
                                 <CardTitle>Teklif Özeti</CardTitle>
                                 <div className="flex items-center space-x-2">
                                     <Label htmlFor="vat-switch" className="text-sm font-normal">
-                                        {isVatIncluded ? "KDV Dahil" : "KDV Hariç"}
+                                        {isVatIncluded ? "KDV Dahil Fiyat" : "KDV Hariç Fiyat"}
                                     </Label>
                                     <Switch
                                         id="vat-switch"
@@ -569,6 +562,7 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
                 </div>
             </div>
         </div>
+        </>
     );
 }
 
