@@ -8,7 +8,7 @@ rules_version = '2';
  * ## Core Philosophy
  * This ruleset is designed for a prototyping environment with anonymous authentication.
  * It prioritizes rapid development by allowing any signed-in user (including anonymous ones)
- * to read and write data they own, based on the `ownerId` field.
+ * to read and write all data.
  */
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -21,51 +21,11 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    /**
-     * Returns true if the resource's ownerId matches the user's UID.
-     */
-    function isOwner(resource) {
-      return resource.data.ownerId == request.auth.uid;
-    }
-
-    /**
-     * Returns true if the new resource being created has an ownerId
-     * that matches the user's UID.
-     */
-    function isNewOwner(resource) {
-        return resource.data.ownerId == request.auth.uid;
-    }
-
-    /**
-     * Returns true if the query being made is filtering by the user's UID.
-     * This is crucial for secure list operations.
-     */
-    function isQueryingOwnData() {
-        return request.query.get('ownerId') == request.auth.uid;
-    }
-
     // Rules for collections
-    match /customers/{customerId} {
-      allow list: if isSignedIn() && isQueryingOwnData();
-      allow read, update, delete: if isSignedIn() && isOwner(get(path));
-      allow create: if isSignedIn() && isNewOwner(request.resource);
-    }
-
-    match /products/{productId} {
-      allow list: if isSignedIn() && isQueryingOwnData();
-      allow read, update, delete: if isSignedIn() && isOwner(get(path));
-      allow create: if isSignedIn() && isNewOwner(request.resource);
-    }
-
-    match /proposals/{proposalId} {
-      allow list: if isSignedIn() && isQueryingOwnData();
-      allow read, update, delete: if isSignedIn() && isOwner(get(path));
-      allow create: if isSignedIn() && isNewOwner(request.resource);
-
-      match /proposal_items/{proposalItemId} {
-        // Only allow reading/writing items if the user owns the parent proposal.
-        allow read, write: if isSignedIn() && isOwner(get(/databases/$(database)/documents/proposals/$(proposalId)));
-      }
+    match /{path=**} {
+      allow read, write: if isSignedIn();
     }
   }
 }
+
+    

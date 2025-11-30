@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PlusCircle, Trash2, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useCollection, useFirestore, useUser, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, query, where, doc } from 'firebase/firestore';
+import { collection, query, doc } from 'firebase/firestore';
 
 const productSchema = z.object({
   code: z.string().min(1, "Kod zorunludur."),
@@ -51,24 +51,24 @@ export default function ProductsPage() {
   });
 
   const productsQuery = useMemoFirebase(() => {
-    if (isUserLoading || !user || !firestore) return null;
-    return query(collection(firestore, 'products'), where("ownerId", "==", user.uid));
-  }, [firestore, user, isUserLoading]);
+    if (!firestore) return null;
+    return collection(firestore, 'products');
+  }, [firestore]);
 
   const { data: products, isLoading: areProductsLoading } = useCollection<ProductFormValues>(productsQuery);
 
   const onSubmit = (values: ProductFormValues) => {
-    if (!user || !firestore) {
+    if (!firestore) {
       toast({
         variant: "destructive",
         title: "Hata",
-        description: "Kullanıcı doğrulanmamış veya veritabanı bağlantısı kurulamamış.",
+        description: "Veritabanı bağlantısı kurulamamış.",
       });
       return;
     }
 
     const productsCollectionRef = collection(firestore, 'products');
-    addDocumentNonBlocking(productsCollectionRef, { ...values, ownerId: user.uid });
+    addDocumentNonBlocking(productsCollectionRef, values);
     
     toast({
       title: "Başarılı",
@@ -217,3 +217,5 @@ export default function ProductsPage() {
     </div>
   );
 }
+
+    

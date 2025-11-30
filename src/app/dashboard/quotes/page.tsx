@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect }from 'react';
@@ -13,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCollection, useFirestore, useUser, useMemoFirebase, deleteDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase';
-import { collection, query, where, writeBatch, doc, getDocs, orderBy, limit } from 'firebase/firestore';
+import { collection, query, writeBatch, doc, getDocs, orderBy, limit } from 'firebase/firestore';
 import { calculatePrice } from '@/lib/pricing';
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter, FirestorePermissionError } from '@/firebase';
@@ -88,14 +89,14 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
 
     // Data fetching
     const customersQuery = useMemoFirebase(() => 
-        user && firestore ? query(collection(firestore, 'customers'), where("ownerId", "==", user.uid)) : null,
-        [user, firestore]
+        firestore ? collection(firestore, 'customers') : null,
+        [firestore]
     );
     const { data: customers, isLoading: areCustomersLoading } = useCollection<Customer>(customersQuery);
 
     const productsQuery = useMemoFirebase(() =>
-        user && firestore ? query(collection(firestore, 'products'), where("ownerId", "==", user.uid)) : null,
-        [user, firestore, productsTrigger]
+        firestore ? collection(firestore, 'products') : null,
+        [firestore, productsTrigger]
     );
     const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
 
@@ -271,7 +272,7 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
         });
     };
     
-    async function getNextQuoteNumber(firestore: any, ownerId: string): Promise<string> {
+    async function getNextQuoteNumber(firestore: any): Promise<string> {
         const now = new Date();
         const year = now.getFullYear();
         const month = (now.getMonth() + 1).toString().padStart(2, '0');
@@ -280,7 +281,6 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
         const proposalsRef = collection(firestore, 'proposals');
         const q = query(
             proposalsRef, 
-            where("ownerId", "==", ownerId),
             where("quoteNumber", ">=", prefix),
             where("quoteNumber", "<", prefix + 'z'), // lexicographical search
             orderBy("quoteNumber", "desc"),
@@ -300,8 +300,8 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
     }
 
     const handleSaveQuote = async () => {
-        if (!firestore || !user) {
-            toast({ variant: "destructive", title: "Hata", description: "Veritabanı bağlantısı yok veya kullanıcı girişi yapılmamış." });
+        if (!firestore) {
+            toast({ variant: "destructive", title: "Hata", description: "Veritabanı bağlantısı yok." });
             return;
         }
         if (!selectedCustomerId) {
@@ -316,7 +316,7 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
         setIsSaving(true);
         const proposalRef = doc(collection(firestore, 'proposals'));
         const selectedCustomer = customers?.find(c => c.id === selectedCustomerId);
-        const newQuoteNumber = await getNextQuoteNumber(firestore, user.uid);
+        const newQuoteNumber = await getNextQuoteNumber(firestore);
 
 
         const proposalData = {
@@ -329,7 +329,6 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
             exchangeRates,
             versionNote,
             createdAt: new Date(),
-            ownerId: user.uid,
         };
         
         try {
@@ -378,7 +377,7 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
         }
     };
     
-    const tableInputClass = "h-8 bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 p-0";
+    const tableInputClass = "h-8 w-full bg-transparent border-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 p-1";
 
 
     return (
@@ -603,14 +602,13 @@ function QuoteArchiveTab({ refreshTrigger }: { refreshTrigger: number }) {
     const { toast } = useToast();
 
     const proposalsQuery = useMemoFirebase(() => 
-        !isUserLoading && user && firestore 
+        firestore 
             ? query(
                 collection(firestore, 'proposals'), 
-                where("ownerId", "==", user.uid), 
                 orderBy("createdAt", "desc")
               ) 
             : null,
-        [user, isUserLoading, firestore, refreshTrigger]
+        [firestore, refreshTrigger]
     );
 
     const { data: proposals, isLoading: areProposalsLoading } = useCollection<Proposal>(proposalsQuery);
@@ -766,3 +764,5 @@ export default function QuotesPage() {
     </Tabs>
   );
 }
+
+    

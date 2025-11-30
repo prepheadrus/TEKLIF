@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { PlusCircle, Trash2, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useCollection, useFirestore, useUser, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, query, where, doc } from 'firebase/firestore';
+import { collection, query, doc } from 'firebase/firestore';
 
 // Zod schema for form validation
 const customerSchema = z.object({
@@ -45,23 +45,23 @@ export default function CustomersPage() {
   });
 
   const customersQuery = useMemoFirebase(() => {
-    if (isUserLoading || !user || !firestore) return null;
-    return query(collection(firestore, 'customers'), where("ownerId", "==", user.uid));
-  }, [firestore, user, isUserLoading]);
+    if (!firestore) return null;
+    return collection(firestore, 'customers');
+  }, [firestore]);
 
   const { data: customers, isLoading: areCustomersLoading } = useCollection<Omit<CustomerFormValues, 'id'>>(customersQuery);
 
   const onSubmit = (values: CustomerFormValues) => {
-    if (!user || !firestore) {
+    if (!firestore) {
       toast({
         variant: "destructive",
         title: "Hata",
-        description: "Kullanıcı doğrulanmamış veya veritabanı bağlantısı kurulamamış.",
+        description: "Veritabanı bağlantısı kurulamamış.",
       });
       return;
     }
     const customersCollectionRef = collection(firestore, 'customers');
-    addDocumentNonBlocking(customersCollectionRef, { ...values, ownerId: user.uid });
+    addDocumentNonBlocking(customersCollectionRef, values);
     
     toast({
       title: "Başarılı",
@@ -233,4 +233,5 @@ export default function CustomersPage() {
     </div>
   );
 }
+    
     

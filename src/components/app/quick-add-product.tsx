@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -36,7 +37,6 @@ interface QuickAddProductProps {
 export function QuickAddProduct({ isOpen, onOpenChange, onProductAdded }: QuickAddProductProps) {
   const { toast } = useToast();
   const firestore = useFirestore();
-  const { user } = useUser();
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
@@ -53,17 +53,17 @@ export function QuickAddProduct({ isOpen, onOpenChange, onProductAdded }: QuickA
   });
 
   const onSubmit = async (values: ProductFormValues) => {
-    if (!user || !firestore) {
+    if (!firestore) {
       toast({
         variant: "destructive",
         title: "Hata",
-        description: "Kullanıcı doğrulanmamış veya veritabanı bağlantısı kurulamamış.",
+        description: "Veritabanı bağlantısı kurulamamış.",
       });
       return;
     }
     
     const productsCollectionRef = collection(firestore, 'products');
-    await addDocumentNonBlocking(productsCollectionRef, { ...values, ownerId: user.uid });
+    await addDocumentNonBlocking(productsCollectionRef, values);
     
     toast({
       title: "Başarılı",
@@ -137,3 +137,5 @@ export function QuickAddProduct({ isOpen, onOpenChange, onProductAdded }: QuickA
     </Dialog>
   );
 }
+
+    
