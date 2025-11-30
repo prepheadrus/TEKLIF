@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useCollection, useFirestore, useUser, useMemoFirebase, deleteDocumentNonBlocking, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useCollection, useFirestore, useUser, useMemoFirebase, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, query, where, writeBatch, doc } from 'firebase/firestore';
 import { calculatePrice } from '@/lib/pricing';
 import { useToast } from "@/hooks/use-toast";
@@ -233,24 +233,24 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
         }
     
         setIsSaving(true);
-        const proposalRef = doc(collection(firestore, 'proposals'));
-        const selectedCustomer = customers?.find(c => c.id === selectedCustomerId);
-
-        const proposalData = {
-            customerId: selectedCustomerId,
-            customerName: selectedCustomer?.name || 'Bilinmeyen Müşteri',
-            projectName: projectName || 'Genel Teklif',
-            quoteNumber: '', // Will be generated server-side or in a later step
-            status: 'Draft',
-            totalAmount: quoteTotals.grandTotalTRY,
-            exchangeRates,
-            versionNote,
-            createdAt: new Date(),
-            ownerId: user.uid,
-        };
-
+        
         try {
             const batch = writeBatch(firestore);
+            const proposalRef = doc(collection(firestore, 'proposals'));
+            const selectedCustomer = customers?.find(c => c.id === selectedCustomerId);
+    
+            const proposalData = {
+                customerId: selectedCustomerId,
+                customerName: selectedCustomer?.name || 'Bilinmeyen Müşteri',
+                projectName: projectName || 'Genel Teklif',
+                quoteNumber: '', // Will be generated server-side or in a later step
+                status: 'Draft',
+                totalAmount: quoteTotals.grandTotalTRY,
+                exchangeRates,
+                versionNote,
+                createdAt: new Date(),
+                ownerId: user.uid,
+            };
             batch.set(proposalRef, proposalData);
     
             for (const item of quoteItems) {
@@ -273,20 +273,10 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
     
         } catch (error: any) {
             console.error("Teklif kaydedilirken hata oluştu:", error);
-
-            // Create and emit a contextual error for debugging security rules
-            const permissionError = new FirestorePermissionError({
-                // We guess the first operation in the batch is the most likely culprit
-                path: proposalRef.path,
-                operation: 'create',
-                requestResourceData: proposalData,
-            });
-            errorEmitter.emit('permission-error', permissionError);
-
             toast({
                 variant: "destructive",
                 title: "Hata",
-                description: "Teklif kaydedilemedi. İzinleriniz yetersiz olabilir.",
+                description: "Teklif kaydedilemedi: " + (error.message || "Bilinmeyen bir hata oluştu."),
             });
         } finally {
             setIsSaving(false);

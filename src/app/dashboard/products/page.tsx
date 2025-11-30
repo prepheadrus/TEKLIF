@@ -62,7 +62,7 @@ export default function ProductsPage() {
 
   const { data: products, isLoading: areProductsLoading } = useCollection<ProductFormValues>(productsQuery);
 
-  const onSubmit = async (values: ProductFormValues) => {
+  const onSubmit = (values: ProductFormValues) => {
     if (!user || !productsCollectionRef) {
       toast({
         variant: "destructive",
@@ -72,22 +72,14 @@ export default function ProductsPage() {
       return;
     }
 
-    try {
-      addDocumentNonBlocking(productsCollectionRef, { ...values, ownerId: user.uid });
-      toast({
-        title: "Başarılı",
-        description: "Yeni ürün başarıyla eklendi.",
-      });
-      form.reset();
-      setIsDialogOpen(false);
-    } catch (error) {
-      console.error("Ürün eklenirken hata:", error);
-      toast({
-        variant: "destructive",
-        title: "Hata",
-        description: "Ürün eklenirken bir sorun oluştu.",
-      });
-    }
+    addDocumentNonBlocking(productsCollectionRef, { ...values, ownerId: user.uid });
+    
+    toast({
+      title: "Başarılı",
+      description: "Yeni ürün başarıyla eklendi.",
+    });
+    form.reset();
+    setIsDialogOpen(false);
   };
 
   const handleDeleteProduct = (id: string) => {
@@ -229,3 +221,4 @@ export default function ProductsPage() {
     </div>
   );
 }
+

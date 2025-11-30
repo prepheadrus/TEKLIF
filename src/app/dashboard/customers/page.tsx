@@ -56,7 +56,7 @@ export default function CustomersPage() {
 
   const { data: customers, isLoading: areCustomersLoading } = useCollection<Omit<CustomerFormValues, 'id'>>(customersQuery);
 
-  const onSubmit = async (values: CustomerFormValues) => {
+  const onSubmit = (values: CustomerFormValues) => {
     if (!user || !customersCollectionRef) {
       toast({
         variant: "destructive",
@@ -66,22 +66,14 @@ export default function CustomersPage() {
       return;
     }
 
-    try {
-      addDocumentNonBlocking(customersCollectionRef, { ...values, ownerId: user.uid });
-      toast({
-        title: "Başarılı",
-        description: "Yeni müşteri başarıyla eklendi.",
-      });
-      form.reset();
-      setIsDialogOpen(false);
-    } catch (error) {
-      console.error("Müşteri eklenirken hata:", error);
-      toast({
-        variant: "destructive",
-        title: "Hata",
-        description: "Müşteri eklenirken bir sorun oluştu.",
-      });
-    }
+    addDocumentNonBlocking(customersCollectionRef, { ...values, ownerId: user.uid });
+    
+    toast({
+      title: "Başarılı",
+      description: "Yeni müşteri başarıyla eklendi.",
+    });
+    form.reset();
+    setIsDialogOpen(false);
   };
 
   const handleDeleteCustomer = (id: string) => {
