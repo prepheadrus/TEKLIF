@@ -44,20 +44,15 @@ export default function CustomersPage() {
     },
   });
 
-  const customersCollectionRef = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, 'customers');
-  }, [firestore]);
-
   const customersQuery = useMemoFirebase(() => {
-    if (!customersCollectionRef || !user) return null;
-    return query(customersCollectionRef, where("ownerId", "==", user.uid));
-  }, [customersCollectionRef, user]);
+    if (isUserLoading || !user || !firestore) return null;
+    return query(collection(firestore, 'customers'), where("ownerId", "==", user.uid));
+  }, [firestore, user, isUserLoading]);
 
   const { data: customers, isLoading: areCustomersLoading } = useCollection<Omit<CustomerFormValues, 'id'>>(customersQuery);
 
   const onSubmit = (values: CustomerFormValues) => {
-    if (!user || !customersCollectionRef) {
+    if (!user || !firestore) {
       toast({
         variant: "destructive",
         title: "Hata",
@@ -65,7 +60,7 @@ export default function CustomersPage() {
       });
       return;
     }
-
+    const customersCollectionRef = collection(firestore, 'customers');
     addDocumentNonBlocking(customersCollectionRef, { ...values, ownerId: user.uid });
     
     toast({

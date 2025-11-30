@@ -50,20 +50,15 @@ export default function ProductsPage() {
     },
   });
 
-  const productsCollectionRef = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, 'products');
-  }, [firestore]);
-
   const productsQuery = useMemoFirebase(() => {
-    if (!productsCollectionRef || !user) return null;
-    return query(productsCollectionRef, where("ownerId", "==", user.uid));
-  }, [productsCollectionRef, user]);
+    if (isUserLoading || !user || !firestore) return null;
+    return query(collection(firestore, 'products'), where("ownerId", "==", user.uid));
+  }, [firestore, user, isUserLoading]);
 
   const { data: products, isLoading: areProductsLoading } = useCollection<ProductFormValues>(productsQuery);
 
   const onSubmit = (values: ProductFormValues) => {
-    if (!user || !productsCollectionRef) {
+    if (!user || !firestore) {
       toast({
         variant: "destructive",
         title: "Hata",
@@ -72,6 +67,7 @@ export default function ProductsPage() {
       return;
     }
 
+    const productsCollectionRef = collection(firestore, 'products');
     addDocumentNonBlocking(productsCollectionRef, { ...values, ownerId: user.uid });
     
     toast({
@@ -221,4 +217,3 @@ export default function ProductsPage() {
     </div>
   );
 }
-
