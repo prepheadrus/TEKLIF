@@ -71,6 +71,8 @@ export default function PrintQuotePage() {
     useEffect(() => {
         if (!isLoading && proposal) {
             document.title = `Teklif-${proposal.quoteNumber}`;
+            // Automatically trigger print dialog once everything is loaded
+            window.print();
         }
     }, [isLoading, proposal]);
     
