@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, useEffect, useCallback }from 'react';
@@ -451,21 +452,21 @@ function CreateQuoteTab({ onQuoteSaved, onSetActiveTab, quoteToEdit }: { onQuote
             let quoteNumber: string;
 
             if (isRevision && currentEditingProposal) {
-                // REVISION SCENARIO
+                // REVİZYON SENARYOSU
                 rootProposalId = currentEditingProposal.rootProposalId;
                 version = currentEditingProposal.version + 1;
                 quoteNumber = currentEditingProposal.quoteNumber;
             } else {
-                // NEW QUOTE SCENARIO
+                // YENİ TEKLİF SENARYOSU
                 rootProposalId = proposalRef.id;
                 version = 1;
                 quoteNumber = await getNextQuoteNumber(firestore);
             }
             
             const proposalData = {
-                rootProposalId: rootProposalId,
-                version: version,
-                quoteNumber: quoteNumber,
+                rootProposalId,
+                version,
+                quoteNumber,
                 customerId: currentCustomerId,
                 customerName: selectedCustomer?.name || 'Bilinmeyen Müşteri',
                 projectName: projectName || 'Genel Teklif',
@@ -863,11 +864,13 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
             const proposalDocRef = doc(firestore, 'proposals', proposalToUpdate.id);
             batch.update(proposalDocRef, { status: newStatus });
 
+            // If the new status is 'Approved', set all other versions in the same group to 'Draft'
             if (newStatus === 'Approved') {
-                const allProposals = proposals || [];
+                const allProposals = proposals || []; // Use the full list of proposals from state
                 const siblingVersions = allProposals.filter(p => p.rootProposalId === proposalToUpdate.rootProposalId && p.id !== proposalToUpdate.id);
                 
                 siblingVersions.forEach(version => {
+                    // We can be aggressive and reset any other version, not just approved ones
                     const otherVersionRef = doc(firestore, 'proposals', version.id);
                     batch.update(otherVersionRef, { status: 'Draft' });
                 });
@@ -987,51 +990,48 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="start" className="w-[500px]">
-                                                <DropdownMenuLabel>Versiyon Geçmişi</DropdownMenuLabel>
+                                                <DropdownMenuLabel>Versiyon Geçmişi ({group.latest.quoteNumber})</DropdownMenuLabel>
                                                 <DropdownMenuSeparator />
                                                 {group.versions.map(version => (
-                                                    <DropdownMenuItem key={version.id} className="flex justify-between items-center">
-                                                        <div className="flex flex-col">
-                                                            <div className="flex items-center">
-                                                                <span className="font-semibold mr-2">V{version.version}</span>
-                                                                <Badge variant={getStatusBadgeVariant(version.status)}>{version.status}</Badge>
-                                                                <span className="text-xs text-muted-foreground ml-2">({formatDate(version.createdAt)})</span>
+                                                    <DropdownMenuSub key={version.id}>
+                                                        <DropdownMenuSubTrigger>
+                                                            <div className="flex justify-between items-center w-full">
+                                                                <div className="flex flex-col text-left">
+                                                                    <div className="flex items-center">
+                                                                        <span className="font-semibold mr-2">V{version.version}</span>
+                                                                        <Badge variant={getStatusBadgeVariant(version.status)}>{version.status}</Badge>
+                                                                        <span className="text-xs text-muted-foreground ml-2">({formatDate(version.createdAt)})</span>
+                                                                    </div>
+                                                                    <p className="text-xs text-muted-foreground mt-1">{version.versionNote}</p>
+                                                                </div>
+                                                                <span className='mr-4 font-mono'>{formatCurrency(version.totalAmount)}</span>
                                                             </div>
-                                                            <p className="text-xs text-muted-foreground mt-1">{version.versionNote}</p>
-                                                        </div>
-                                                        <div className='flex items-center'>
-                                                            <span className='mr-4 font-mono'>{formatCurrency(version.totalAmount)}</span>
-                                                            
-                                                            <DropdownMenu>
-                                                                <DropdownMenuTrigger asChild>
-                                                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>...</Button>
-                                                                </DropdownMenuTrigger>
-                                                                <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
-                                                                    <DropdownMenuLabel>İşlemler (V{version.version})</DropdownMenuLabel>
-                                                                    <DropdownMenuSeparator />
-                                                                    <DropdownMenuSub>
-                                                                        <DropdownMenuSubTrigger>Durumu Değiştir</DropdownMenuSubTrigger>
-                                                                        <DropdownMenuPortal>
-                                                                            <DropdownMenuSubContent>
+                                                        </DropdownMenuSubTrigger>
+                                                        <DropdownMenuPortal>
+                                                            <DropdownMenuSubContent>
+                                                                <DropdownMenuLabel>İşlemler (V{version.version})</DropdownMenuLabel>
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuSub>
+                                                                    <DropdownMenuSubTrigger>Durumu Değiştir</DropdownMenuSubTrigger>
+                                                                    <DropdownMenuPortal>
+                                                                        <DropdownMenuSubContent>
                                                                             {statusOptions.map(status => (
                                                                                 <DropdownMenuItem key={status} onSelect={() => handleChangeStatus(version, status)}>
                                                                                     {status}
                                                                                 </DropdownMenuItem>
                                                                             ))}
-                                                                            </DropdownMenuSubContent>
-                                                                        </DropdownMenuPortal>
-                                                                    </DropdownMenuSub>
-                                                                    <DropdownMenuItem onSelect={() => onEditQuote(version)}>
-                                                                        <Edit className="mr-2 h-4 w-4" /> Revize Et (Yeni Versiyon)
-                                                                    </DropdownMenuItem>
-                                                                     <DropdownMenuItem onSelect={() => handleDeleteProposal(version.id)} className="text-red-600">
-                                                                        <Trash2 className="mr-2 h-4 w-4" /> Bu Versiyonu Sil
-                                                                    </DropdownMenuItem>
-                                                                </DropdownMenuContent>
-                                                            </DropdownMenu>
-
-                                                        </div>
-                                                    </DropdownMenuItem>
+                                                                        </DropdownMenuSubContent>
+                                                                    </DropdownMenuPortal>
+                                                                </DropdownMenuSub>
+                                                                <DropdownMenuItem onSelect={() => onEditQuote(version)}>
+                                                                    <Edit className="mr-2 h-4 w-4" /> Revize Et (Yeni Versiyon)
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem onSelect={() => handleDeleteProposal(version.id)} className="text-red-600">
+                                                                    <Trash2 className="mr-2 h-4 w-4" /> Bu Versiyonu Sil
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuSubContent>
+                                                        </DropdownMenuPortal>
+                                                    </DropdownMenuSub>
                                                 ))}
                                             </DropdownMenuContent>
                                         </DropdownMenu>
@@ -1104,5 +1104,3 @@ export default function QuotesPage() {
     </Tabs>
   );
 }
-
-    
