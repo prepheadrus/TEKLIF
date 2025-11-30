@@ -69,6 +69,7 @@ type Proposal = {
 function CreateQuoteTab({ onQuoteSaved, activeTab, onSetActiveTab, quoteToEdit, onQuoteEdited }: { onQuoteSaved: () => void, activeTab: string, onSetActiveTab: (tab: string) => void, quoteToEdit: Proposal | null, onQuoteEdited: () => void }) {
     const firestore = useFirestore();
     const { toast } = useToast();
+    const { user, isUserLoading } = useUser();
 
     // State definitions
     const [quoteItems, setQuoteItems] = useState<QuoteItem[]>([]);
@@ -125,11 +126,23 @@ function CreateQuoteTab({ onQuoteSaved, activeTab, onSetActiveTab, quoteToEdit, 
                         currency: data.currency,
                         discountRate: data.discountRate,
                         profitMargin: data.profitMargin,
-                        cost: data.cost,
-                        unitPrice: data.unitPrice,
-                        unitProfit: data.unitProfit,
-                        total: data.total,
+                        cost: 0, // will be recalculated
+                        unitPrice: 0, // will be recalculated
+                        unitProfit: 0, // will be recalculated
+                        total: 0, // will be recalculated
                     };
+                     const priceResult = calculatePrice({
+                        listPrice: newItem.listPrice,
+                        discountRate: newItem.discountRate,
+                        profitMargin: newItem.profitMargin,
+                        exchangeRate: 1, 
+                    });
+                    
+                    newItem.cost = priceResult.cost;
+                    newItem.unitPrice = priceResult.originalSellPrice;
+                    newItem.unitProfit = priceResult.originalSellPrice - priceResult.cost;
+                    newItem.total = priceResult.originalSellPrice * newItem.quantity;
+                    
                     return newItem;
                 });
                 
@@ -278,14 +291,14 @@ function CreateQuoteTab({ onQuoteSaved, activeTab, onSetActiveTab, quoteToEdit, 
         toast({ title: "Kurlar Alınıyor...", description: "TCMB'den güncel döviz kurları çekiliyor." });
         try {
             // Using a CORS proxy to access the XML data from the client
-            const response = await fetch('https://thingproxy.freeboard.io/fetch/https://www.tcmb.gov.tr/kurlar/today.xml');
+            const response = await fetch('https://cors-anywhere.herokuapp.com/https://www.tcmb.gov.tr/kurlar/today.xml');
             if (!response.ok) throw new Error('Network response was not ok.');
             const data = await response.text();
             const parser = new DOMParser();
             const xml = parser.parseFromString(data, "application/xml");
             
-            const usdRate = xml.querySelector('Currency[Kod="USD"] BanknoteSelling')?.textContent;
-            const eurRate = xml.querySelector('Currency[Kod="EUR"] BanknoteSelling')?.textContent;
+            const usdRate = xml.querySelector('Currency[Kod="USD"] ForexBuying')?.textContent;
+            const eurRate = xml.querySelector('Currency[Kod="EUR"] ForexBuying')?.textContent;
 
             if (usdRate && eurRate) {
                 const updatedRates = {
@@ -305,7 +318,7 @@ function CreateQuoteTab({ onQuoteSaved, activeTab, onSetActiveTab, quoteToEdit, 
             toast({
                 variant: "destructive",
                 title: "Hata",
-                description: "Döviz kurları alınamadı. Lütfen daha sonra tekrar deneyin veya manuel girin.",
+                description: "Döviz kurları alınamadı. Lütfen daha sonra tekrar deneyin veya manuel olarak girin.",
             });
         } finally {
             setIsFetchingRates(false);
@@ -686,13 +699,13 @@ function QuoteArchiveTab({ refreshTrigger, onEditQuote }: { refreshTrigger: numb
     const { toast } = useToast();
 
     const proposalsQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
+        if (isUserLoading || !firestore) return null;
         return query(collection(firestore, 'proposals'), orderBy("createdAt", "desc"));
-    }, [firestore, refreshTrigger]);
+    }, [firestore, refreshTrigger, isUserLoading]);
 
     const { data: proposals, isLoading: areProposalsLoading } = useCollection<Proposal>(proposalsQuery);
     
-    if (areProposalsLoading && !proposals) {
+     if (isUserLoading || (areProposalsLoading && !proposals)) {
         return (
             <Card className="mt-4">
                 <CardHeader>
@@ -853,3 +866,4 @@ export default function QuotesPage() {
     </Tabs>
   );
 }
+
