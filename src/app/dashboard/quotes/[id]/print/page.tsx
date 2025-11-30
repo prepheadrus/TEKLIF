@@ -73,7 +73,7 @@ export default function PrintQuotePage() {
         if (!isLoading && proposal) {
             document.title = `Teklif-${proposal.quoteNumber}`;
             // Automatically trigger print dialog once everything is loaded
-            window.print();
+            setTimeout(() => window.print(), 500); // A small delay can help ensure all content is rendered
         }
     }, [isLoading, proposal]);
     
@@ -122,7 +122,7 @@ export default function PrintQuotePage() {
     }
 
     return (
-        <div className="bg-white text-black min-h-screen text-xs">
+        <div className="bg-white text-black min-h-screen text-xs print:p-0">
              <div className="fixed top-4 right-4 print:hidden z-50">
                 <Button onClick={() => window.print()}>
                     <Printer className="mr-2" /> Yazdır veya PDF Olarak Kaydet
