@@ -435,17 +435,17 @@ function CreateQuoteTab({ onQuoteSaved }: { onQuoteSaved: () => void }) {
                         <Table>
                             <TableHeader>
                             <TableRow>
-                                <TableHead className="w-[20%]">Açıklama</TableHead>
-                                <TableHead className="w-[10%]">Marka</TableHead>
+                                <TableHead className="w-[18%] min-w-[200px]">Açıklama</TableHead>
+                                <TableHead className="w-[10%] min-w-[120px]">Marka</TableHead>
                                 <TableHead className="w-[80px]">Miktar</TableHead>
                                 <TableHead className="w-[70px]">Birim</TableHead>
-                                <TableHead className="text-right w-[130px]">Liste Fiyatı</TableHead>
-                                <TableHead className="text-center w-[100px]">% İsk.</TableHead>
-                                <TableHead className="text-right w-[130px]">Maliyet</TableHead>
-                                <TableHead className="text-right w-[130px]">Birim Satış</TableHead>
-                                <TableHead className="text-center w-[100px]">% Kâr</TableHead>
-                                <TableHead className="text-right w-[130px]">Birim Kâr</TableHead>
-                                <TableHead className="text-right w-[130px]">Toplam Tutar</TableHead>
+                                <TableHead className="text-right w-[140px]">Liste Fiyatı</TableHead>
+                                <TableHead className="text-center w-[90px]">% İsk.</TableHead>
+                                <TableHead className="text-right w-[140px]">Maliyet</TableHead>
+                                <TableHead className="text-right w-[140px]">Birim Satış</TableHead>
+                                <TableHead className="text-center w-[90px]">% Kâr</TableHead>
+                                <TableHead className="text-right w-[120px]">Birim Kâr</TableHead>
+                                <TableHead className="text-right w-[140px]">Toplam Tutar</TableHead>
                                 <TableHead className="w-[50px]"></TableHead>
                             </TableRow>
                             </TableHeader>
