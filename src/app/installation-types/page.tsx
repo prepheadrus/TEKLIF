@@ -53,7 +53,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { QuickAddInstallationType } from '@/components/app/quick-add-installation-type';
 import { cn } from '@/lib/utils';
-import { initialInstallationTypes } from '@/lib/seed-data';
+import { initialInstallationTypesData } from '@/lib/seed-data';
 
 export type InstallationType = {
   id: string;
@@ -84,7 +84,10 @@ const CategoryNode = ({
   return (
     <div>
       <div
-        className="flex items-center justify-between py-2 px-4 rounded-md hover:bg-gray-100"
+        className={cn(
+          "flex items-center justify-between py-2 px-4 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800",
+           level > 0 && "border-t"
+        )}
         style={{ paddingLeft: `${level * 24 + 16}px` }}
       >
         <div className="flex items-center gap-2">
@@ -212,10 +215,26 @@ export default function InstallationTypesPage() {
         toast({ title: 'Başlangıç verisi oluşturuluyor...' });
         try {
           const batch = writeBatch(firestore);
-          initialInstallationTypes.forEach((category) => {
-            const docRef = doc(collection(firestore, 'installation_types'));
-            batch.set(docRef, category);
-          });
+          const collectionRef = collection(firestore, 'installation_types');
+
+          // Helper function to recursively add categories
+          const addCategories = (items: any[], parentId: string | null) => {
+            items.forEach(item => {
+              const newDocRef = doc(collectionRef);
+              const categoryData = {
+                  name: item.name,
+                  description: item.description,
+                  parentId: parentId
+              };
+              batch.set(newDocRef, categoryData);
+              if (item.children && item.children.length > 0) {
+                  addCategories(item.children, newDocRef.id);
+              }
+            });
+          };
+          
+          addCategories(initialInstallationTypesData, null);
+
           await batch.commit();
           toast({
             title: 'Başarılı!',
@@ -223,6 +242,7 @@ export default function InstallationTypesPage() {
           });
           refetch();
         } catch (err: any) {
+          console.error("Seeding error:", err);
           toast({
             variant: 'destructive',
             title: 'Veri oluşturma hatası',
@@ -333,7 +353,7 @@ export default function InstallationTypesPage() {
                 ))}
               </div>
             ) : (
-              <p>Henüz kategori oluşturulmamış.</p>
+              <p className="p-8 text-center text-muted-foreground">Henüz kategori oluşturulmamış. Başlangıç verileri yüklenememiş olabilir.</p>
             )}
           </CardContent>
         </Card>
