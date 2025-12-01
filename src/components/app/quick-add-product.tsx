@@ -1,19 +1,19 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useFirestore, useUser, addDocumentNonBlocking, useCollection, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { useFirestore, addDocumentNonBlocking, setDocumentNonBlocking, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
 
 const productSchema = z.object({
   code: z.string().min(1, "Kod zorunludur."),
@@ -32,7 +32,8 @@ type ProductFormValues = z.infer<typeof productSchema>;
 interface QuickAddProductProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
-    onProductAdded: () => void;
+    onSuccess: () => void;
+    existingProduct?: ProductFormValues & { id: string } | null;
 }
 
 type InstallationType = {
@@ -47,7 +48,7 @@ const buildCategoryTree = (categories: InstallationType[]): { id: string; name: 
         categoryMap[cat.id] = { ...cat, children: [] };
     });
 
-    const roots = [];
+    const roots: { id: string; name: string; children: any[] }[] = [];
     categories.forEach(cat => {
         if (cat.parentId && categoryMap[cat.parentId]) {
             categoryMap[cat.parentId].children.push(categoryMap[cat.id]);
@@ -60,14 +61,14 @@ const buildCategoryTree = (categories: InstallationType[]): { id: string; name: 
     const traverse = (node: { id: string; name: string; children: any[] }, prefix: string) => {
         const currentName = prefix ? `${prefix} > ${node.name}` : node.name;
         flattenedList.push({ id: node.id, name: currentName });
-        node.children.sort((a,b) => a.name.localeCompare(b.name)).forEach(child => traverse(child, currentName));
+        node.children.sort((a, b) => a.name.localeCompare(b.name)).forEach(child => traverse(child, currentName));
     };
 
     roots.sort((a, b) => a.name.localeCompare(b.name)).forEach(root => traverse(root, ''));
     return flattenedList;
 };
 
-export function QuickAddProduct({ isOpen, onOpenChange, onProductAdded }: QuickAddProductProps) {
+export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProduct }: QuickAddProductProps) {
   const { toast } = useToast();
   const firestore = useFirestore();
 
@@ -85,40 +86,51 @@ export function QuickAddProduct({ isOpen, onOpenChange, onProductAdded }: QuickA
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
-    defaultValues: {
-      code: "",
-      name: "",
-      brand: "",
-      category: "",
-      installationTypeId: null,
-      unit: "Adet",
-      listPrice: 0,
-      currency: "TRY",
-      discountRate: 0,
-    },
   });
+  
+  useEffect(() => {
+    if (isOpen) {
+        if (existingProduct) {
+            form.reset({
+                ...existingProduct,
+                installationTypeId: existingProduct.installationTypeId || null,
+            });
+        } else {
+            form.reset({
+                code: "", name: "", brand: "", category: "", installationTypeId: null, unit: "Adet",
+                listPrice: 0, currency: "TRY", discountRate: 0,
+            });
+        }
+    }
+  }, [isOpen, existingProduct, form]);
 
   const onSubmit = async (values: ProductFormValues) => {
     if (!firestore) {
-      toast({
-        variant: "destructive",
-        title: "Hata",
-        description: "Veritabanı bağlantısı kurulamamış.",
-      });
+      toast({ variant: "destructive", title: "Hata", description: "Veritabanı bağlantısı kurulamamış." });
       return;
     }
     
-    const productsCollectionRef = collection(firestore, 'products');
-    addDocumentNonBlocking(productsCollectionRef, { ...values, installationTypeId: values.installationTypeId || null });
+    const dataToSave = { ...values, installationTypeId: values.installationTypeId || null };
     
-    toast({
-      title: "Başarılı",
-      description: "Yeni ürün başarıyla eklendi.",
-    });
-    form.reset();
-    onProductAdded(); // Notify parent to refresh product list
-    onOpenChange(false); // Close dialog
+    try {
+        if (existingProduct) {
+            const productDocRef = doc(firestore, 'products', existingProduct.id);
+            setDocumentNonBlocking(productDocRef, dataToSave, { merge: true });
+            toast({ title: "Başarılı", description: "Ürün başarıyla güncellendi." });
+        } else {
+            const productsCollectionRef = collection(firestore, 'products');
+            addDocumentNonBlocking(productsCollectionRef, dataToSave);
+            toast({ title: "Başarılı", description: "Yeni ürün başarıyla eklendi." });
+        }
+        
+        onSuccess();
+        onOpenChange(false);
+    } catch(error: any) {
+         toast({ variant: "destructive", title: "Hata", description: `İşlem başarısız oldu: ${error.message}` });
+    }
   };
+
+  const isEditMode = !!existingProduct;
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -126,13 +138,13 @@ export function QuickAddProduct({ isOpen, onOpenChange, onProductAdded }: QuickA
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <DialogHeader>
-              <DialogTitle>Hızlı Ürün Ekle</DialogTitle>
+              <DialogTitle>{isEditMode ? 'Ürünü Düzenle' : 'Yeni Ürün Ekle'}</DialogTitle>
               <DialogDescription>
-                Teklifinize eklemek için yeni bir ürün veya malzeme oluşturun.
+                 {isEditMode ? 'Ürün bilgilerini güncelleyin.' : 'Sisteme yeni bir ürün veya malzeme ekleyin.'}
               </DialogDescription>
             </DialogHeader>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4 max-h-[60vh] overflow-y-auto px-1">
                 <FormField control={form.control} name="code" render={({ field }) => (
                     <FormItem><FormLabel>Kod</FormLabel><FormControl><Input placeholder="GRF-001" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
@@ -198,12 +210,10 @@ export function QuickAddProduct({ isOpen, onOpenChange, onProductAdded }: QuickA
             </div>
             
             <DialogFooter>
-              <DialogClose asChild>
-                <Button type="button" variant="outline">İptal</Button>
-              </DialogClose>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>İptal</Button>
               <Button type="submit" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Kaydet
+                {isEditMode ? 'Güncelle' : 'Kaydet'}
               </Button>
             </DialogFooter>
           </form>

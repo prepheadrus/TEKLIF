@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PlusCircle, MoreHorizontal, Edit, Trash2, Loader2, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, query, orderBy, doc, deleteDoc } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -76,7 +76,8 @@ const buildCategoryNameMap = (categories: InstallationType[]): Map<string, strin
 export default function ProductsPage() {
   const { toast } = useToast();
   const firestore = useFirestore();
-  const [isAddProductOpen, setIsAddProductOpen] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const productsQuery = useMemoFirebase(
@@ -95,16 +96,23 @@ export default function ProductsPage() {
     if (!installationTypes) return new Map();
     return buildCategoryNameMap(installationTypes);
   }, [installationTypes]);
+  
+  const handleOpenAddDialog = () => {
+    setEditingProduct(null);
+    setIsDialogOpen(true);
+  };
 
-  const handleDeleteProduct = async (productId: string) => {
+  const handleOpenEditDialog = (product: Product) => {
+    setEditingProduct(product);
+    setIsDialogOpen(true);
+  };
+
+
+  const handleDeleteProduct = (productId: string) => {
     if (!firestore) return;
-    try {
-      await deleteDoc(doc(firestore, 'products', productId));
-      toast({ title: 'Başarılı', description: 'Ürün silindi.' });
-      refetch();
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Hata', description: `Ürün silinemedi: ${error.message}` });
-    }
+    deleteDocumentNonBlocking(doc(firestore, 'products', productId));
+    toast({ title: 'Başarılı', description: 'Ürün silindi.' });
+    refetch();
   };
 
   const formatCurrency = (amount: number, currency: string) => {
@@ -129,7 +137,7 @@ export default function ProductsPage() {
           <p className="text-muted-foreground">Ürün ve hizmetlerinizi yönetin.</p>
         </div>
         <div className="flex items-center space-x-2">
-          <Button onClick={() => setIsAddProductOpen(true)}>
+          <Button onClick={handleOpenAddDialog}>
             <PlusCircle className="mr-2 h-4 w-4" />
             Yeni Ürün Ekle
           </Button>
@@ -197,7 +205,7 @@ export default function ProductsPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>İşlemler</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => alert('Düzenleme yakında eklenecek.')}>
+                          <DropdownMenuItem onClick={() => handleOpenEditDialog(product)}>
                             <Edit className="mr-2 h-4 w-4" />
                             Düzenle
                           </DropdownMenuItem>
@@ -241,9 +249,10 @@ export default function ProductsPage() {
         </CardContent>
       </Card>
       <QuickAddProduct
-        isOpen={isAddProductOpen}
-        onOpenChange={setIsAddProductOpen}
-        onProductAdded={refetch}
+        isOpen={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        onSuccess={refetch}
+        existingProduct={editingProduct}
       />
     </>
   );
