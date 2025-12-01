@@ -5,10 +5,11 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import { useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
+import { collection, doc, getDoc } from 'firebase/firestore';
 import { Loader2, Printer } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
+import { calculatePrice } from '@/lib/pricing';
 
 
 type Proposal = {
@@ -28,9 +29,10 @@ type ProposalItem = {
     brand: string;
     quantity: number;
     unit: string;
-    unitPrice: number; // sell price in original currency
-    total: number; // total sell price in original currency
+    listPrice: number;
     currency: 'TRY' | 'USD' | 'EUR';
+    discountRate: number;
+    profitMargin: number;
 };
 
 type Customer = {
@@ -70,6 +72,14 @@ export default function PrintQuotePage() {
     );
     const { data: customer, isLoading: isCustomerLoading } = useDoc<Customer>(customerRef);
     
+    useEffect(() => {
+        if (proposal && items && customer) {
+          // You might want to trigger print automatically or just ensure data is ready.
+          // window.print();
+        }
+    }, [proposal, items, customer]);
+
+
     const isLoading = isProposalLoading || areItemsLoading || isCustomerLoading;
 
     const allDataLoaded = !!proposal && !!items && !!customer;
@@ -84,20 +94,44 @@ export default function PrintQuotePage() {
         return new Intl.NumberFormat('tr-TR', { style: 'currency', currency, minimumFractionDigits: 2 }).format(amount);
     }
     
+    const calculatedItems = useMemo(() => {
+        if (!items || !proposal) return [];
+        return items.map(item => {
+            const exchangeRate =
+                item.currency === 'USD'
+                ? proposal.exchangeRates.USD
+                : item.currency === 'EUR'
+                ? proposal.exchangeRates.EUR
+                : 1;
+
+            const priceInfo = calculatePrice({
+                listPrice: item.listPrice,
+                discountRate: item.discountRate,
+                profitMargin: item.profitMargin,
+                exchangeRate: exchangeRate,
+            });
+
+            return {
+                ...item,
+                unitPrice: priceInfo.tlSellPrice,
+                total: priceInfo.tlSellPrice * item.quantity,
+            };
+        });
+    }, [items, proposal]);
+    
     const totals = useMemo(() => {
-        if (!items || !proposal) return { subtotal: 0, vat: 0, grandTotal: proposal?.totalAmount || 0 };
+        if (!calculatedItems.length || !proposal) return { subtotal: 0, vat: 0, grandTotal: proposal?.totalAmount || 0 };
         
-        // Assuming grandTotal from proposal includes VAT
         const grandTotal = proposal.totalAmount;
-        const vatAmount = grandTotal - (grandTotal / 1.20); // 20% VAT
-        const subTotalBeforeVat = grandTotal - vatAmount;
+        const subTotalBeforeVat = grandTotal / 1.20;
+        const vatAmount = grandTotal - subTotalBeforeVat;
 
         return {
             subtotal: subTotalBeforeVat,
             vat: vatAmount,
             grandTotal: grandTotal,
         };
-    }, [items, proposal]);
+    }, [calculatedItems, proposal]);
 
 
     return (
@@ -114,10 +148,11 @@ export default function PrintQuotePage() {
                         <Printer className="mr-2" /> Yazdır veya PDF Olarak Kaydet
                     </Button>
                 </div>
-                <div className="max-w-4xl mx-auto">
+                <div className="max-w-4xl mx-auto p-4 sm:p-8">
                     <header className="flex justify-between items-start mb-6 pb-4 border-b">
                         <div className="flex items-center gap-4">
-                            <Image src="/logo-header.png" alt="Firma Logosu" width={80} height={80} className="rounded-md" />
+                             {/* Logo might not be present, so handle that */}
+                            {/* <Image src="/logo-header.png" alt="Firma Logosu" width={80} height={80} className="rounded-md" /> */}
                             <div>
                                 <h2 className="text-xl font-bold text-primary">İMS Mühendislik</h2>
                                 <p className="text-xs font-semibold text-gray-600">Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
@@ -161,20 +196,20 @@ export default function PrintQuotePage() {
                                     <th className="p-2 font-semibold">Marka</th>
                                     <th className="p-2 text-center font-semibold">Miktar</th>
                                     <th className="p-2 font-semibold">Birim</th>
-                                    <th className="p-2 text-right font-semibold">Birim Fiyat</th>
-                                    <th className="p-2 text-right font-semibold">Toplam Tutar</th>
+                                    <th className="p-2 text-right font-semibold">Birim Fiyat (TL)</th>
+                                    <th className="p-2 text-right font-semibold">Toplam Tutar (TL)</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {items.map((item, index) => (
+                                {calculatedItems.map((item, index) => (
                                     <tr key={item.id} className="border-b">
                                         <td className="p-2">{index + 1}</td>
                                         <td className="p-2 font-medium">{item.name}</td>
                                         <td className="p-2">{item.brand}</td>
                                         <td className="p-2 text-center">{item.quantity}</td>
                                         <td className="p-2">{item.unit}</td>
-                                        <td className="p-2 text-right">{formatCurrency(item.unitPrice, item.currency)}</td>
-                                        <td className="p-2 text-right font-semibold">{formatCurrency(item.total, item.currency)}</td>
+                                        <td className="p-2 text-right">{formatCurrency(item.unitPrice, 'TRY')}</td>
+                                        <td className="p-2 text-right font-semibold">{formatCurrency(item.total, 'TRY')}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -185,16 +220,16 @@ export default function PrintQuotePage() {
                         <div className="w-full sm:w-1/2 lg:w-2/5 space-y-1">
                             <div className="flex justify-between">
                                 <span className="font-semibold">Ara Toplam:</span>
-                                <span>{formatCurrency(totals.subtotal)}</span>
+                                <span>{formatCurrency(totals.subtotal, 'TRY')}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="font-semibold">KDV (%20):</span>
-                                <span>{formatCurrency(totals.vat)}</span>
+                                <span>{formatCurrency(totals.vat, 'TRY')}</span>
                             </div>
                             <Separator />
                             <div className="flex justify-between text-base font-bold text-primary">
                                 <span>Genel Toplam:</span>
-                                <span>{formatCurrency(totals.grandTotal)}</span>
+                                <span>{formatCurrency(totals.grandTotal, 'TRY')}</span>
                             </div>
                         </div>
                     </section>

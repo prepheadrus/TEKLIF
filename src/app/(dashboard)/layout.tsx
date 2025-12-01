@@ -49,7 +49,7 @@ export default function DashboardLayout({
                 href={item.href}
                 className={cn(
                     "transition-colors hover:text-foreground",
-                    pathname.startsWith(item.href) ? "text-foreground" : "text-muted-foreground"
+                    pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href)) ? "text-foreground" : "text-muted-foreground"
                 )}
             >
                 {item.label}
