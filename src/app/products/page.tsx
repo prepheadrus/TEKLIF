@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -32,11 +33,44 @@ type Product = {
   code: string;
   name: string;
   brand: string;
-  category: string;
+  category: string; // This is the general category
   unit: string;
   listPrice: number;
   currency: 'TRY' | 'USD' | 'EUR';
   discountRate: number;
+  installationTypeId?: string;
+};
+
+type InstallationType = {
+    id: string;
+    name: string;
+    parentId?: string | null;
+}
+
+const buildCategoryNameMap = (categories: InstallationType[]): Map<string, string> => {
+    const categoryMap: { [id: string]: { id: string; name: string; children: any[], parentId?: string | null } } = {};
+    categories.forEach(cat => {
+        categoryMap[cat.id] = { ...cat, children: [] };
+    });
+
+    const roots: any[] = [];
+    categories.forEach(cat => {
+        if (cat.parentId && categoryMap[cat.parentId]) {
+            categoryMap[cat.parentId].children.push(categoryMap[cat.id]);
+        } else {
+            roots.push(categoryMap[cat.id]);
+        }
+    });
+    
+    const nameMap = new Map<string, string>();
+    const traverse = (node: { id: string; name: string; children: any[] }, prefix: string) => {
+        const currentName = prefix ? `${prefix} > ${node.name}` : node.name;
+        nameMap.set(node.id, currentName);
+        node.children.forEach(child => traverse(child, currentName));
+    };
+
+    roots.sort((a,b) => a.name.localeCompare(b.name)).forEach(root => traverse(root, ''));
+    return nameMap;
 };
 
 export default function ProductsPage() {
@@ -50,6 +84,17 @@ export default function ProductsPage() {
     [firestore]
   );
   const { data: products, isLoading, error, refetch } = useCollection<Product>(productsQuery);
+  
+  const installationTypesRef = useMemoFirebase(
+    () => (firestore ? collection(firestore, 'installation_types') : null),
+    [firestore]
+  );
+  const { data: installationTypes, isLoading: isLoadingInstallationTypes } = useCollection<InstallationType>(installationTypesRef);
+  
+  const categoryNameMap = useMemo(() => {
+    if (!installationTypes) return new Map();
+    return buildCategoryNameMap(installationTypes);
+  }, [installationTypes]);
 
   const handleDeleteProduct = async (productId: string) => {
     if (!firestore) return;
@@ -70,8 +115,11 @@ export default function ProductsPage() {
         p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.category.toLowerCase().includes(searchTerm.toLowerCase())
+        p.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.installationTypeId && categoryNameMap.get(p.installationTypeId)?.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+  
+  const tableIsLoading = isLoading || isLoadingInstallationTypes;
 
   return (
     <>
@@ -105,35 +153,38 @@ export default function ProductsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Kod</TableHead>
                 <TableHead>Ad</TableHead>
                 <TableHead>Marka</TableHead>
-                <TableHead>Kategori</TableHead>
+                <TableHead>Tesisat Kategorisi</TableHead>
                 <TableHead>Liste Fiyatı</TableHead>
                 <TableHead><span className="sr-only">İşlemler</span></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
+              {tableIsLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center">
+                  <TableCell colSpan={5} className="text-center">
                     <Loader2 className="mx-auto my-4 h-6 w-6 animate-spin" />
                   </TableCell>
                 </TableRow>
               ) : error ? (
                  <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center text-red-600">
+                    <TableCell colSpan={5} className="h-24 text-center text-red-600">
                         Ürünler yüklenirken bir hata oluştu: {error.message}
                     </TableCell>
                 </TableRow>
               ) : filteredProducts && filteredProducts.length > 0 ? (
                 filteredProducts.map((product) => (
                   <TableRow key={product.id}>
-                    <TableCell className="font-mono text-xs">{product.code}</TableCell>
-                    <TableCell className="font-medium">{product.name}</TableCell>
+                    <TableCell className="font-medium">
+                        <div>{product.name}</div>
+                        <div className="text-xs text-muted-foreground font-mono">{product.code}</div>
+                    </TableCell>
                     <TableCell>{product.brand}</TableCell>
                     <TableCell>
-                        <Badge variant="outline">{product.category}</Badge>
+                      {product.installationTypeId && (
+                        <Badge variant="outline">{categoryNameMap.get(product.installationTypeId) || 'Bilinmiyor'}</Badge>
+                      )}
                     </TableCell>
                     <TableCell>{formatCurrency(product.listPrice, product.currency)}</TableCell>
                     <TableCell>
@@ -180,7 +231,7 @@ export default function ProductsPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
+                  <TableCell colSpan={5} className="h-24 text-center">
                     Henüz ürün bulunmuyor.
                   </TableCell>
                 </TableRow>

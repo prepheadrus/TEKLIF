@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -20,7 +20,7 @@ const productSchema = z.object({
   name: z.string().min(2, "Ad en az 2 karakter olmalıdır."),
   brand: z.string().min(1, "Marka zorunludur."),
   category: z.string().min(1, "Kategori zorunludur."),
-  installationTypeId: z.string().optional(),
+  installationTypeId: z.string().optional().nullable(),
   unit: z.string().min(1, "Birim zorunludur."),
   listPrice: z.coerce.number().min(0, "Liste fiyatı 0'dan büyük olmalıdır."),
   currency: z.enum(["TRY", "USD", "EUR"]),
@@ -38,7 +38,34 @@ interface QuickAddProductProps {
 type InstallationType = {
     id: string;
     name: string;
+    parentId?: string | null;
 }
+
+const buildCategoryTree = (categories: InstallationType[]): { id: string; name: string }[] => {
+    const categoryMap: { [id: string]: { id: string; name: string; children: any[] } } = {};
+    categories.forEach(cat => {
+        categoryMap[cat.id] = { ...cat, children: [] };
+    });
+
+    const roots = [];
+    categories.forEach(cat => {
+        if (cat.parentId && categoryMap[cat.parentId]) {
+            categoryMap[cat.parentId].children.push(categoryMap[cat.id]);
+        } else {
+            roots.push(categoryMap[cat.id]);
+        }
+    });
+
+    const flattenedList: { id: string; name: string }[] = [];
+    const traverse = (node: { id: string; name: string; children: any[] }, prefix: string) => {
+        const currentName = prefix ? `${prefix} > ${node.name}` : node.name;
+        flattenedList.push({ id: node.id, name: currentName });
+        node.children.forEach(child => traverse(child, currentName));
+    };
+
+    roots.sort((a, b) => a.name.localeCompare(b.name)).forEach(root => traverse(root, ''));
+    return flattenedList;
+};
 
 export function QuickAddProduct({ isOpen, onOpenChange, onProductAdded }: QuickAddProductProps) {
   const { toast } = useToast();
@@ -50,6 +77,11 @@ export function QuickAddProduct({ isOpen, onOpenChange, onProductAdded }: QuickA
   );
   const { data: installationTypes, isLoading: isLoadingInstallationTypes } = useCollection<InstallationType>(installationTypesRef);
 
+  const hierarchicalCategories = useMemo(() => {
+    if (!installationTypes) return [];
+    return buildCategoryTree(installationTypes);
+  }, [installationTypes]);
+
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
@@ -58,7 +90,7 @@ export function QuickAddProduct({ isOpen, onOpenChange, onProductAdded }: QuickA
       name: "",
       brand: "",
       category: "",
-      installationTypeId: "",
+      installationTypeId: null,
       unit: "Adet",
       listPrice: 0,
       currency: "TRY",
@@ -77,7 +109,7 @@ export function QuickAddProduct({ isOpen, onOpenChange, onProductAdded }: QuickA
     }
     
     const productsCollectionRef = collection(firestore, 'products');
-    addDocumentNonBlocking(productsCollectionRef, { ...values, installationTypeId: values.installationTypeId || "" });
+    addDocumentNonBlocking(productsCollectionRef, { ...values, installationTypeId: values.installationTypeId || null });
     
     toast({
       title: "Başarılı",
@@ -111,7 +143,7 @@ export function QuickAddProduct({ isOpen, onOpenChange, onProductAdded }: QuickA
                     <FormItem><FormLabel>Marka</FormLabel><FormControl><Input placeholder="Grundfos" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="category" render={({ field }) => (
-                    <FormItem><FormLabel>Kategori</FormLabel><FormControl><Input placeholder="Pompa" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Genel Kategori</FormLabel><FormControl><Input placeholder="Pompa" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
 
                 <FormField
@@ -120,7 +152,7 @@ export function QuickAddProduct({ isOpen, onOpenChange, onProductAdded }: QuickA
                     render={({ field }) => (
                         <FormItem className="md:col-span-2">
                         <FormLabel>Tesisat Kategorisi</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value ?? ''}>
                             <FormControl>
                             <SelectTrigger disabled={isLoadingInstallationTypes}>
                                 <SelectValue placeholder={isLoadingInstallationTypes ? "Kategoriler yükleniyor..." : "Bir tesisat kategorisi seçin (isteğe bağlı)"} />
@@ -128,7 +160,7 @@ export function QuickAddProduct({ isOpen, onOpenChange, onProductAdded }: QuickA
                             </FormControl>
                             <SelectContent>
                                 <SelectItem value="">Kategori Yok</SelectItem>
-                                {installationTypes?.map((type) => (
+                                {hierarchicalCategories.map((type) => (
                                     <SelectItem key={type.id} value={type.id}>
                                         {type.name}
                                     </SelectItem>
@@ -178,5 +210,3 @@ export function QuickAddProduct({ isOpen, onOpenChange, onProductAdded }: QuickA
     </Dialog>
   );
 }
-
-    
