@@ -4,4 +4,5 @@ export type InitialInstallationType = {
   description: string;
 };
 
+// All initial data has been removed as requested.
 export const initialInstallationTypesData: InitialInstallationType[] = [];

@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Card,
   CardHeader,
@@ -340,7 +340,7 @@ export default function InstallationTypesPage() {
               </div>
             ) : (
               <div className="p-8 text-center text-muted-foreground">
-                Henüz kategori oluşturulmamış.
+                Henüz kategori oluşturulmamış. Yeni bir ana disiplin ekleyerek başlayın.
               </div>
             )}
           </CardContent>
