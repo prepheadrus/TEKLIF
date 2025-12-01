@@ -100,6 +100,10 @@ export default function QuotesPage() {
 
   const form = useForm<NewQuoteFormValues>({
     resolver: zodResolver(newQuoteSchema),
+    defaultValues: {
+      customerId: '',
+      projectName: '',
+    },
   });
 
   const proposalsRef = useMemoFirebase(
