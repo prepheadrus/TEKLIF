@@ -154,8 +154,8 @@ export function QuickAddInstallationType({
                 <FormItem>
                   <FormLabel>Üst Kategori</FormLabel>
                   <Select
-                    onValueChange={field.onChange}
-                    value={field.value || ''}
+                    onValueChange={(value) => field.onChange(value === 'null' ? null : value)}
+                    value={field.value ?? ''}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -163,9 +163,6 @@ export function QuickAddInstallationType({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">
-                        Ana disiplin (üst kategori yok)
-                      </SelectItem>
                       {allCategories.filter(c => c.id !== existingCategory?.id).map((cat) => (
                         <SelectItem key={cat.id} value={cat.id}>
                           {cat.name}
