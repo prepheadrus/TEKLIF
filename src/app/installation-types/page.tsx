@@ -30,6 +30,7 @@ import {
   doc,
   deleteDoc,
   writeBatch,
+  getDocs,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -79,7 +80,7 @@ const CategoryNode = ({
   onAddSub: (parentId: string) => void;
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
-  const children = allCategories.filter((c) => c.parentId === category.id);
+  const children = allCategories.filter((c) => c.parentId === category.id).sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <div>
@@ -91,7 +92,7 @@ const CategoryNode = ({
         style={{ paddingLeft: `${level * 24 + 16}px` }}
       >
         <div className="flex items-center gap-2">
-          {children.length > 0 && (
+          {children.length > 0 ? (
             <Button
               variant="ghost"
               size="icon"
@@ -104,9 +105,9 @@ const CategoryNode = ({
                 <ChevronRight className="h-4 w-4" />
               )}
             </Button>
+          ) : (
+             <div className="w-6 h-6" />
           )}
-          {children.length === 0 && <div className="w-6 h-6" />}{' '}
-          {/* Placeholder for alignment */}
           <span className="font-medium">{category.name}</span>
         </div>
         <div className="flex items-center gap-2">
@@ -203,39 +204,47 @@ export default function InstallationTypesPage() {
 
   // Seed initial data if the collection is empty
   useEffect(() => {
-    if (
-      !isLoading &&
-      categories &&
-      categories.length === 0 &&
-      firestore &&
-      !isSeeding
-    ) {
+    if (!isLoading && categories?.length === 0 && firestore && !isSeeding) {
       const seedData = async () => {
         setIsSeeding(true);
         toast({ title: 'Başlangıç verisi oluşturuluyor...' });
         try {
           const batch = writeBatch(firestore);
           const collectionRef = collection(firestore, 'installation_types');
+          const parentMap: { [name: string]: string } = {};
 
-          // Helper function to recursively add categories
-          const addCategories = (items: any[], parentId: string | null) => {
-            items.forEach(item => {
-              const newDocRef = doc(collectionRef);
-              const categoryData = {
-                  name: item.name,
-                  description: item.description,
-                  parentId: parentId
-              };
-              batch.set(newDocRef, categoryData);
-              if (item.children && item.children.length > 0) {
-                  addCategories(item.children, newDocRef.id);
-              }
-            });
-          };
-          
-          addCategories(initialInstallationTypesData, null);
+          // First pass: Create all parent categories
+          const parentItems = initialInstallationTypesData.filter(item => !item.name.includes('>'));
+          for (const item of parentItems) {
+            const newDocRef = doc(collectionRef);
+            batch.set(newDocRef, { name: item.name, description: item.description, parentId: null });
+            parentMap[item.name] = newDocRef.id;
+          }
+          await batch.commit(); // Commit parents first to get their IDs
 
-          await batch.commit();
+          // Short delay or re-fetch might be needed if Firestore propagation is slow, but usually batching handles this.
+          // For simplicity, we'll assume IDs are available for the next batch. A more robust solution might refetch.
+
+          // Second pass: Create child categories
+          const childBatch = writeBatch(firestore);
+          const childItems = initialInstallationTypesData.filter(item => item.name.includes('>'));
+
+          for (const item of childItems) {
+             const parts = item.name.split(' > ');
+             const parentName = parts[0];
+             const childName = parts[1];
+             const parentId = parentMap[parentName];
+
+             if (parentId) {
+                const newDocRef = doc(collectionRef);
+                childBatch.set(newDocRef, { name: childName, description: item.description, parentId: parentId });
+             } else {
+                console.warn(`Parent category "${parentName}" not found for child "${childName}"`);
+             }
+          }
+
+          await childBatch.commit();
+
           toast({
             title: 'Başarılı!',
             description: 'Temel tesisat kategorileri oluşturuldu.',
@@ -258,7 +267,7 @@ export default function InstallationTypesPage() {
 
   const categoryTree = useMemo(() => {
     if (!categories) return [];
-    return categories.filter((c) => !c.parentId); // Get only top-level categories
+    return categories.filter((c) => !c.parentId).sort((a,b) => a.name.localeCompare(b.name));
   }, [categories]);
 
   const handleOpenDialogForNew = (parentId: string | null = null) => {
@@ -353,7 +362,11 @@ export default function InstallationTypesPage() {
                 ))}
               </div>
             ) : (
-              <p className="p-8 text-center text-muted-foreground">Henüz kategori oluşturulmamış. Başlangıç verileri yüklenememiş olabilir.</p>
+              <div className="p-8 text-center text-muted-foreground">
+                 {categories && categories.length === 0 && !isSeeding ? 
+                    "Henüz kategori oluşturulmamış." : 
+                    "Başlangıç verileri yükleniyor veya yüklenemedi..."}
+              </div>
             )}
           </CardContent>
         </Card>
