@@ -5,6 +5,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { useAuth, useUser, initiateAnonymousSignIn } from '@/firebase';
+import DashboardLayout from './DashboardLayout'; // Import the layout directly
 
 function AppInitializer({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
@@ -16,7 +17,8 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
     }
   }, [isUserLoading, user, auth]);
 
-  return <>{children}</>;
+  // Pass children to the DashboardLayout
+  return <DashboardLayout>{children}</DashboardLayout>;
 }
 
 export default function RootLayout({
@@ -47,5 +49,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-    
