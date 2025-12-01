@@ -70,8 +70,11 @@ export default function PrintQuotePage() {
     
     useEffect(() => {
         if (proposal && items && customer) {
-          // This ensures that the print dialog is triggered only after all data is loaded and rendered.
-          setTimeout(() => window.print(), 500);
+          // A small delay allows the browser to render the content before opening the print dialog.
+          const timer = setTimeout(() => {
+            window.print();
+          }, 500);
+          return () => clearTimeout(timer);
         }
     }, [proposal, items, customer]);
 
@@ -117,7 +120,9 @@ export default function PrintQuotePage() {
     const totals = useMemo(() => {
         if (!calculatedItems.length || !proposal) return { subtotal: 0, vat: 0, grandTotal: proposal?.totalAmount || 0 };
         
+        // Use the grand total from the proposal, as it's the source of truth
         const grandTotal = proposal.totalAmount;
+        // Back-calculate subtotal and VAT
         const subTotalBeforeVat = grandTotal / 1.20;
         const vatAmount = grandTotal - subTotalBeforeVat;
 
@@ -131,18 +136,21 @@ export default function PrintQuotePage() {
 
     return (
         <div className="bg-white text-black min-h-screen text-xs print:p-0 p-8 font-body">
-            {isLoading ? (
-                 <div className="flex h-screen items-center justify-center">
+            {isLoading && (
+                 <div className="flex h-screen items-center justify-center print:hidden">
                     <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
                     <p className="ml-4 text-lg">Teklif verileri yükleniyor...</p>
                 </div>
-            ) : allDataLoaded ? (
+            )}
+            
+            {allDataLoaded ? (
                 <>
                 <div className="fixed top-4 right-4 print:hidden z-50">
                     <Button onClick={() => window.print()}>
                         <Printer className="mr-2" /> Yazdır veya PDF Olarak Kaydet
                     </Button>
                 </div>
+                {/* Printable Area */}
                 <div className="max-w-4xl mx-auto p-4 sm:p-8">
                     <header className="flex justify-between items-start mb-6 pb-4 border-b">
                         <div>
@@ -236,7 +244,7 @@ export default function PrintQuotePage() {
                 </div>
                 </>
             ) : (
-                 <div className="flex h-screen items-center justify-center">
+                 !isLoading && <div className="flex h-screen items-center justify-center print:hidden">
                     <p className="text-lg text-red-600">Teklif verileri yüklenemedi veya eksik. Lütfen tekrar deneyin.</p>
                 </div>
             )}

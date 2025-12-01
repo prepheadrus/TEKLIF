@@ -201,6 +201,7 @@ export default function QuoteDetailPage() {
     let grandTotalTRY = 0;
 
     items.forEach((item) => {
+      if (!item.listPrice || !item.quantity) return;
       const exchangeRate =
         item.currency === 'USD'
           ? exchangeRates.USD
@@ -290,20 +291,24 @@ export default function QuoteDetailPage() {
         'proposal_items'
       );
 
+      // Get existing items to find which ones to delete
       const existingItemsSnap = await getDocs(itemsCollectionRef);
       const existingIds = existingItemsSnap.docs.map((d) => d.id);
       const formIds = data.items.map((item) => item.id).filter(Boolean);
       
+      // Delete items that are in Firestore but not in the form
       const idsToDelete = existingIds.filter(id => !formIds.includes(id));
       idsToDelete.forEach(id => {
           batch.delete(doc(itemsCollectionRef, id));
       });
 
+      // Set (update or create) items from the form
       data.items.forEach((item) => {
+        // Remove calculated fields before saving
         const { cost, unitPrice, total, ...dbItem } = item;
         const itemRef = item.id
           ? doc(itemsCollectionRef, item.id)
-          : doc(itemsCollectionRef);
+          : doc(itemsCollectionRef); // Create new doc if no ID
         batch.set(itemRef, dbItem);
       });
 
@@ -339,6 +344,10 @@ export default function QuoteDetailPage() {
   const formatDate = (timestamp?: { seconds: number }) => {
     if (!timestamp) return '-';
     return new Date(timestamp.seconds * 1000).toLocaleDateString('tr-TR');
+  }
+
+  const formatCurrency = (amount: number, currency: 'TRY' | 'USD' | 'EUR' = 'TRY') => {
+      return new Intl.NumberFormat('tr-TR', { style: 'currency', currency }).format(amount)
   }
 
   return (
@@ -523,10 +532,10 @@ export default function QuoteDetailPage() {
                                 />
                             </TableCell>
                             <TableCell className="text-right">
-                                {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(priceInfo.tlSellPrice)}
+                                {formatCurrency(priceInfo.tlSellPrice)}
                             </TableCell>
                              <TableCell className="text-right font-medium">
-                                {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(priceInfo.tlSellPrice * itemValues.quantity)}
+                                {formatCurrency(priceInfo.tlSellPrice * (itemValues.quantity || 0))}
                             </TableCell>
                             <TableCell>
                               <Button
@@ -566,16 +575,16 @@ export default function QuoteDetailPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span>Ara Toplam</span>
-                      <span>{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(totals.subtotal)}</span>
+                      <span>{formatCurrency(totals.subtotal)}</span>
                     </div>
                      <div className="flex justify-between">
                       <span>KDV (%20)</span>
-                      <span>{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(totals.vat)}</span>
+                      <span>{formatCurrency(totals.vat)}</span>
                     </div>
                      <Separator />
                      <div className="flex justify-between font-semibold text-lg">
                       <span>Genel Toplam</span>
-                      <span>{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(totals.grandTotal)}</span>
+                      <span>{formatCurrency(totals.grandTotal)}</span>
                     </div>
                   </div>
                 </CardContent>
@@ -657,6 +666,7 @@ function AISuggestionBox({ productName, existingItems, onClose }: { productName:
                     productName: productName,
                     existingParts: existingItems,
                 });
+                // Filter out suggestions that are already in the list (case-insensitive)
                 const newSuggestions = result.suggestedParts.filter(
                     suggestion => !existingItems.some(item => item.toLowerCase().includes(suggestion.toLowerCase()))
                 );
@@ -668,7 +678,9 @@ function AISuggestionBox({ productName, existingItems, onClose }: { productName:
                 setIsLoading(false);
             }
         }
-        getSuggestions();
+        if (productName) {
+            getSuggestions();
+        }
     }, [productName, existingItems]);
 
 

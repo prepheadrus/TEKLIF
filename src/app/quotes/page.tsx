@@ -131,7 +131,7 @@ export default function QuotesPage() {
         // Generate Quote Number
         const now = new Date();
         const month = (now.getMonth() + 1).toString().padStart(2, '0');
-        const year = now.getFullYear();
+        const year = now.getFullYear().toString().slice(-2);
         const proposalsInMonthQuery = query(
             collection(firestore, 'proposals'),
             where('quoteNumber', '>=', `${month}${year}/001`),
@@ -168,7 +168,7 @@ export default function QuotesPage() {
         console.error("Teklif oluşturma hatası:", error);
         const errorMessage = error.code === 'auth/network-request-failed' 
             ? "Ağ bağlantısı hatası nedeniyle teklif oluşturulamadı. Lütfen internet bağlantınızı kontrol edin."
-            : `Teklif oluşturulamadı: Yetkiniz yok veya ağ hatası.`;
+            : `Teklif oluşturulamadı: ${error.message}`;
         toast({ variant: "destructive", title: "Hata", description: errorMessage });
     } finally {
         setIsSubmitting(false);
@@ -232,6 +232,7 @@ export default function QuotesPage() {
   const handleDeleteProposal = async (proposalId: string) => {
     if (!firestore) return;
     try {
+        // Here you might also want to delete subcollections, but for simplicity, we delete the main doc.
         await deleteDoc(doc(firestore, 'proposals', proposalId));
         toast({ title: "Başarılı", description: "Teklif silindi." });
         refetchProposals();
