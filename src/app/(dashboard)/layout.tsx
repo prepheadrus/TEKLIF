@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Bot, Home, Users, Package, FileText, Settings, LogOut, Wrench, BookCopy, Construction } from 'lucide-react';
+import { Bot, Home, Users, Package, FileText, Settings, LogOut, Wrench, BookCopy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
@@ -22,7 +22,6 @@ const navItems = [
     { href: '/dashboard/customers', label: 'Müşteriler', icon: Users },
     { href: '/dashboard/products', label: 'Ürünler', icon: Package },
     { href: '/dashboard/recipes', label: 'Reçeteler', icon: BookCopy },
-    { href: '/dashboard/installation-types', label: 'Tesisat Türleri', icon: Construction },
     { href: '/dashboard/resources', label: 'Kaynaklar', icon: Wrench },
 ];
 

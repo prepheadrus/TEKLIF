@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { addDoc, collection, doc, serverTimestamp, getDocs, query, orderBy, where, getDoc, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, doc, serverTimestamp, getDocs, query, orderBy, where, getDoc, writeBatch, deleteDoc, setDoc } from 'firebase/firestore';
 
 import {
   Table,
