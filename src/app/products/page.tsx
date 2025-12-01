@@ -49,7 +49,7 @@ export default function ProductsPage() {
     () => (firestore ? query(collection(firestore, 'products'), orderBy('name', 'asc')) : null),
     [firestore]
   );
-  const { data: products, isLoading, refetch } = useCollection<Product>(productsQuery);
+  const { data: products, isLoading, error, refetch } = useCollection<Product>(productsQuery);
 
   const handleDeleteProduct = async (productId: string) => {
     if (!firestore) return;
@@ -119,6 +119,12 @@ export default function ProductsPage() {
                   <TableCell colSpan={6} className="text-center">
                     <Loader2 className="mx-auto my-4 h-6 w-6 animate-spin" />
                   </TableCell>
+                </TableRow>
+              ) : error ? (
+                 <TableRow>
+                    <TableCell colSpan={6} className="h-24 text-center text-red-600">
+                        Ürünler yüklenirken bir hata oluştu: {error.message}
+                    </TableCell>
                 </TableRow>
               ) : filteredProducts && filteredProducts.length > 0 ? (
                 filteredProducts.map((product) => (

@@ -4,7 +4,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import { useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, doc, getDoc } from 'firebase/firestore';
+import { collection, doc } from 'firebase/firestore';
 import { Loader2, Printer } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
@@ -50,21 +50,18 @@ export default function PrintQuotePage() {
     const proposalId = params.id as string;
     const customerId = searchParams.get('customerId');
 
-    // Fetch Proposal
     const proposalRef = useMemoFirebase(
         () => (firestore && proposalId ? doc(firestore, 'proposals', proposalId) : null),
         [firestore, proposalId]
     );
     const { data: proposal, isLoading: isProposalLoading } = useDoc<Proposal>(proposalRef);
 
-    // Fetch Proposal Items
     const itemsRef = useMemoFirebase(
         () => (firestore && proposalId ? collection(firestore, 'proposals', proposalId, 'proposal_items') : null),
         [firestore, proposalId]
     );
     const { data: items, isLoading: areItemsLoading } = useCollection<ProposalItem>(itemsRef);
 
-    // Fetch customer details
     const customerRef = useMemoFirebase(
         () => (firestore && customerId ? doc(firestore, 'customers', customerId) : null),
         [firestore, customerId]
@@ -73,14 +70,13 @@ export default function PrintQuotePage() {
     
     useEffect(() => {
         if (proposal && items && customer) {
-          // You might want to trigger print automatically or just ensure data is ready.
-          // window.print();
+          // This ensures that the print dialog is triggered only after all data is loaded and rendered.
+          setTimeout(() => window.print(), 500);
         }
     }, [proposal, items, customer]);
 
 
     const isLoading = isProposalLoading || areItemsLoading || isCustomerLoading;
-
     const allDataLoaded = !!proposal && !!items && !!customer;
 
     
@@ -134,10 +130,10 @@ export default function PrintQuotePage() {
 
 
     return (
-        <div className="bg-white text-black min-h-screen text-xs print:p-0 p-8">
+        <div className="bg-white text-black min-h-screen text-xs print:p-0 p-8 font-body">
             {isLoading ? (
                  <div className="flex h-screen items-center justify-center">
-                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                    <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
                     <p className="ml-4 text-lg">Teklif verileri yükleniyor...</p>
                 </div>
             ) : allDataLoaded ? (
@@ -149,17 +145,13 @@ export default function PrintQuotePage() {
                 </div>
                 <div className="max-w-4xl mx-auto p-4 sm:p-8">
                     <header className="flex justify-between items-start mb-6 pb-4 border-b">
-                        <div className="flex items-center gap-4">
-                             {/* Logo might not be present, so handle that */}
-                            {/* <Image src="/logo-header.png" alt="Firma Logosu" width={80} height={80} className="rounded-md" /> */}
-                            <div>
-                                <h2 className="text-xl font-bold text-primary">İMS Mühendislik</h2>
-                                <p className="text-xs font-semibold text-gray-600">Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
-                                <p className="text-xs max-w-xs mt-2">
-                                    Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA
-                                </p>
-                                <p className="text-xs mt-1">ims.m.muhendislik@gmail.com | (553) 469 75 01</p>
-                            </div>
+                        <div>
+                            <h2 className="text-xl font-bold text-blue-700">İMS Mühendislik</h2>
+                            <p className="text-xs font-semibold text-gray-600">Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
+                            <p className="text-xs max-w-xs mt-2">
+                                Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA
+                            </p>
+                            <p className="text-xs mt-1">ims.m.muhendislik@gmail.com | (553) 469 75 01</p>
                         </div>
                         <div className="text-right">
                             <h2 className="text-xl font-bold uppercase tracking-wider">TEKLİF</h2>
@@ -226,7 +218,7 @@ export default function PrintQuotePage() {
                                 <span>{formatCurrency(totals.vat, 'TRY')}</span>
                             </div>
                             <Separator />
-                            <div className="flex justify-between text-base font-bold text-primary">
+                            <div className="flex justify-between text-base font-bold text-blue-700">
                                 <span>Genel Toplam:</span>
                                 <span>{formatCurrency(totals.grandTotal, 'TRY')}</span>
                             </div>
@@ -245,7 +237,7 @@ export default function PrintQuotePage() {
                 </>
             ) : (
                  <div className="flex h-screen items-center justify-center">
-                    <p className="text-lg text-destructive">Teklif verileri yüklenemedi veya eksik. Lütfen tekrar deneyin.</p>
+                    <p className="text-lg text-red-600">Teklif verileri yüklenemedi veya eksik. Lütfen tekrar deneyin.</p>
                 </div>
             )}
         </div>

@@ -178,7 +178,6 @@ export default function QuoteDetailPage() {
         versionNote: proposal.versionNote || '',
         items: initialItems.map((item) => ({
           ...item,
-          // Ensure all fields are present, providing defaults if necessary
           productId: item.productId || '',
           name: item.name || '',
           brand: item.brand || '',
@@ -291,19 +290,15 @@ export default function QuoteDetailPage() {
         'proposal_items'
       );
 
-      // Get existing items to find which ones to delete
       const existingItemsSnap = await getDocs(itemsCollectionRef);
       const existingIds = existingItemsSnap.docs.map((d) => d.id);
       const formIds = data.items.map((item) => item.id).filter(Boolean);
       
-      // Delete items that are no longer in the form
       const idsToDelete = existingIds.filter(id => !formIds.includes(id));
       idsToDelete.forEach(id => {
           batch.delete(doc(itemsCollectionRef, id));
       });
 
-
-      // Add or update items from the form
       data.items.forEach((item) => {
         const { cost, unitPrice, total, ...dbItem } = item;
         const itemRef = item.id
@@ -557,7 +552,6 @@ export default function QuoteDetailPage() {
                         <PlusCircle className="mr-2" />
                         Kalem Ekle
                     </Button>
-                     {/* Placeholder for AI button */}
                 </CardFooter>
               </Card>
             </div>
@@ -663,7 +657,6 @@ function AISuggestionBox({ productName, existingItems, onClose }: { productName:
                     productName: productName,
                     existingParts: existingItems,
                 });
-                // Filter out suggestions that already exist in the list
                 const newSuggestions = result.suggestedParts.filter(
                     suggestion => !existingItems.some(item => item.toLowerCase().includes(suggestion.toLowerCase()))
                 );

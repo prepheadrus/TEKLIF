@@ -64,7 +64,7 @@ export default function CustomersPage() {
       () => (firestore ? query(collection(firestore, 'customers'), orderBy('name', 'asc')) : null),
       [firestore]
   );
-  const { data: customers, isLoading, refetch } = useCollection<Customer>(customersQuery);
+  const { data: customers, isLoading, error, refetch } = useCollection<Customer>(customersQuery);
 
   const handleDeleteCustomer = async (customerId: string) => {
     if (!firestore) return;
@@ -130,6 +130,12 @@ export default function CustomersPage() {
                   <TableCell colSpan={4} className="text-center">
                     <Loader2 className="mx-auto my-4 h-6 w-6 animate-spin" />
                   </TableCell>
+                </TableRow>
+              ) : error ? (
+                <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center text-red-600">
+                        Müşteriler yüklenirken bir hata oluştu: {error.message}
+                    </TableCell>
                 </TableRow>
               ) : filteredCustomers && filteredCustomers.length > 0 ? (
                 filteredCustomers.map((customer) => (

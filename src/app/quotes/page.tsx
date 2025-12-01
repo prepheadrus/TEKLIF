@@ -150,7 +150,7 @@ export default function QuotesPage() {
             totalAmount: 0,
             status: 'Draft',
             createdAt: serverTimestamp(),
-            exchangeRates: { USD: 0, EUR: 0 }, // Will be set later
+            exchangeRates: { USD: 32.5, EUR: 35.0 }, // Dummy rates, will be updated.
             versionNote: "İlk Versiyon"
         };
         await setDoc(newProposalRef, newProposalData);
@@ -226,10 +226,7 @@ export default function QuotesPage() {
   const handleDeleteProposal = async (proposalId: string) => {
     if (!firestore) return;
     try {
-        // A simple delete for now. In a real app, you might want to archive it
-        // or check for dependencies before deleting.
         await deleteDoc(doc(firestore, 'proposals', proposalId));
-        // You might also want to delete subcollections like `proposal_items`
         toast({ title: "Başarılı", description: "Teklif silindi." });
         refetchProposals();
     } catch (error: any) {
@@ -372,15 +369,15 @@ export default function QuotesPage() {
                     <TableCell>{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(proposal.totalAmount)}</TableCell>
                     <TableCell>{getStatusBadge(proposal.status)}</TableCell>
                     <TableCell>{proposal.createdAt ? new Date(proposal.createdAt.seconds * 1000).toLocaleDateString('tr-TR') : '-'}</TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                            <DropdownMenuTrigger asChild>
-                             <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
+                             <Button variant="ghost" className="h-8 w-8 p-0">
                                <span className="sr-only">Menüyü aç</span>
                                <MoreHorizontal className="h-4 w-4" />
                              </Button>
                            </DropdownMenuTrigger>
-                           <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                           <DropdownMenuContent align="end">
                              <DropdownMenuLabel>İşlemler</DropdownMenuLabel>
                              <DropdownMenuItem onClick={() => router.push(`/quotes/${proposal.id}`)}>
                                Görüntüle / Düzenle
