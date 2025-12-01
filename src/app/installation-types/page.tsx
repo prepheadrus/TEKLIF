@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Card,
   CardHeader,
@@ -27,11 +27,9 @@ import {
 import {
   collection,
   query,
-  orderBy,
   doc,
   deleteDoc,
   writeBatch,
-  getDocs,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -55,7 +53,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { QuickAddInstallationType } from '@/components/app/quick-add-installation-type';
 import { cn } from '@/lib/utils';
-import { initialInstallationTypesData } from '@/lib/seed-data';
 
 export type InstallationType = {
   id: string;
@@ -82,7 +79,10 @@ const buildTree = (categories: InstallationType[]): TreeNode[] => {
   // Populate children arrays and find roots
   categories.forEach(category => {
     if (category.parentId && categoryMap[category.parentId]) {
-      categoryMap[category.parentId].children.push(categoryMap[category.id]);
+      // Prevent adding a category to itself
+      if (category.id !== category.parentId) {
+        categoryMap[category.parentId].children.push(categoryMap[category.id]);
+      }
     } else {
       roots.push(categoryMap[category.id]);
     }
@@ -221,7 +221,6 @@ const CategoryNode = ({
 export default function InstallationTypesPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
-  const [isSeeding, setIsSeeding] = useState(false);
 
   // State for managing the dialog
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -242,76 +241,6 @@ export default function InstallationTypesPage() {
     error,
     refetch,
   } = useCollection<InstallationType>(categoriesQuery);
-
-  const seedData = useCallback(async () => {
-    if (!firestore) return;
-
-    setIsSeeding(true);
-    toast({ title: 'Başlangıç verisi oluşturuluyor...' });
-    try {
-        const batch = writeBatch(firestore);
-        const collectionRef = collection(firestore, 'installation_types');
-        const parentMap: { [name: string]: string } = {};
-
-        // Pass 1: Create all parent categories and map their names to temporary IDs
-        const parentItems = initialInstallationTypesData.filter(item => !item.name.includes('>'));
-        for (const item of parentItems) {
-            const newDocRef = doc(collectionRef);
-            batch.set(newDocRef, { name: item.name, description: item.description, parentId: null });
-            parentMap[item.name] = newDocRef.id;
-        }
-
-        // Pass 2: Create child categories using the IDs from the parentMap
-        const childItems = initialInstallationTypesData.filter(item => item.name.includes('>'));
-        for (const item of childItems) {
-            const parts = item.name.split(' > ');
-            const parentName = parts[0].trim();
-            const childName = parts[1].trim();
-            const parentId = parentMap[parentName];
-
-            if (parentId) {
-                const newChildRef = doc(collectionRef);
-                batch.set(newChildRef, { name: childName, description: item.description, parentId: parentId });
-            } else {
-                console.warn(`Parent category "${parentName}" not found for child "${childName}"`);
-            }
-        }
-        
-        await batch.commit();
-
-        toast({
-            title: 'Başarılı!',
-            description: 'Temel tesisat kategorileri oluşturuldu.',
-        });
-        refetch();
-    } catch (err: any) {
-        console.error("Seeding error:", err);
-        toast({
-            variant: 'destructive',
-            title: 'Veri oluşturma hatası',
-            description: err.message,
-        });
-    } finally {
-        setIsSeeding(false);
-    }
-}, [firestore, refetch, toast]);
-
-
-  // Seed initial data if the collection is empty
-  useEffect(() => {
-    if (!isLoading && categories?.length === 0 && !isSeeding) {
-        const checkAndSeed = async () => {
-             if (!firestore) return;
-             const collectionRef = collection(firestore, 'installation_types');
-             const snapshot = await getDocs(query(collectionRef));
-             if (snapshot.empty) {
-                seedData();
-             }
-        }
-        checkAndSeed();
-    }
-  }, [isLoading, categories, isSeeding, seedData, firestore]);
-
 
   const categoryTree = useMemo(() => {
     if (!categories) return [];
@@ -389,7 +318,7 @@ export default function InstallationTypesPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoading || isSeeding ? (
+            {isLoading ? (
               <div className="flex items-center justify-center p-8">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 <p className="ml-4">Kategoriler yükleniyor...</p>
@@ -411,9 +340,7 @@ export default function InstallationTypesPage() {
               </div>
             ) : (
               <div className="p-8 text-center text-muted-foreground">
-                 {categories && categories.length === 0 && !isSeeding ? 
-                    "Henüz kategori oluşturulmamış." : 
-                    "Başlangıç verileri yükleniyor veya yüklenemedi..."}
+                Henüz kategori oluşturulmamış.
               </div>
             )}
           </CardContent>
