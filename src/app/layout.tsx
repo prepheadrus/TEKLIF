@@ -7,7 +7,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { useAuth, initiateAnonymousSignIn, useUser } from '@/firebase';
-import { Bot, Home, Users, Package, FileText, Settings, LogOut, Wrench, BookCopy } from 'lucide-react';
+import { Bot, Home, Users, Package, FileText, Settings, LogOut, Wrench, BookCopy, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -18,6 +18,7 @@ const navItems = [
     { href: '/quotes', label: 'Teklifler', icon: FileText },
     { href: '/customers', label: 'Müşteriler', icon: Users },
     { href: '/products', label: 'Ürünler', icon: Package },
+    { href: '/installation-types', label: 'Tesisat Kategorileri', icon: Layers },
     { href: '/recipes', label: 'Reçeteler', icon: BookCopy },
     { href: '/resources', label: 'Kaynaklar', icon: Wrench },
 ];
@@ -50,10 +51,11 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
               key={item.href}
               href={item.href}
               className={cn(
-                "text-muted-foreground transition-colors hover:text-foreground",
+                "flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground",
                 (pathname === item.href) || (item.href !== '/' && pathname.startsWith(item.href)) ? "text-foreground" : ""
               )}
             >
+              <item.icon className="h-4 w-4" />
               {item.label}
             </Link>
           ))}
@@ -134,3 +136,5 @@ export default function RootLayout({
     </html>
   );
 }
+
+    

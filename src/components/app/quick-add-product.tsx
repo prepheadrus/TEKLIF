@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useFirestore, useUser, addDocumentNonBlocking } from '@/firebase';
+import { useFirestore, useUser, addDocumentNonBlocking, useCollection, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
 
 const productSchema = z.object({
@@ -20,7 +20,7 @@ const productSchema = z.object({
   name: z.string().min(2, "Ad en az 2 karakter olmalıdır."),
   brand: z.string().min(1, "Marka zorunludur."),
   category: z.string().min(1, "Kategori zorunludur."),
-  installationTypeId: z.string().optional(), // Made optional for simplicity
+  installationTypeId: z.string().optional(),
   unit: z.string().min(1, "Birim zorunludur."),
   listPrice: z.coerce.number().min(0, "Liste fiyatı 0'dan büyük olmalıdır."),
   currency: z.enum(["TRY", "USD", "EUR"]),
@@ -35,9 +35,21 @@ interface QuickAddProductProps {
     onProductAdded: () => void;
 }
 
+type InstallationType = {
+    id: string;
+    name: string;
+}
+
 export function QuickAddProduct({ isOpen, onOpenChange, onProductAdded }: QuickAddProductProps) {
   const { toast } = useToast();
   const firestore = useFirestore();
+
+  const installationTypesRef = useMemoFirebase(
+    () => (firestore ? collection(firestore, 'installation_types') : null),
+    [firestore]
+  );
+  const { data: installationTypes, isLoading: isLoadingInstallationTypes } = useCollection<InstallationType>(installationTypesRef);
+
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
@@ -46,6 +58,7 @@ export function QuickAddProduct({ isOpen, onOpenChange, onProductAdded }: QuickA
       name: "",
       brand: "",
       category: "",
+      installationTypeId: "",
       unit: "Adet",
       listPrice: 0,
       currency: "TRY",
@@ -100,6 +113,33 @@ export function QuickAddProduct({ isOpen, onOpenChange, onProductAdded }: QuickA
                 <FormField control={form.control} name="category" render={({ field }) => (
                     <FormItem><FormLabel>Kategori</FormLabel><FormControl><Input placeholder="Pompa" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
+
+                <FormField
+                    control={form.control}
+                    name="installationTypeId"
+                    render={({ field }) => (
+                        <FormItem className="md:col-span-2">
+                        <FormLabel>Tesisat Kategorisi</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                            <SelectTrigger disabled={isLoadingInstallationTypes}>
+                                <SelectValue placeholder={isLoadingInstallationTypes ? "Kategoriler yükleniyor..." : "Bir tesisat kategorisi seçin (isteğe bağlı)"} />
+                            </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                <SelectItem value="">Kategori Yok</SelectItem>
+                                {installationTypes?.map((type) => (
+                                    <SelectItem key={type.id} value={type.id}>
+                                        {type.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
                 <FormField control={form.control} name="listPrice" render={({ field }) => (
                     <FormItem><FormLabel>Liste Fiyatı</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
@@ -138,3 +178,5 @@ export function QuickAddProduct({ isOpen, onOpenChange, onProductAdded }: QuickA
     </Dialog>
   );
 }
+
+    
