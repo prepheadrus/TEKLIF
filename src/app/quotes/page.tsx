@@ -164,7 +164,7 @@ export default function QuotesPage() {
         console.error("Teklif oluşturma hatası:", error);
         const errorMessage = error.code === 'auth/network-request-failed' 
             ? "Ağ bağlantısı hatası nedeniyle teklif oluşturulamadı. Lütfen internet bağlantınızı kontrol edin."
-            : `Teklif oluşturulamadı: ${error.message}`;
+            : `Teklif oluşturulamadı: Yetkiniz yok veya ağ hatası.`;
         toast({ variant: "destructive", title: "Hata", description: errorMessage });
     } finally {
         setIsSubmitting(false);
