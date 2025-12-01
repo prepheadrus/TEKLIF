@@ -2,7 +2,7 @@
 'use client';
 
 import { useParams, useSearchParams } from 'next/navigation';
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import { useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
@@ -102,12 +102,12 @@ export default function PrintQuotePage() {
 
     return (
         <div className="bg-white text-black min-h-screen text-xs print:p-0 p-8">
-            {isLoading || !allDataLoaded ? (
+            {isLoading ? (
                  <div className="flex h-screen items-center justify-center">
                     <Loader2 className="h-12 w-12 animate-spin text-primary" />
                     <p className="ml-4 text-lg">Teklif verileri yükleniyor...</p>
                 </div>
-            ) : (
+            ) : allDataLoaded ? (
                 <>
                 <div className="fixed top-4 right-4 print:hidden z-50">
                     <Button onClick={() => window.print()}>
@@ -209,6 +209,10 @@ export default function PrintQuotePage() {
                     </footer>
                 </div>
                 </>
+            ) : (
+                 <div className="flex h-screen items-center justify-center">
+                    <p className="text-lg text-destructive">Teklif verileri yüklenemedi veya eksik. Lütfen tekrar deneyin.</p>
+                </div>
             )}
         </div>
     );
