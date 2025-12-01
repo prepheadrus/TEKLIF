@@ -100,7 +100,7 @@ const buildTree = (categories: InstallationType[]): TreeNode[] => {
 };
 
 
-// Recursive component to render the category tree. It's simpler now.
+// Recursive component to render the category tree.
 const CategoryNode = ({
   node,
   level,
@@ -126,29 +126,36 @@ const CategoryNode = ({
         )}
         style={{ paddingLeft: `${level * 24 + 16}px` }}
       >
-        <div className="flex items-center gap-2">
-          {hasChildren ? (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              onClick={() => setIsExpanded(!isExpanded)}
-            >
-              {isExpanded ? (
-                <ChevronDown className="h-4 w-4" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
-            </Button>
-          ) : (
-             <div className="w-6 h-6" />
-          )}
-          <span className="font-medium">{node.name}</span>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+           <div className="flex items-center self-start pt-1">
+             {hasChildren ? (
+                <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={() => setIsExpanded(!isExpanded)}
+                >
+                {isExpanded ? (
+                    <ChevronDown className="h-4 w-4" />
+                ) : (
+                    <ChevronRight className="h-4 w-4" />
+                )}
+                </Button>
+            ) : (
+                <div className="w-6 h-6" />
+            )}
+           </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-medium truncate">{node.name}</p>
+            {node.description && (
+                <p className="text-xs text-muted-foreground truncate">{node.description}</p>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 ml-4">
             <Button variant="outline" size="sm" onClick={() => onAddSub(node.id)}>
                 <PlusCircle className="mr-2 h-4 w-4" />
-                Alt Kategori Ekle
+                Alt Kategori
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -293,9 +300,17 @@ export default function InstallationTypesPage() {
   // Seed initial data if the collection is empty
   useEffect(() => {
     if (!isLoading && categories?.length === 0 && !isSeeding) {
-        seedData();
+        const checkAndSeed = async () => {
+             if (!firestore) return;
+             const collectionRef = collection(firestore, 'installation_types');
+             const snapshot = await getDocs(query(collectionRef));
+             if (snapshot.empty) {
+                seedData();
+             }
+        }
+        checkAndSeed();
     }
-  }, [isLoading, categories, isSeeding, seedData]);
+  }, [isLoading, categories, isSeeding, seedData, firestore]);
 
 
   const categoryTree = useMemo(() => {
@@ -319,28 +334,15 @@ export default function InstallationTypesPage() {
     if (!firestore || !categories) return;
 
     // Find all children recursively to delete them as well
-    const idsToDelete = new Set<string>([categoryId]);
-    const queue = [categoryId];
-    const categoryMap = buildTree(categories); // We need the tree to find children easily
+    const idsToDelete = new Set<string>();
+    const queue: string[] = [categoryId];
     
-    const findNode = (nodes: TreeNode[], id: string): TreeNode | null => {
-        for(const node of nodes) {
-            if (node.id === id) return node;
-            const found = findNode(node.children, id);
-            if (found) return found;
-        }
-        return null;
-    };
-
-    const nodeToDelete = findNode(categoryMap, categoryId);
-
-    const collectChildrenIds = (node: TreeNode) => {
-        idsToDelete.add(node.id);
-        node.children.forEach(collectChildrenIds);
-    };
-
-    if (nodeToDelete) {
-        collectChildrenIds(nodeToDelete);
+    while (queue.length > 0) {
+      const currentId = queue.shift()!;
+      idsToDelete.add(currentId);
+      
+      const children = categories.filter(c => c.parentId === currentId);
+      children.forEach(child => queue.push(child.id));
     }
 
 
