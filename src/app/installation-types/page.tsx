@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useTransition } from 'react';
 import {
   Card,
   CardHeader,
@@ -85,7 +85,8 @@ const buildTree = (categories: InstallationType[]): TreeNode[] => {
 
   categories.forEach(category => {
     if (category.parentId && categoryMap[category.parentId]) {
-      if (category.id !== category.parentId) {
+      // Avoid a category being its own parent
+      if (category.id !== category.parentId) { 
         categoryMap[category.parentId].children.push(categoryMap[category.id]);
       }
     } else {
@@ -93,12 +94,13 @@ const buildTree = (categories: InstallationType[]): TreeNode[] => {
     }
   });
   
-  const sortNodes = (nodes: TreeNode[]) => {
-      nodes.sort((a, b) => a.name.localeCompare(b.name, 'tr', { numeric: true }));
-      nodes.forEach(node => sortNodes(node.children));
-  };
+  // Sort children for each node
+  Object.values(categoryMap).forEach(node => {
+      node.children.sort((a, b) => a.name.localeCompare(b.name, 'tr', { numeric: true }));
+  });
   
-  sortNodes(roots);
+  // Sort root nodes
+  roots.sort((a, b) => a.name.localeCompare(b.name, 'tr', { numeric: true }));
 
   return roots;
 };
@@ -117,7 +119,7 @@ const CategoryNode = ({
   onAddSub: (parentId: string) => void;
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
-  const hasChildren = node.children.length > 0;
+  const hasChildren = node.children && node.children.length > 0;
 
   return (
     <div>
@@ -144,12 +146,12 @@ const CategoryNode = ({
                 )}
                 </Button>
             ) : (
-                <div className="w-6 h-6" />
+                <div className="w-6 h-6" /> // Placeholder to maintain alignment
             )}
            </div>
           <div className="flex-1 min-w-0">
             <p className="font-medium truncate">{node.name}</p>
-            {node.description && (
+             {node.description && (
                 <p className="text-xs text-muted-foreground truncate">{node.description}</p>
             )}
           </div>
@@ -219,6 +221,7 @@ const CategoryNode = ({
     </div>
   );
 };
+
 
 export default function InstallationTypesPage() {
   const firestore = useFirestore();
@@ -317,51 +320,30 @@ export default function InstallationTypesPage() {
     }
   };
 
-   const seedData = async () => {
+  const seedData = async () => {
     if (!firestore) return;
     setIsSeeding(true);
+
     try {
-      const batch = writeBatch(firestore);
       const collectionRef = collection(firestore, 'installation_types');
       const parentIdMap = new Map<string, string>();
+      const batch = writeBatch(firestore);
 
-      // Level 1
-      for (const cat of initialInstallationTypesData) {
-        const docRef = doc(collectionRef);
-        batch.set(docRef, { name: cat.name, description: cat.description, parentId: null });
-        parentIdMap.set(cat.name, docRef.id);
-      }
-
-      // Level 2
-      for (const cat of initialInstallationTypesData) {
-        if (cat.children) {
-          const parentId = parentIdMap.get(cat.name);
-          if (parentId) {
-            for (const child of cat.children) {
-              const docRef = doc(collectionRef);
-              batch.set(docRef, { name: child.name, description: child.description, parentId: parentId });
-              parentIdMap.set(`${cat.name}/${child.name}`, docRef.id);
-            }
-          }
+      // Recursive function to process categories
+      const processCategory = (category: InitialInstallationType, parentId: string | null) => {
+        const newDocRef = doc(collectionRef);
+        batch.set(newDocRef, { 
+          name: category.name, 
+          description: category.description || "", 
+          parentId: parentId 
+        });
+        if (category.children) {
+          category.children.forEach(child => processCategory(child, newDocRef.id));
         }
-      }
+      };
 
-      // Level 3
-      for (const cat of initialInstallationTypesData) {
-          if (cat.children) {
-              for (const child of cat.children) {
-                  if (child.children) {
-                      const parentId = parentIdMap.get(`${cat.name}/${child.name}`);
-                      if (parentId) {
-                          for (const grandchild of child.children) {
-                              const docRef = doc(collectionRef);
-                              batch.set(docRef, { name: grandchild.name, description: grandchild.description, parentId: parentId });
-                          }
-                      }
-                  }
-              }
-          }
-      }
+      // Start processing top-level categories
+      initialInstallationTypesData.forEach(cat => processCategory(cat, null));
       
       await batch.commit();
       toast({ title: 'Başarılı!', description: 'Örnek kategoriler veritabanına yüklendi.' });
@@ -377,6 +359,7 @@ export default function InstallationTypesPage() {
       setIsSeeding(false);
     }
   };
+
 
   return (
     <>
@@ -474,3 +457,5 @@ export default function InstallationTypesPage() {
     </>
   );
 }
+
+    
