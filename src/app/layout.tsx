@@ -9,15 +9,6 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { useAuth, initiateAnonymousSignIn, useUser } from '@/firebase';
 import { Bot, Home, Users, Package, FileText, Settings, LogOut, Wrench, BookCopy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Menu } from 'lucide-react';
@@ -106,30 +97,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
           </Sheet>
 
             <div className="flex w-full items-center justify-end gap-4 md:ml-auto md:gap-2 lg:gap-4">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="secondary" size="icon" className="rounded-full">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src="https://picsum.photos/seed/1/100/100" />
-                      <AvatarFallback>MK</AvatarFallback>
-                    </Avatar>
-                    <span className="sr-only">Toggle user menu</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Hesabım</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Ayarlar</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Çıkış Yap</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {/* User menu removed as requested */}
             </div>
          </header>
         <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
