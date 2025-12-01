@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Card,
   CardHeader,
@@ -63,24 +64,58 @@ export type InstallationType = {
   parentId?: string | null;
 };
 
-// Recursive component to render the category tree
+// This is the new type for the hierarchical tree structure
+export type TreeNode = InstallationType & {
+  children: TreeNode[];
+};
+
+// Function to build the tree from a flat list of categories
+const buildTree = (categories: InstallationType[]): TreeNode[] => {
+  const categoryMap: { [id: string]: TreeNode } = {};
+  const roots: TreeNode[] = [];
+
+  // Initialize map and children arrays
+  categories.forEach(category => {
+    categoryMap[category.id] = { ...category, children: [] };
+  });
+
+  // Populate children arrays and find roots
+  categories.forEach(category => {
+    if (category.parentId && categoryMap[category.parentId]) {
+      categoryMap[category.parentId].children.push(categoryMap[category.id]);
+    } else {
+      roots.push(categoryMap[category.id]);
+    }
+  });
+  
+  // Sort roots and all children alphabetically by name
+  const sortNodes = (nodes: TreeNode[]) => {
+      nodes.sort((a, b) => a.name.localeCompare(b.name));
+      nodes.forEach(node => sortNodes(node.children));
+  };
+  
+  sortNodes(roots);
+
+  return roots;
+};
+
+
+// Recursive component to render the category tree. It's simpler now.
 const CategoryNode = ({
-  category,
-  allCategories,
+  node,
   level,
   onEdit,
   onDelete,
   onAddSub,
 }: {
-  category: InstallationType;
-  allCategories: InstallationType[];
+  node: TreeNode;
   level: number;
   onEdit: (category: InstallationType) => void;
   onDelete: (categoryId: string) => void;
   onAddSub: (parentId: string) => void;
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
-  const children = allCategories.filter((c) => c.parentId === category.id).sort((a, b) => a.name.localeCompare(b.name));
+  const hasChildren = node.children.length > 0;
 
   return (
     <div>
@@ -92,7 +127,7 @@ const CategoryNode = ({
         style={{ paddingLeft: `${level * 24 + 16}px` }}
       >
         <div className="flex items-center gap-2">
-          {children.length > 0 ? (
+          {hasChildren ? (
             <Button
               variant="ghost"
               size="icon"
@@ -108,10 +143,10 @@ const CategoryNode = ({
           ) : (
              <div className="w-6 h-6" />
           )}
-          <span className="font-medium">{category.name}</span>
+          <span className="font-medium">{node.name}</span>
         </div>
         <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => onAddSub(category.id)}>
+            <Button variant="outline" size="sm" onClick={() => onAddSub(node.id)}>
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Alt Kategori Ekle
             </Button>
@@ -124,7 +159,7 @@ const CategoryNode = ({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>İşlemler</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => onEdit(category)}>
+                <DropdownMenuItem onClick={() => onEdit(node)}>
                   <Edit className="mr-2 h-4 w-4" />
                   Düzenle
                 </DropdownMenuItem>
@@ -149,7 +184,7 @@ const CategoryNode = ({
                     <AlertDialogFooter>
                       <AlertDialogCancel>İptal</AlertDialogCancel>
                       <AlertDialogAction
-                        onClick={() => onDelete(category.id)}
+                        onClick={() => onDelete(node.id)}
                         className="bg-destructive hover:bg-destructive/90"
                       >
                         Evet, Sil
@@ -161,12 +196,11 @@ const CategoryNode = ({
             </DropdownMenu>
         </div>
       </div>
-      {isExpanded &&
-        children.map((child) => (
+      {isExpanded && hasChildren &&
+        node.children.map((childNode) => (
           <CategoryNode
-            key={child.id}
-            category={child}
-            allCategories={allCategories}
+            key={childNode.id}
+            node={childNode}
             level={level + 1}
             onEdit={onEdit}
             onDelete={onDelete}
@@ -191,7 +225,7 @@ export default function InstallationTypesPage() {
   const categoriesQuery = useMemoFirebase(
     () =>
       firestore
-        ? query(collection(firestore, 'installation_types'), orderBy('name'))
+        ? query(collection(firestore, 'installation_types'))
         : null,
     [firestore]
   );
@@ -202,72 +236,75 @@ export default function InstallationTypesPage() {
     refetch,
   } = useCollection<InstallationType>(categoriesQuery);
 
-  // Seed initial data if the collection is empty
-  useEffect(() => {
-    if (!isLoading && categories?.length === 0 && firestore && !isSeeding) {
-      const seedData = async () => {
-        setIsSeeding(true);
-        toast({ title: 'Başlangıç verisi oluşturuluyor...' });
-        try {
-          const batch = writeBatch(firestore);
-          const collectionRef = collection(firestore, 'installation_types');
-          const parentMap: { [name: string]: string } = {};
+  const seedData = useCallback(async () => {
+    if (!firestore) return;
 
-          // First pass: Create all parent categories
-          const parentItems = initialInstallationTypesData.filter(item => !item.name.includes('>'));
-          for (const item of parentItems) {
+    setIsSeeding(true);
+    toast({ title: 'Başlangıç verisi oluşturuluyor...' });
+    try {
+        const batch = writeBatch(firestore);
+        const collectionRef = collection(firestore, 'installation_types');
+        const parentMap: { [name: string]: string } = {};
+
+        // Pass 1: Create all parent categories and map their names to temporary IDs
+        const parentItems = initialInstallationTypesData.filter(item => !item.name.includes('>'));
+        for (const item of parentItems) {
             const newDocRef = doc(collectionRef);
             batch.set(newDocRef, { name: item.name, description: item.description, parentId: null });
             parentMap[item.name] = newDocRef.id;
-          }
-          await batch.commit(); // Commit parents first to get their IDs
+        }
 
-          // Short delay or re-fetch might be needed if Firestore propagation is slow, but usually batching handles this.
-          // For simplicity, we'll assume IDs are available for the next batch. A more robust solution might refetch.
+        // Commit the first batch to get the parent IDs into the system
+        await batch.commit();
 
-          // Second pass: Create child categories
-          const childBatch = writeBatch(firestore);
-          const childItems = initialInstallationTypesData.filter(item => item.name.includes('>'));
+        // Pass 2: Create child categories using the IDs from the parentMap
+        const childBatch = writeBatch(firestore);
+        const childItems = initialInstallationTypesData.filter(item => item.name.includes('>'));
+        for (const item of childItems) {
+            const parts = item.name.split(' > ');
+            const parentName = parts[0];
+            const childName = parts[1];
+            const parentId = parentMap[parentName];
 
-          for (const item of childItems) {
-             const parts = item.name.split(' > ');
-             const parentName = parts[0];
-             const childName = parts[1];
-             const parentId = parentMap[parentName];
-
-             if (parentId) {
-                const newDocRef = doc(collectionRef);
-                childBatch.set(newDocRef, { name: childName, description: item.description, parentId: parentId });
-             } else {
+            if (parentId) {
+                const newChildRef = doc(collectionRef);
+                childBatch.set(newChildRef, { name: childName, description: item.description, parentId: parentId });
+            } else {
                 console.warn(`Parent category "${parentName}" not found for child "${childName}"`);
-             }
-          }
+            }
+        }
+        
+        await childBatch.commit();
 
-          await childBatch.commit();
-
-          toast({
+        toast({
             title: 'Başarılı!',
             description: 'Temel tesisat kategorileri oluşturuldu.',
-          });
-          refetch();
-        } catch (err: any) {
-          console.error("Seeding error:", err);
-          toast({
+        });
+        refetch();
+    } catch (err: any) {
+        console.error("Seeding error:", err);
+        toast({
             variant: 'destructive',
             title: 'Veri oluşturma hatası',
             description: err.message,
-          });
-        } finally {
-          setIsSeeding(false);
-        }
-      };
-      seedData();
+        });
+    } finally {
+        setIsSeeding(false);
     }
-  }, [isLoading, categories, firestore, refetch, toast, isSeeding]);
+}, [firestore, refetch, toast]);
+
+
+  // Seed initial data if the collection is empty
+  useEffect(() => {
+    if (!isLoading && categories?.length === 0 && !isSeeding) {
+        seedData();
+    }
+  }, [isLoading, categories, isSeeding, seedData]);
+
 
   const categoryTree = useMemo(() => {
     if (!categories) return [];
-    return categories.filter((c) => !c.parentId).sort((a,b) => a.name.localeCompare(b.name));
+    return buildTree(categories);
   }, [categories]);
 
   const handleOpenDialogForNew = (parentId: string | null = null) => {
@@ -288,14 +325,28 @@ export default function InstallationTypesPage() {
     // Find all children recursively to delete them as well
     const idsToDelete = new Set<string>([categoryId]);
     const queue = [categoryId];
-    while (queue.length > 0) {
-      const currentId = queue.shift();
-      const children = categories.filter((c) => c.parentId === currentId);
-      children.forEach((child) => {
-        idsToDelete.add(child.id);
-        queue.push(child.id);
-      });
+    const categoryMap = buildTree(categories); // We need the tree to find children easily
+    
+    const findNode = (nodes: TreeNode[], id: string): TreeNode | null => {
+        for(const node of nodes) {
+            if (node.id === id) return node;
+            const found = findNode(node.children, id);
+            if (found) return found;
+        }
+        return null;
+    };
+
+    const nodeToDelete = findNode(categoryMap, categoryId);
+
+    const collectChildrenIds = (node: TreeNode) => {
+        idsToDelete.add(node.id);
+        node.children.forEach(collectChildrenIds);
+    };
+
+    if (nodeToDelete) {
+        collectChildrenIds(nodeToDelete);
     }
+
 
     try {
       const batch = writeBatch(firestore);
@@ -349,11 +400,10 @@ export default function InstallationTypesPage() {
               <p className="text-red-600">Hata: {error.message}</p>
             ) : categoryTree.length > 0 ? (
               <div className="border rounded-lg">
-                {categoryTree.map((category) => (
+                {categoryTree.map((node) => (
                   <CategoryNode
-                    key={category.id}
-                    category={category}
-                    allCategories={categories || []}
+                    key={node.id}
+                    node={node}
                     level={0}
                     onEdit={handleOpenDialogForEdit}
                     onDelete={handleDelete}
