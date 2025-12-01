@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -106,7 +107,7 @@ export default function ResourcesPage() {
     () => (firestore ? query(collection(firestore, 'suppliers')) : null),
     [firestore]
   );
-  const { data: suppliers, isLoading: isLoadingSuppliers } = useCollection<Supplier>(suppliersQuery);
+  const { data: suppliers, isLoading: isLoadingSuppliers, refetch: refetchSuppliers } = useCollection<Supplier>(suppliersQuery);
 
   const supplierMap = useMemo(() => {
     if (!suppliers) return new Map<string, string>();
@@ -173,7 +174,7 @@ export default function ResourcesPage() {
       await batch.commit();
       toast({ title: 'Başarılı!', description: 'Örnek malzemeler ve tedarikçiler başarıyla yüklendi.' });
       refetchMaterials();
-      // refetchSuppliers(); // Assuming useCollection has this
+      refetchSuppliers();
     } catch (error: any) {
       console.error("Seeding error:", error);
       toast({ variant: 'destructive', title: 'Hata', description: `Veri yüklenemedi: ${error.message}` });
@@ -347,6 +348,7 @@ export default function ResourcesPage() {
         onOpenChange={setMaterialDialogOpen}
         onSuccess={() => {
             refetchMaterials();
+            refetchSuppliers();
         }}
         existingMaterial={editingMaterial}
       />

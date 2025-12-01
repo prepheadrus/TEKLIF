@@ -14,7 +14,7 @@ import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, addDocumentNonBlocking, setDocumentNonBlocking, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc, query, where, getDocs, writeBatch } from 'firebase/firestore';
-import type { Material, Supplier } from '@/app/resources/page';
+import type { Material } from '@/app/resources/page';
 
 const materialSchema = z.object({
   name: z.string().min(2, "Malzeme adı en az 2 karakter olmalıdır."),
@@ -34,6 +34,11 @@ interface QuickAddMaterialProps {
     existingMaterial?: Material | null;
 }
 
+type Supplier = {
+    id: string;
+    name: string;
+}
+
 export function QuickAddMaterial({ isOpen, onOpenChange, onSuccess, existingMaterial }: QuickAddMaterialProps) {
   const { toast } = useToast();
   const firestore = useFirestore();
@@ -42,7 +47,7 @@ export function QuickAddMaterial({ isOpen, onOpenChange, onSuccess, existingMate
     () => (firestore ? query(collection(firestore, 'suppliers')) : null),
     [firestore]
   );
-  const { data: suppliers, isLoading: isLoadingSuppliers, refetch: refetchSuppliers } = useCollection<Supplier>(suppliersQuery);
+  const { data: suppliers, isLoading: isLoadingSuppliers } = useCollection<Supplier>(suppliersQuery);
 
   const form = useForm<MaterialFormValues>({
     resolver: zodResolver(materialSchema),
