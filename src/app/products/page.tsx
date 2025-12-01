@@ -117,7 +117,7 @@ export default function ProductsPage() {
     () => (firestore ? collection(firestore, 'installation_types') : null),
     [firestore]
   );
-  const { data: installationTypes, isLoading: isLoadingInstallationTypes } = useCollection<InstallationType>(installationTypesRef);
+  const { data: installationTypes, isLoading: isLoadingInstallationTypes, refetch: refetchInstallationTypes } = useCollection<InstallationType>(installationTypesRef);
   
   const suppliersQuery = useMemoFirebase(
     () => (firestore ? query(collection(firestore, 'suppliers')) : null),
@@ -162,56 +162,72 @@ export default function ProductsPage() {
     toast({ title: 'Başlatılıyor...', description: 'Örnek ürün/malzeme verileri veritabanına yükleniyor.' });
 
     try {
-      const batch = writeBatch(firestore);
-      const suppliersCollection = collection(firestore, 'suppliers');
-      const productsCollection = collection(firestore, 'products');
-      const seededSupplierIds = new Map<string, string>();
-
-      // 1. Create or find suppliers
-      const uniqueSupplierNames = [...new Set(productSeedData.map(m => m.supplierName))];
-
-      for (const name of uniqueSupplierNames) {
-        const q = query(suppliersCollection, where("name", "==", name));
-        const existingSupplierSnap = await getDocs(q);
-        if (existingSupplierSnap.empty) {
-          const newSupplierRef = doc(suppliersCollection);
-          batch.set(newSupplierRef, { name, contactEmail: `${name.toLowerCase().replace(/ /g, '.')}@example.com` });
-          seededSupplierIds.set(name, newSupplierRef.id);
-        } else {
-          seededSupplierIds.set(name, existingSupplierSnap.docs[0].id);
+        // Ensure categories are loaded before seeding
+        let currentInstallationTypes = installationTypes;
+        if (!currentInstallationTypes || currentInstallationTypes.length === 0) {
+            await refetchInstallationTypes();
+            // Re-fetch might not update the hook immediately, so we get them directly
+            const typesSnap = await getDocs(collection(firestore, 'installation_types'));
+            currentInstallationTypes = typesSnap.docs.map(d => ({ id: d.id, ...d.data() })) as InstallationType[];
         }
-      }
+        
+        const categoryNameToIdMap = new Map(currentInstallationTypes.map(c => [c.name, c.id]));
+        
+        const batch = writeBatch(firestore);
+        const suppliersCollection = collection(firestore, 'suppliers');
+        const productsCollection = collection(firestore, 'products');
+        const seededSupplierIds = new Map<string, string>();
 
-      // 2. Create products with supplier IDs
-      for (const product of productSeedData) {
-        const supplierId = seededSupplierIds.get(product.supplierName);
-        if (!supplierId) {
-          console.warn(`Tedarikçi bulunamadı: ${product.supplierName}`);
-          continue;
+        // 1. Create or find suppliers
+        const uniqueSupplierNames = [...new Set(productSeedData.map(m => m.supplierName))];
+
+        for (const name of uniqueSupplierNames) {
+            const q = query(suppliersCollection, where("name", "==", name));
+            const existingSupplierSnap = await getDocs(q);
+            if (existingSupplierSnap.empty) {
+                const newSupplierRef = doc(suppliersCollection);
+                batch.set(newSupplierRef, { name, contactEmail: `${name.toLowerCase().replace(/ /g, '.')}@example.com` });
+                seededSupplierIds.set(name, newSupplierRef.id);
+            } else {
+                seededSupplierIds.set(name, existingSupplierSnap.docs[0].id);
+            }
         }
-        const newProductRef = doc(productsCollection);
-        const { supplierName, ...restOfProduct } = product;
-        batch.set(newProductRef, { 
-            ...restOfProduct, 
-            supplierId,
-            // Add default sales values if not present
-            listPrice: restOfProduct.basePrice * 1.25, // Default list price = 25% above cost
-            discountRate: 0,
-            code: `CODE-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-            brand: 'Çeşitli',
-            category: 'Genel',
-         });
-      }
 
-      await batch.commit();
-      toast({ title: 'Başarılı!', description: 'Örnek ürünler ve tedarikçiler başarıyla yüklendi.' });
-      refetchProducts();
-      refetchSuppliers();
+        // 2. Create products with supplier and category IDs
+        for (const product of productSeedData) {
+            const supplierId = seededSupplierIds.get(product.supplierName);
+            if (!supplierId) {
+                console.warn(`Tedarikçi bulunamadı: ${product.supplierName}`);
+                continue;
+            }
+
+            const installationTypeId = categoryNameToIdMap.get(product.categoryName || '');
+            
+            const newProductRef = doc(productsCollection);
+            const { supplierName, categoryName, ...restOfProduct } = product;
+
+            batch.set(newProductRef, {
+                ...restOfProduct,
+                supplierId,
+                installationTypeId: installationTypeId || null,
+                // Add default sales values if not present
+                listPrice: restOfProduct.basePrice * 1.25, // Default list price = 25% above cost
+                discountRate: 0,
+                code: `CODE-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+                brand: product.brand || 'Çeşitli',
+                category: 'Genel',
+            });
+        }
+
+        await batch.commit();
+        toast({ title: 'Başarılı!', description: 'Örnek ürünler ve tedarikçiler başarıyla yüklendi.' });
+        refetchProducts();
+        refetchSuppliers();
     } catch (error: any) {
-      console.error("Seeding error:", error);
-      toast({ variant: 'destructive', title: 'Hata', description: `Veri yüklenemedi: ${error.message}` });
+        console.error("Seeding error:", error);
+        toast({ variant: 'destructive', title: 'Hata', description: `Veri yüklenemedi: ${error.message}` });
     } finally {
-      setIsSeeding(false);
+        setIsSeeding(false);
     }
   };
 
@@ -238,7 +254,7 @@ export default function ProductsPage() {
           <p className="text-muted-foreground">Tekliflerinizde kullandığınız tüm ürün, malzeme ve hizmetleri yönetin.</p>
         </div>
         <div className="flex items-center space-x-2">
-           <Button onClick={handleSeedProducts} disabled={isSeeding} variant="outline">
+           <Button onClick={handleSeedProducts} disabled={isSeeding || isLoadingInstallationTypes} variant="outline">
                 {isSeeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
                 Örnek Ürünleri Yükle
             </Button>
