@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useMemo } from 'react';
@@ -43,7 +42,8 @@ type ProductFormValues = z.infer<typeof productSchema>;
 interface QuickAddProductProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
-    onSuccess: () => void;
+    onProductAdded?: () => void; // Renamed from onSuccess for clarity
+    onSuccess?: () => void; // Keep for backward compatibility if needed
     existingProduct?: Product | null;
 }
 
@@ -83,7 +83,7 @@ const buildCategoryTree = (categories: InstallationType[]): { id: string; name: 
     return flattenedList;
 };
 
-export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProduct }: QuickAddProductProps) {
+export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, onProductAdded, existingProduct }: QuickAddProductProps) {
   const { toast } = useToast();
   const firestore = useFirestore();
 
@@ -149,7 +149,8 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
             toast({ title: "Başarılı", description: "Yeni ürün başarıyla eklendi." });
         }
         
-        onSuccess();
+        onSuccess?.();
+        onProductAdded?.();
         onOpenChange(false);
     } catch(error: any) {
          toast({ variant: "destructive", title: "Hata", description: `İşlem başarısız oldu: ${error.message}` });

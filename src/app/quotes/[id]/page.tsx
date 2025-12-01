@@ -69,7 +69,8 @@ import {
 import { calculatePrice } from '@/lib/pricing';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { QuickAddProduct } from '@/components/app/quick-add-product';
+import { ProductSelector } from '@/components/app/product-selector';
+import type { Product as ProductType } from '@/app/products/page';
 import { suggestMissingParts } from '@/ai/flows/suggest-missing-parts';
 
 const proposalItemSchema = z.object({
@@ -98,15 +99,6 @@ const proposalSchema = z.object({
 type ProposalFormValues = z.infer<typeof proposalSchema>;
 type ProposalItem = z.infer<typeof proposalItemSchema>;
 
-type Product = {
-  id: string;
-  name: string;
-  brand: string;
-  unit: string;
-  listPrice: number;
-  currency: 'TRY' | 'USD' | 'EUR';
-  discountRate: number;
-};
 
 type Proposal = {
   id: string;
@@ -130,7 +122,7 @@ export default function QuoteDetailPage() {
   const { toast } = useToast();
 
   const [isSaving, setIsSaving] = useState(false);
-  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [isProductSelectorOpen, setIsProductSelectorOpen] = useState(false);
   const [activeProductForAISuggestion, setActiveProductForAISuggestion] = useState<string | null>(null);
 
   // --- Data Fetching ---
@@ -145,13 +137,6 @@ export default function QuoteDetailPage() {
     [firestore, proposalId]
   );
   const { data: initialItems, isLoading: isLoadingItems } = useCollection<ProposalItem>(proposalItemsRef);
-
-  const productsRef = useMemoFirebase(
-    () => (firestore ? collection(firestore, 'products') : null),
-    [firestore]
-  );
-  const { data: products, isLoading: isLoadingProducts, refetch: refetchProducts } = useCollection<Product>(productsRef);
-
 
   const form = useForm<ProposalFormValues>({
     resolver: zodResolver(proposalSchema),
@@ -229,38 +214,27 @@ export default function QuoteDetailPage() {
 
 
   // --- Event Handlers ---
-  const handleAddProduct = () => {
-    append({
-      productId: '',
-      name: '',
-      brand: '',
-      unit: '',
+  const handleProductsSelected = (selectedProducts: ProductType[]) => {
+    const newItems = selectedProducts.map(product => ({
+      productId: product.id,
+      name: product.name,
+      brand: product.brand,
+      unit: product.unit,
       quantity: 1,
-      listPrice: 0,
-      currency: 'TRY',
-      discountRate: 0,
+      listPrice: product.listPrice,
+      currency: product.currency,
+      discountRate: product.discountRate,
       profitMargin: 0.2, // Default 20%
-    });
-  };
+    }));
+    append(newItems);
+    setIsProductSelectorOpen(false);
 
-  const handleProductSelection = (index: number, productId: string) => {
-    const selectedProduct = products?.find((p) => p.id === productId);
-    if (selectedProduct) {
-      const { id, ...productData } = selectedProduct;
-      const currentItem = form.getValues(`items.${index}`);
-      update(index, {
-        ...currentItem,
-        ...productData,
-        productId: id,
-      });
-       setActiveProductForAISuggestion(selectedProduct.name);
+    // AI Suggestion for the first added product
+    if (newItems.length > 0) {
+      setActiveProductForAISuggestion(newItems[0].name);
     }
   };
   
-  const handleQuickAddFinished = () => {
-    refetchProducts();
-  };
-
   const onSubmit = async (data: ProposalFormValues) => {
     if (!firestore || !proposalId || !proposal) {
       toast({
@@ -351,6 +325,7 @@ export default function QuoteDetailPage() {
   }
 
   return (
+    <>
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <div className="flex flex-col gap-8">
@@ -439,42 +414,8 @@ export default function QuoteDetailPage() {
                         return (
                           <TableRow key={field.formId}>
                             <TableCell>
-                              <FormField
-                                control={form.control}
-                                name={`items.${index}.productId`}
-                                render={({ field }) => (
-                                  <Select
-                                    onValueChange={(value) => {
-                                      field.onChange(value);
-                                      handleProductSelection(index, value);
-                                    }}
-                                    defaultValue={field.value}
-                                  >
-                                    <FormControl>
-                                      <SelectTrigger disabled={isLoadingProducts}>
-                                        <SelectValue placeholder="Ürün seçin..." />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        className="w-full justify-start"
-                                        onClick={() => setIsQuickAddOpen(true)}
-                                      >
-                                        <PlusCircle className="mr-2 h-4 w-4" />
-                                        Yeni Ürün Ekle
-                                      </Button>
-                                      <Separator className="my-1" />
-                                      {products?.map((p) => (
-                                        <SelectItem key={p.id} value={p.id}>
-                                          {p.name} ({p.brand})
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                )}
-                              />
+                                <p className="font-medium">{itemValues.name}</p>
+                                <p className="text-xs text-muted-foreground">{itemValues.brand}</p>
                             </TableCell>
                             <TableCell>
                               <FormField
@@ -556,7 +497,7 @@ export default function QuoteDetailPage() {
                     <Button
                         type="button"
                         variant="outline"
-                        onClick={handleAddProduct}
+                        onClick={() => setIsProductSelectorOpen(true)}
                     >
                         <PlusCircle className="mr-2" />
                         Kalem Ekle
@@ -644,12 +585,13 @@ export default function QuoteDetailPage() {
           </div>
         </div>
       </form>
-      <QuickAddProduct
-        isOpen={isQuickAddOpen}
-        onOpenChange={setIsQuickAddOpen}
-        onProductAdded={handleQuickAddFinished}
-      />
     </Form>
+    <ProductSelector 
+        isOpen={isProductSelectorOpen}
+        onOpenChange={setIsProductSelectorOpen}
+        onProductsSelected={handleProductsSelected}
+    />
+    </>
   );
 }
 
