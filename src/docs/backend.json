@@ -26,6 +26,10 @@
         "supplierId": {
           "type": "string",
           "description": "Reference to Supplier."
+        },
+        "categoryName": {
+            "type": "string",
+            "description": "Denormalized name of the installation category for display purposes."
         }
       },
       "required": [
@@ -335,8 +339,7 @@
         }
       },
       "required": [
-        "name",
-        "contactEmail"
+        "name"
       ]
     },
     "InstallationType": {
@@ -460,3 +463,4 @@
     "reasoning": "The Firestore structure is updated to support a more robust cost analysis system. Key collections like `materials`, `labor_costs`, `suppliers`, and `recipes` are now top-level collections. This flat structure simplifies security rules and queries, avoiding deep nesting. The `Recipe` entity is redesigned to hold an array of `recipeItems`, allowing a single product to be composed of multiple materials and labor types, which is a more realistic representation of a bill of materials. All other collections remain as they were to support existing functionality for customers, products, and proposals. A new top-level collection `installation_types` is added to manage and categorize products by their mechanical discipline."
   }
 }
+
