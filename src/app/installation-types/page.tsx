@@ -18,6 +18,7 @@ import {
   Loader2,
   ChevronDown,
   ChevronRight,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   useFirestore,
@@ -30,6 +31,7 @@ import {
   doc,
   deleteDoc,
   writeBatch,
+  getDocs,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -53,6 +55,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { QuickAddInstallationType } from '@/components/app/quick-add-installation-type';
 import { cn } from '@/lib/utils';
+import { initialInstallationTypesData } from '@/lib/seed-data';
+
 
 export type InstallationType = {
   id: string;
@@ -61,25 +65,22 @@ export type InstallationType = {
   parentId?: string | null;
 };
 
-// This is the new type for the hierarchical tree structure
 export type TreeNode = InstallationType & {
   children: TreeNode[];
 };
 
-// Function to build the tree from a flat list of categories
 const buildTree = (categories: InstallationType[]): TreeNode[] => {
   const categoryMap: { [id: string]: TreeNode } = {};
   const roots: TreeNode[] = [];
 
-  // Initialize map and children arrays
+  if (!categories) return roots;
+
   categories.forEach(category => {
     categoryMap[category.id] = { ...category, children: [] };
   });
 
-  // Populate children arrays and find roots
   categories.forEach(category => {
     if (category.parentId && categoryMap[category.parentId]) {
-      // Prevent adding a category to itself
       if (category.id !== category.parentId) {
         categoryMap[category.parentId].children.push(categoryMap[category.id]);
       }
@@ -88,7 +89,6 @@ const buildTree = (categories: InstallationType[]): TreeNode[] => {
     }
   });
   
-  // Sort roots and all children alphabetically by name
   const sortNodes = (nodes: TreeNode[]) => {
       nodes.sort((a, b) => a.name.localeCompare(b.name));
       nodes.forEach(node => sortNodes(node.children));
@@ -99,8 +99,6 @@ const buildTree = (categories: InstallationType[]): TreeNode[] => {
   return roots;
 };
 
-
-// Recursive component to render the category tree.
 const CategoryNode = ({
   node,
   level,
@@ -222,10 +220,8 @@ export default function InstallationTypesPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  // State for managing the dialog
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingCategory, setEditingCategory] =
-    useState<InstallationType | null>(null);
+  const [editingCategory, setEditingCategory] = useState<InstallationType | null>(null);
   const [defaultParentId, setDefaultParentId] = useState<string | null>(null);
 
   const categoriesQuery = useMemoFirebase(
@@ -241,11 +237,8 @@ export default function InstallationTypesPage() {
     error,
     refetch,
   } = useCollection<InstallationType>(categoriesQuery);
-
-  const categoryTree = useMemo(() => {
-    if (!categories) return [];
-    return buildTree(categories);
-  }, [categories]);
+  
+  const categoryTree = useMemo(() => buildTree(categories || []), [categories]);
 
   const handleOpenDialogForNew = (parentId: string | null = null) => {
     setEditingCategory(null);
@@ -261,8 +254,6 @@ export default function InstallationTypesPage() {
 
   const handleDelete = async (categoryId: string) => {
     if (!firestore || !categories) return;
-
-    // Find all children recursively to delete them as well
     const idsToDelete = new Set<string>();
     const queue: string[] = [categoryId];
     
@@ -273,7 +264,6 @@ export default function InstallationTypesPage() {
       const children = categories.filter(c => c.parentId === currentId);
       children.forEach(child => queue.push(child.id));
     }
-
 
     try {
       const batch = writeBatch(firestore);
@@ -292,6 +282,35 @@ export default function InstallationTypesPage() {
     }
   };
 
+  const handleDeleteAllCategories = async () => {
+    if (!firestore) {
+      toast({ variant: 'destructive', title: 'Hata', description: 'Veritabanı bağlantısı yok.' });
+      return;
+    }
+    try {
+      const collectionRef = collection(firestore, 'installation_types');
+      const snapshot = await getDocs(collectionRef);
+      if (snapshot.empty) {
+        toast({ title: 'Bilgi', description: 'Silinecek kategori bulunmuyor.' });
+        return;
+      }
+      const batch = writeBatch(firestore);
+      snapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+      await batch.commit();
+      toast({ title: 'Başarılı!', description: 'Tüm kategoriler veritabanından silindi.' });
+      refetch();
+    } catch (error: any) {
+      console.error("Error deleting all categories: ", error);
+      toast({
+        variant: 'destructive',
+        title: 'Toplu Silme Hatası',
+        description: `Kategoriler silinirken bir hata oluştu: ${error.message}`,
+      });
+    }
+  };
+
   return (
     <>
       <div className="flex flex-col gap-8">
@@ -305,10 +324,36 @@ export default function InstallationTypesPage() {
               yönetin.
             </p>
           </div>
-          <Button onClick={() => handleOpenDialogForNew(null)}>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Yeni Ana Disiplin Ekle
-          </Button>
+          <div className="flex items-center gap-2">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                 <Button variant="destructive">
+                  <AlertTriangle className="mr-2 h-4 w-4" />
+                  Tüm Kategorileri Temizle
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                  <AlertDialogHeader>
+                      <AlertDialogTitle>Tüm Kategorileri Silmek Üzeresiniz!</AlertDialogTitle>
+                      <AlertDialogDescription>
+                          Bu işlem geri alınamaz. Veritabanındaki tüm tesisat kategorileri kalıcı olarak silinecektir. Emin misiniz?
+                      </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                      <AlertDialogCancel>İptal</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDeleteAllCategories} className="bg-destructive hover:bg-destructive/90">
+                          Evet, Hepsini Sil
+                      </AlertDialogAction>
+                  </AlertDialogFooter>
+              </AlertDialogContent>
+          </AlertDialog>
+
+            <Button onClick={() => handleOpenDialogForNew(null)}>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Yeni Ana Disiplin Ekle
+            </Button>
+          </div>
+
         </div>
         <Card>
           <CardHeader>
