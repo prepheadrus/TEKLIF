@@ -107,7 +107,7 @@ export default function QuotesPage() {
       () => (firestore ? query(collection(firestore, 'proposals'), orderBy('createdAt', 'desc')) : null),
       [firestore]
   );
-  const { data: proposals, isLoading: isLoadingProposals } = useCollection<Proposal>(proposalsRef);
+  const { data: proposals, isLoading: isLoadingProposals, refetch: refetchProposals } = useCollection<Proposal>(proposalsRef);
   
   const customersRef = useMemoFirebase(() => (firestore ? collection(firestore, 'customers') : null), [firestore]);
   const { data: customers, isLoading: isLoadingCustomers } = useCollection<Customer>(customersRef);
@@ -158,6 +158,7 @@ export default function QuotesPage() {
         toast({ title: "Başarılı!", description: "Yeni teklif taslağı oluşturuldu." });
         setIsDialogOpen(false);
         form.reset();
+        refetchProposals();
         router.push(`/dashboard/quotes/${newProposalRef.id}`);
 
     } catch (error: any) {
@@ -213,6 +214,7 @@ export default function QuotesPage() {
         await batch.commit();
 
         toast({ title: "Başarılı!", description: `Teklif revize edildi. Yeni versiyon: v${latestVersion + 1}` });
+        refetchProposals();
         router.push(`/dashboard/quotes/${newProposalRef.id}`);
 
     } catch (error: any) {
@@ -229,6 +231,7 @@ export default function QuotesPage() {
         await deleteDoc(doc(firestore, 'proposals', proposalId));
         // You might also want to delete subcollections like `proposal_items`
         toast({ title: "Başarılı", description: "Teklif silindi." });
+        refetchProposals();
     } catch (error: any) {
         console.error("Teklif silme hatası:", error);
         toast({ variant: "destructive", title: "Hata", description: `Teklif silinemedi: ${error.message}` });
