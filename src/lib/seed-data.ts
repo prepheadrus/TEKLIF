@@ -6,7 +6,7 @@ export type InitialInstallationType = {
 
 export const initialInstallationTypesData: InitialInstallationType[] = [
   // 1. ISITMA TESİSATI
-  { name: 'ISITMA TESİSATI', description: 'Binaların ısıtılması ve sıcak su ihtiyaçlarının karşılanması.' },
+  { name: 'ISITMA TESİSATI', description: 'Isı üretim, dağıtım ve transfer sistemleri.' },
   { name: 'ISITMA TESİSATI > Isı Üretim Merkezi', description: 'Sistemin kalbi olan ısıtma cihazları ve ana bileşenleri.' },
   { name: 'ISITMA TESİSATI > Isı Üretim Merkezi > Kazanlar (Dilimli / Çelik / Yoğuşmalı)', description: 'Sistemin ana ısı üreticisi.' },
   { name: 'ISITMA TESİSATI > Isı Üretim Merkezi > Brülörler ve Gaz Yolu Armatürleri', description: 'Yakıtı yakarak ısı enerjisi üreten ekipmanlar.' },
@@ -34,7 +34,7 @@ export const initialInstallationTypesData: InitialInstallationType[] = [
   { name: 'ISITMA TESİSATI > Isıtma Vana Grubu > Kompansatörler (Metal Körüklü / Kauçuk)', description: 'Termal genleşmeyi ve titreşimi absorbe eden elemanlar.' },
 
   // 2. SOĞUTMA TESİSATI
-  { name: 'SOĞUTMA TESİSATI', description: 'Binaların soğutulması ve iklimlendirilmesi.' },
+  { name: 'SOĞUTMA TESİSATI', description: 'Soğutma enerjisi üretim, dağıtım ve şartlandırma sistemleri.' },
   { name: 'SOĞUTMA TESİSATI > Soğutma Üretim', description: 'Soğutma enerjisinin üretildiği merkezi gruplar.' },
   { name: 'SOĞUTMA TESİSATI > Soğutma Üretim > Su Soğutma Grupları (Chiller - Vidalı/Scroll Kompresörlü)', description: 'Suyu soğutarak sisteme gönderen ana üniteler.' },
   { name: 'SOĞUTMA TESİSATI > Soğutma Üretim > Soğutma Kuleleri (Açık/Kapalı - Aksiyel/Radyal Fanlı)', description: 'Chiller’ın kondenser suyunu soğutan ekipmanlar.' },
@@ -119,19 +119,19 @@ export const initialInstallationTypesData: InitialInstallationType[] = [
   { name: 'YANGIN TESİSATI > Borulama ve Sismik > Sismik Halatlar ve Sismik Askı Setleri', description: 'Deprem sırasında boru hattının bütünlüğünü koruyan sistemler.' },
 
   // 6. OTOMASYON VE SAHA KONTROL
-  { name: 'OTOMASYON VE SAHA KONTROL (Mekanik Elektrik)', description: 'Mekanik sistemlerin kontrolü, izlenmesi ve yönetilmesi.' },
-  { name: 'OTOMASYON VE SAHA KONTROL (Mekanik Elektrik) > Saha Enstrümanları', description: 'Sistemden veri toplayan sensörler ve anahtarlar.' },
-  { name: 'OTOMASYON VE SAHA KONTROL (Mekanik Elektrik) > Saha Enstrümanları > Daldırma Tipi Sıcaklık Sensörleri', description: 'Boru içindeki akışkan sıcaklığını ölçer.' },
-  { name: 'OTOMASYON VE SAHA KONTROL (Mekanik Elektrik) > Saha Enstrümanları > Kanal Tipi Nem ve Sıcaklık Sensörleri', description: 'Hava kanalı içindeki hava şartlarını ölçer.' },
-  { name: 'OTOMASYON VE SAHA KONTROL (Mekanik Elektrik) > Saha Enstrümanları > Fark Basınç Anahtarları (Filtre kirlilik için)', description: 'Filtrelerin kirlendiğini algılayan anahtarlar.' },
-  { name: 'OTOMASYON VE SAHA KONTROL (Mekanik Elektrik) > Saha Enstrümanları > Basınç Transmitterleri', description: 'Sistem basıncını sürekli ölçüp otomasyona bildiren sensörler.' },
-  { name: 'OTOMASYON VE SAHA KONTROL (Mekanik Elektrik) > Kontrol Panelleri', description: 'Saha ekipmanlarını yöneten ve güç dağıtan panolar.' },
-  { name: 'OTOMASYON VE SAHA KONTROL (Mekanik Elektrik) > Kontrol Panelleri > MCC Panoları (Güç Panoları)', description: 'Motorlar ve pompalar için motor koruma ve yol verme panoları.' },
-  { name: 'OTOMASYON VE SAHA KONTROL (Mekanik Elektrik) > Kontrol Panelleri > DDC Panoları (Kontrol Panoları)', description: 'Otomasyon senaryolarını çalıştıran programlanabilir kontrolcü panoları.' },
-  { name: 'OTOMASYON VE SAHA KONTROL (Mekanik Elektrik) > Kontrol Panelleri > Frekans İnvertörleri (Sürücüler)', description: 'Pompa ve fan motorlarının hızını kontrol ederek enerji tasarrufu sağlayan cihazlar.' },
+  { name: 'OTOMASYON VE SAHA KONTROL', description: 'Mekanik sistemlerin kontrolü, izlenmesi ve yönetilmesi.' },
+  { name: 'OTOMASYON VE SAHA KONTROL > Saha Enstrümanları', description: 'Sistemden veri toplayan sensörler ve anahtarlar.' },
+  { name: 'OTOMASYON VE SAHA KONTROL > Saha Enstrümanları > Daldırma Tipi Sıcaklık Sensörleri', description: 'Boru içindeki akışkan sıcaklığını ölçer.' },
+  { name: 'OTOMASYON VE SAHA KONTROL > Saha Enstrümanları > Kanal Tipi Nem ve Sıcaklık Sensörleri', description: 'Hava kanalı içindeki hava şartlarını ölçer.' },
+  { name: 'OTOMASYON VE SAHA KONTROL > Saha Enstrümanları > Fark Basınç Anahtarları (Filtre kirlilik için)', description: 'Filtrelerin kirlendiğini algılayan anahtarlar.' },
+  { name: 'OTOMASYON VE SAHA KONTROL > Saha Enstrümanları > Basınç Transmitterleri', description: 'Sistem basıncını sürekli ölçüp otomasyona bildiren sensörler.' },
+  { name: 'OTOMASYON VE SAHA KONTROL > Kontrol Panelleri', description: 'Saha ekipmanlarını yöneten ve güç dağıtan panolar.' },
+  { name: 'OTOMASYON VE SAHA KONTROL > Kontrol Panelleri > MCC Panoları (Güç Panoları)', description: 'Motorlar ve pompalar için motor koruma ve yol verme panoları.' },
+  { name: 'OTOMASYON VE SAHA KONTROL > Kontrol Panelleri > DDC Panoları (Kontrol Panoları)', description: 'Otomasyon senaryolarını çalıştıran programlanabilir kontrolcü panoları.' },
+  { name: 'OTOMASYON VE SAHA KONTROL > Kontrol Panelleri > Frekans İnvertörleri (Sürücüler)', description: 'Pompa ve fan motorlarının hızını kontrol ederek enerji tasarrufu sağlayan cihazlar.' },
 
   // 7. GENEL GİDERLER VE DİĞERLERİ
-  { name: 'GENEL GİDERLER VE DİĞERLERİ', description: 'Sistemlere doğrudan atanamayan ortak maliyet kalemleri.' },
+  { name: 'GENEL GİDERLER VE DİĞERLERİ', description: 'Sistemlere dağıtılamayan ortak giderler.' },
   { name: 'GENEL GİDERLER VE DİĞERLERİ > Test ve Devreye Alma', description: 'Sistemlerin çalışır duruma getirilmesi ve ayarlarının yapılması.' },
   { name: 'GENEL GİDERLER VE DİĞERLERİ > Test ve Devreye Alma > Boru Basınç Testleri', description: 'Boru hatlarının sızdırmazlık testleri.' },
   { name: 'GENEL GİDERLER VE DİĞERLERİ > Test ve Devreye Alma > Hava Kanalı Sızdırmazlık Testleri', description: 'Hava kanallarındaki kaçak testleri.' },
@@ -141,3 +141,5 @@ export const initialInstallationTypesData: InitialInstallationType[] = [
   { name: 'GENEL GİDERLER VE DİĞERLERİ > Etiketleme ve İşaretleme > Vana Numaralandırma Plakaları', description: 'Vanaların projeyle eşleştirilmesini sağlayan metal plakalar.' },
   { name: 'GENEL GİDERLER VE DİĞERLERİ > Etiketleme ve İşaretleme > Ekipman Tanıtım Kartları', description: 'Cihazların teknik bilgilerini içeren tanıtım kartları.' }
 ];
+
+    
