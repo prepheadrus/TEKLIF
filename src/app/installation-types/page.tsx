@@ -254,27 +254,23 @@ export default function InstallationTypesPage() {
             parentMap[item.name] = newDocRef.id;
         }
 
-        // Commit the first batch to get the parent IDs into the system
-        await batch.commit();
-
         // Pass 2: Create child categories using the IDs from the parentMap
-        const childBatch = writeBatch(firestore);
         const childItems = initialInstallationTypesData.filter(item => item.name.includes('>'));
         for (const item of childItems) {
             const parts = item.name.split(' > ');
-            const parentName = parts[0];
-            const childName = parts[1];
+            const parentName = parts[0].trim();
+            const childName = parts[1].trim();
             const parentId = parentMap[parentName];
 
             if (parentId) {
                 const newChildRef = doc(collectionRef);
-                childBatch.set(newChildRef, { name: childName, description: item.description, parentId: parentId });
+                batch.set(newChildRef, { name: childName, description: item.description, parentId: parentId });
             } else {
                 console.warn(`Parent category "${parentName}" not found for child "${childName}"`);
             }
         }
         
-        await childBatch.commit();
+        await batch.commit();
 
         toast({
             title: 'Başarılı!',
