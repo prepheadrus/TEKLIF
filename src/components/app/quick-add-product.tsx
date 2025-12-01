@@ -14,17 +14,28 @@ import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, addDocumentNonBlocking, setDocumentNonBlocking, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
+import type { Product, Supplier } from '@/app/products/page';
+import { Separator } from '../ui/separator';
 
 const productSchema = z.object({
+  // Core Info
   code: z.string().min(1, "Kod zorunludur."),
   name: z.string().min(2, "Ad en az 2 karakter olmalıdır."),
   brand: z.string().min(1, "Marka zorunludur."),
-  category: z.string().min(1, "Kategori zorunludur."),
-  installationTypeId: z.string().optional().nullable(),
   unit: z.string().min(1, "Birim zorunludur."),
+  
+  // Cost Info
+  basePrice: z.coerce.number().min(0, "Maliyet fiyatı 0 veya daha büyük olmalıdır."),
+  supplierId: z.string().optional().nullable(),
+  
+  // Sales Info
   listPrice: z.coerce.number().min(0, "Liste fiyatı 0'dan büyük olmalıdır."),
   currency: z.enum(["TRY", "USD", "EUR"]),
   discountRate: z.coerce.number().min(0).max(1, "İskonto oranı 0 ile 1 arasında olmalıdır."),
+  
+  // Categorization
+  category: z.string().min(1, "Kategori zorunludur."),
+  installationTypeId: z.string().optional().nullable(),
 });
 
 type ProductFormValues = z.infer<typeof productSchema>;
@@ -33,7 +44,7 @@ interface QuickAddProductProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
     onSuccess: () => void;
-    existingProduct?: ProductFormValues & { id: string } | null;
+    existingProduct?: Product | null;
 }
 
 type InstallationType = {
@@ -44,18 +55,22 @@ type InstallationType = {
 
 const buildCategoryTree = (categories: InstallationType[]): { id: string; name: string }[] => {
     const categoryMap: { [id: string]: { id: string; name: string; children: any[] } } = {};
-    categories.forEach(cat => {
-        categoryMap[cat.id] = { ...cat, children: [] };
-    });
+    if (categories) {
+        categories.forEach(cat => {
+            categoryMap[cat.id] = { ...cat, children: [] };
+        });
+    }
 
     const roots: { id: string; name: string; children: any[] }[] = [];
-    categories.forEach(cat => {
-        if (cat.parentId && categoryMap[cat.parentId]) {
-            categoryMap[cat.parentId].children.push(categoryMap[cat.id]);
-        } else {
-            roots.push(categoryMap[cat.id]);
-        }
-    });
+    if (categories) {
+        categories.forEach(cat => {
+            if (cat.parentId && categoryMap[cat.parentId]) {
+                categoryMap[cat.parentId].children.push(categoryMap[cat.id]);
+            } else {
+                roots.push(categoryMap[cat.id]);
+            }
+        });
+    }
 
     const flattenedList: { id: string; name: string }[] = [];
     const traverse = (node: { id: string; name: string; children: any[] }, prefix: string) => {
@@ -77,6 +92,12 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
     [firestore]
   );
   const { data: installationTypes, isLoading: isLoadingInstallationTypes } = useCollection<InstallationType>(installationTypesRef);
+  
+  const suppliersQuery = useMemoFirebase(
+    () => (firestore ? collection(firestore, 'suppliers') : null),
+    [firestore]
+  );
+  const { data: suppliers, isLoading: isLoadingSuppliers } = useCollection<Supplier>(suppliersQuery);
 
   const hierarchicalCategories = useMemo(() => {
     if (!installationTypes) return [];
@@ -94,11 +115,12 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
             form.reset({
                 ...existingProduct,
                 installationTypeId: existingProduct.installationTypeId || null,
+                supplierId: existingProduct.supplierId || null,
             });
         } else {
             form.reset({
-                code: "", name: "", brand: "", category: "", installationTypeId: null, unit: "Adet",
-                listPrice: 0, currency: "TRY", discountRate: 0,
+                code: "", name: "", brand: "", category: "Genel", installationTypeId: null, unit: "Adet",
+                listPrice: 0, currency: "TRY", discountRate: 0, basePrice: 0, supplierId: null,
             });
         }
     }
@@ -110,7 +132,11 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
       return;
     }
     
-    const dataToSave = { ...values, installationTypeId: values.installationTypeId || null };
+    const dataToSave = { 
+        ...values, 
+        installationTypeId: values.installationTypeId || null,
+        supplierId: values.supplierId || null,
+    };
     
     try {
         if (existingProduct) {
@@ -134,46 +160,50 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] grid-rows-[auto,1fr,auto]">
+      <DialogContent className="sm:max-w-2xl grid-rows-[auto,1fr,auto]">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <DialogHeader>
-              <DialogTitle>{isEditMode ? 'Ürünü Düzenle' : 'Yeni Ürün Ekle'}</DialogTitle>
+              <DialogTitle>{isEditMode ? 'Ürünü Düzenle' : 'Yeni Ürün/Malzeme Ekle'}</DialogTitle>
               <DialogDescription>
-                 {isEditMode ? 'Ürün bilgilerini güncelleyin.' : 'Sisteme yeni bir ürün veya malzeme ekleyin.'}
+                 {isEditMode ? 'Ürün bilgilerini güncelleyin.' : 'Sisteme yeni bir ürün, malzeme veya hizmet ekleyin.'}
               </DialogDescription>
             </DialogHeader>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4 max-h-[60vh] overflow-y-auto px-1">
-                <FormField control={form.control} name="code" render={({ field }) => (
-                    <FormItem><FormLabel>Kod</FormLabel><FormControl><Input placeholder="GRF-001" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3 py-4 max-h-[60vh] overflow-y-auto px-1">
+                <h4 className="md:col-span-2 text-lg font-semibold text-primary border-b pb-2 mb-2">Genel Bilgiler</h4>
                 <FormField control={form.control} name="name" render={({ field }) => (
-                    <FormItem><FormLabel>Ad</FormLabel><FormControl><Input placeholder="UPS 25-60" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem className="md:col-span-2"><FormLabel>Ad</FormLabel><FormControl><Input placeholder="Duvar Tipi Yoğuşmalı Kazan 50 kW" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="code" render={({ field }) => (
+                    <FormItem><FormLabel>Kod</FormLabel><FormControl><Input placeholder="WS-YK-50" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="brand" render={({ field }) => (
-                    <FormItem><FormLabel>Marka</FormLabel><FormControl><Input placeholder="Grundfos" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Marka</FormLabel><FormControl><Input placeholder="Warmhaus" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="unit" render={({ field }) => (
+                    <FormItem><FormLabel>Birim</FormLabel><FormControl><Input placeholder="Adet" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="category" render={({ field }) => (
-                    <FormItem><FormLabel>Genel Kategori</FormLabel><FormControl><Input placeholder="Pompa" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Genel Kategori</FormLabel><FormControl><Input placeholder="Kazan" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
-
-                <FormField
+                 <FormField
                     control={form.control}
                     name="installationTypeId"
                     render={({ field }) => (
                         <FormItem className="md:col-span-2">
-                        <FormLabel>Tesisat Kategorisi</FormLabel>
+                        <FormLabel>Tesisat Kategorisi (Opsiyonel)</FormLabel>
                         <Select 
-                            onValueChange={(value) => field.onChange(value)} 
-                            value={field.value ?? ''}
+                            onValueChange={(value) => field.onChange(value === "null" ? null : value)} 
+                            value={field.value ?? ""}
                         >
                             <FormControl>
                             <SelectTrigger disabled={isLoadingInstallationTypes}>
-                                <SelectValue placeholder={isLoadingInstallationTypes ? "Kategoriler yükleniyor..." : "Bir tesisat kategorisi seçin (isteğe bağlı)"} />
+                                <SelectValue placeholder={isLoadingInstallationTypes ? "Kategoriler yükleniyor..." : "Bir tesisat kategorisi seçin"} />
                             </SelectTrigger>
                             </FormControl>
                             <SelectContent>
+                                <SelectItem value="null">Kategori Yok</SelectItem>
                                 {hierarchicalCategories.map((type) => (
                                     <SelectItem key={type.id} value={type.id}>
                                         {type.name}
@@ -186,12 +216,46 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
                     )}
                 />
 
+                <Separator className="md:col-span-2 my-4" />
+                <h4 className="md:col-span-2 text-lg font-semibold text-primary border-b pb-2 mb-2">Maliyet Bilgileri</h4>
+                <FormField control={form.control} name="basePrice" render={({ field }) => (
+                    <FormItem><FormLabel>Birim Alış Fiyatı (KDV Hariç)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                 <FormField
+                    control={form.control}
+                    name="supplierId"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Tedarikçi</FormLabel>
+                        <Select onValueChange={(value) => field.onChange(value === "null" ? null : value)} value={field.value ?? ""}>
+                            <FormControl>
+                            <SelectTrigger disabled={isLoadingSuppliers}>
+                                <SelectValue placeholder={isLoadingSuppliers ? "Yükleniyor..." : "Tedarikçi seçin"} />
+                            </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                <SelectItem value="null">Tedarikçi Yok</SelectItem>
+                                {suppliers?.map((supplier) => (
+                                    <SelectItem key={supplier.id} value={supplier.id}>
+                                        {supplier.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                <Separator className="md:col-span-2 my-4" />
+                <h4 className="md:col-span-2 text-lg font-semibold text-primary border-b pb-2 mb-2">Satış Bilgileri</h4>
+
                 <FormField control={form.control} name="listPrice" render={({ field }) => (
-                    <FormItem><FormLabel>Liste Fiyatı</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Birim Liste Satış Fiyatı</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="currency" render={({ field }) => (
                     <FormItem><FormLabel>Para Birimi</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl><SelectTrigger><SelectValue placeholder="Seçiniz" /></SelectTrigger></FormControl>
                             <SelectContent>
                                 <SelectItem value="TRY">TL</SelectItem>
@@ -201,11 +265,8 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
                         </Select>
                     <FormMessage /></FormItem>
                 )} />
-                <FormField control={form.control} name="unit" render={({ field }) => (
-                    <FormItem><FormLabel>Birim</FormLabel><FormControl><Input placeholder="Adet" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
                  <FormField control={form.control} name="discountRate" render={({ field }) => (
-                    <FormItem><FormLabel>İskonto Oranı (%15 için 0.15)</FormLabel><FormControl><Input type="number" step="0.01" min="0" max="1" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Genel İskonto Oranı (%15 için 0.15)</FormLabel><FormControl><Input type="number" step="0.01" min="0" max="1" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
             </div>
             

@@ -20,7 +20,6 @@ const navItems = [
     { href: '/products', label: 'Ürünler', icon: Package },
     { href: '/installation-types', label: 'Kategoriler', icon: Layers },
     { href: '/recipes', label: 'Reçeteler', icon: BookCopy },
-    { href: '/resources', label: 'Kaynaklar', icon: Wrench },
 ];
 
 

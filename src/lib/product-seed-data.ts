@@ -1,4 +1,5 @@
-export const materialSeedData = [
+
+export const productSeedData = [
   { name: 'Duvar Tipi Yoğuşmalı Kazan 50 kW', unit: 'adet', currency: 'EUR', basePrice: 2500.00, supplierName: 'Isı Market A.Ş.', categoryName: 'Kazanlar (Dilimli / Çelik / Yoğuşmalı)' },
   { name: 'Yer Tipi Yoğuşmalı Kazan 300 kW', unit: 'adet', currency: 'EUR', basePrice: 8500.00, supplierName: 'Isı Market A.Ş.', categoryName: 'Kazanlar (Dilimli / Çelik / Yoğuşmalı)' },
   { name: 'Çelik Kalorifer Kazanı 500.000 kcal/h', unit: 'adet', currency: 'EUR', basePrice: 12000.00, supplierName: 'Termo Kazan Ltd.', categoryName: 'Kazanlar (Dilimli / Çelik / Yoğuşmalı)' },
