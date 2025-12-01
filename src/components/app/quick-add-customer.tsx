@@ -56,7 +56,7 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded }: Quic
     }
     
     const customersCollectionRef = collection(firestore, 'customers');
-    await addDocumentNonBlocking(customersCollectionRef, values);
+    addDocumentNonBlocking(customersCollectionRef, values);
     
     toast({
       title: "Başarılı",

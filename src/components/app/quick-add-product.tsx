@@ -20,6 +20,7 @@ const productSchema = z.object({
   name: z.string().min(2, "Ad en az 2 karakter olmalıdır."),
   brand: z.string().min(1, "Marka zorunludur."),
   category: z.string().min(1, "Kategori zorunludur."),
+  installationTypeId: z.string().optional(), // Made optional for simplicity
   unit: z.string().min(1, "Birim zorunludur."),
   listPrice: z.coerce.number().min(0, "Liste fiyatı 0'dan büyük olmalıdır."),
   currency: z.enum(["TRY", "USD", "EUR"]),
@@ -63,7 +64,7 @@ export function QuickAddProduct({ isOpen, onOpenChange, onProductAdded }: QuickA
     }
     
     const productsCollectionRef = collection(firestore, 'products');
-    await addDocumentNonBlocking(productsCollectionRef, values);
+    addDocumentNonBlocking(productsCollectionRef, { ...values, installationTypeId: values.installationTypeId || "" });
     
     toast({
       title: "Başarılı",
@@ -137,5 +138,3 @@ export function QuickAddProduct({ isOpen, onOpenChange, onProductAdded }: QuickA
     </Dialog>
   );
 }
-
-    

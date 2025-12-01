@@ -41,9 +41,8 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { PlusCircle, MoreHorizontal, FileDown, Trash2, Copy, Loader2, Search } from 'lucide-react';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { PlusCircle, MoreHorizontal, Copy, Trash2, Loader2, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Badge } from '@/components/ui/badge';
@@ -150,7 +149,7 @@ export default function QuotesPage() {
             totalAmount: 0,
             status: 'Draft',
             createdAt: serverTimestamp(),
-            exchangeRates: { USD: 32.5, EUR: 35.0 }, // Dummy rates, will be updated.
+            exchangeRates: { USD: 32.5, EUR: 35.0 }, // Dummy rates, should be updated.
             versionNote: "İlk Versiyon"
         };
         await setDoc(newProposalRef, newProposalData);
@@ -163,7 +162,10 @@ export default function QuotesPage() {
 
     } catch (error: any) {
         console.error("Teklif oluşturma hatası:", error);
-        toast({ variant: "destructive", title: "Hata", description: `Teklif oluşturulamadı: ${error.message}` });
+        const errorMessage = error.code === 'auth/network-request-failed' 
+            ? "Ağ bağlantısı hatası nedeniyle teklif oluşturulamadı. Lütfen internet bağlantınızı kontrol edin."
+            : `Teklif oluşturulamadı: ${error.message}`;
+        toast({ variant: "destructive", title: "Hata", description: errorMessage });
     } finally {
         setIsSubmitting(false);
     }
