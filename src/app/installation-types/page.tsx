@@ -19,6 +19,7 @@ import {
   ChevronDown,
   ChevronRight,
   AlertTriangle,
+  UploadCloud,
 } from 'lucide-react';
 import {
   useFirestore,
@@ -32,6 +33,8 @@ import {
   deleteDoc,
   writeBatch,
   getDocs,
+  addDoc,
+  where,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -56,6 +59,7 @@ import {
 import { QuickAddInstallationType } from '@/components/app/quick-add-installation-type';
 import { cn } from '@/lib/utils';
 import { initialInstallationTypesData } from '@/lib/seed-data';
+import type { InitialInstallationType } from '@/lib/seed-data';
 
 
 export type InstallationType = {
@@ -90,7 +94,7 @@ const buildTree = (categories: InstallationType[]): TreeNode[] => {
   });
   
   const sortNodes = (nodes: TreeNode[]) => {
-      nodes.sort((a, b) => a.name.localeCompare(b.name));
+      nodes.sort((a, b) => a.name.localeCompare(b.name, 'tr', { numeric: true }));
       nodes.forEach(node => sortNodes(node.children));
   };
   
@@ -223,6 +227,8 @@ export default function InstallationTypesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<InstallationType | null>(null);
   const [defaultParentId, setDefaultParentId] = useState<string | null>(null);
+  const [isSeeding, setIsSeeding] = useState(false);
+
 
   const categoriesQuery = useMemoFirebase(
     () =>
@@ -311,6 +317,67 @@ export default function InstallationTypesPage() {
     }
   };
 
+   const seedData = async () => {
+    if (!firestore) return;
+    setIsSeeding(true);
+    try {
+      const batch = writeBatch(firestore);
+      const collectionRef = collection(firestore, 'installation_types');
+      const parentIdMap = new Map<string, string>();
+
+      // Level 1
+      for (const cat of initialInstallationTypesData) {
+        const docRef = doc(collectionRef);
+        batch.set(docRef, { name: cat.name, description: cat.description, parentId: null });
+        parentIdMap.set(cat.name, docRef.id);
+      }
+
+      // Level 2
+      for (const cat of initialInstallationTypesData) {
+        if (cat.children) {
+          const parentId = parentIdMap.get(cat.name);
+          if (parentId) {
+            for (const child of cat.children) {
+              const docRef = doc(collectionRef);
+              batch.set(docRef, { name: child.name, description: child.description, parentId: parentId });
+              parentIdMap.set(`${cat.name}/${child.name}`, docRef.id);
+            }
+          }
+        }
+      }
+
+      // Level 3
+      for (const cat of initialInstallationTypesData) {
+          if (cat.children) {
+              for (const child of cat.children) {
+                  if (child.children) {
+                      const parentId = parentIdMap.get(`${cat.name}/${child.name}`);
+                      if (parentId) {
+                          for (const grandchild of child.children) {
+                              const docRef = doc(collectionRef);
+                              batch.set(docRef, { name: grandchild.name, description: grandchild.description, parentId: parentId });
+                          }
+                      }
+                  }
+              }
+          }
+      }
+      
+      await batch.commit();
+      toast({ title: 'Başarılı!', description: 'Örnek kategoriler veritabanına yüklendi.' });
+      refetch();
+    } catch (error: any) {
+      console.error("Error seeding data:", error);
+      toast({
+        variant: 'destructive',
+        title: 'Veri Yükleme Hatası',
+        description: `Örnek veriler yüklenirken bir hata oluştu: ${error.message}`,
+      });
+    } finally {
+      setIsSeeding(false);
+    }
+  };
+
   return (
     <>
       <div className="flex flex-col gap-8">
@@ -325,6 +392,10 @@ export default function InstallationTypesPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+             <Button onClick={seedData} disabled={isSeeding} variant="outline">
+              {isSeeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
+              Örnek Kategorileri Yükle
+            </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                  <Button variant="destructive">
@@ -385,7 +456,7 @@ export default function InstallationTypesPage() {
               </div>
             ) : (
               <div className="p-8 text-center text-muted-foreground">
-                Henüz kategori oluşturulmamış. Yeni bir ana disiplin ekleyerek başlayın.
+                Henüz kategori oluşturulmamış. Yeni bir ana disiplin ekleyerek başlayın veya örnek verileri yükleyin.
               </div>
             )}
           </CardContent>
