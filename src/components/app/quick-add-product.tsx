@@ -60,7 +60,7 @@ const buildCategoryTree = (categories: InstallationType[]): { id: string; name: 
     const traverse = (node: { id: string; name: string; children: any[] }, prefix: string) => {
         const currentName = prefix ? `${prefix} > ${node.name}` : node.name;
         flattenedList.push({ id: node.id, name: currentName });
-        node.children.forEach(child => traverse(child, currentName));
+        node.children.sort((a,b) => a.name.localeCompare(b.name)).forEach(child => traverse(child, currentName));
     };
 
     roots.sort((a, b) => a.name.localeCompare(b.name)).forEach(root => traverse(root, ''));
@@ -152,14 +152,16 @@ export function QuickAddProduct({ isOpen, onOpenChange, onProductAdded }: QuickA
                     render={({ field }) => (
                         <FormItem className="md:col-span-2">
                         <FormLabel>Tesisat Kategorisi</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                        <Select 
+                            onValueChange={(value) => field.onChange(value)} 
+                            value={field.value ?? ''}
+                        >
                             <FormControl>
                             <SelectTrigger disabled={isLoadingInstallationTypes}>
                                 <SelectValue placeholder={isLoadingInstallationTypes ? "Kategoriler yükleniyor..." : "Bir tesisat kategorisi seçin (isteğe bağlı)"} />
                             </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                                <SelectItem value="">Kategori Yok</SelectItem>
                                 {hierarchicalCategories.map((type) => (
                                     <SelectItem key={type.id} value={type.id}>
                                         {type.name}
