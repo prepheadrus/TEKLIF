@@ -315,8 +315,7 @@
         "unit",
         "listPrice",
         "currency",
-        "discountRate",
-        "installationTypeId"
+        "discountRate"
       ]
     },
     "Supplier": {
@@ -344,15 +343,19 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "InstallationType",
       "type": "object",
-      "description": "Represents a type of mechanical installation discipline.",
+      "description": "Represents a type of mechanical installation discipline, supporting a hierarchical structure.",
       "properties": {
         "name": {
           "type": "string",
-          "description": "The name of the installation type (e.g., 'Sıhhi Tesisat', 'Isıtma Tesisatı')."
+          "description": "The name of the installation category (e.g., 'Sıhhi Tesisat', 'Vitrifiye', 'Lavabolar')."
         },
         "description": {
           "type": "string",
-          "description": "A brief description of the installation type."
+          "description": "A brief description of the installation category."
+        },
+        "parentId": {
+          "type": ["string", "null"],
+          "description": "The ID of the parent category. A null value indicates a top-level main discipline."
         }
       },
       "required": ["name"]
@@ -450,12 +453,10 @@
           "schema": {
             "$ref": "#/backend/entities/InstallationType"
           },
-          "description": "Stores the different disciplines of mechanical installations."
+          "description": "Stores the different disciplines of mechanical installations in a hierarchical structure."
         }
       }
     ],
     "reasoning": "The Firestore structure is updated to support a more robust cost analysis system. Key collections like `materials`, `labor_costs`, `suppliers`, and `recipes` are now top-level collections. This flat structure simplifies security rules and queries, avoiding deep nesting. The `Recipe` entity is redesigned to hold an array of `recipeItems`, allowing a single product to be composed of multiple materials and labor types, which is a more realistic representation of a bill of materials. All other collections remain as they were to support existing functionality for customers, products, and proposals. A new top-level collection `installation_types` is added to manage and categorize products by their mechanical discipline."
   }
 }
-
-    
