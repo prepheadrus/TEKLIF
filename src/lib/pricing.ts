@@ -35,10 +35,10 @@ export function calculatePrice({
   // Maliyet (İskontolu Fiyat) = Liste Fiyatı * (1 - İskonto Oranı)
   const cost = listPrice * (1 - discountRate);
 
-  // Satış Fiyatı (Orijinal Para Birimi) = Maliyet / (1 - Kâr Marjı) -> Bu daha doğru bir kâr hesabı
-  // Örn: 100 liralık maliyete %20 kâr eklemek için 100 / (1 - 0.2) = 125 TL olmalı. 125'in %20'si 25'tir, kâr 25'e çıkar.
-  // Eski yöntem: 100 * (1 + 0.20) = 120 TL. Bu durumda kâr marjı %16.67 olur (20/120).
-  const originalSellPrice = cost / (1 - profitMargin);
+  // Yeni Mantık: "Maliyet Artı Kâr" (Cost Plus)
+  // Satış Fiyatı (Orijinal Para Birimi) = Maliyet * (1 + Kâr Oranı)
+  // Örn: 100 liralık maliyete %20 kâr eklemek için 100 * (1 + 0.20) = 120 TL.
+  const originalSellPrice = cost * (1 + profitMargin);
   
   // TL cinsinden değerler
   const tlCost = cost * exchangeRate;

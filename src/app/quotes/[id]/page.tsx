@@ -82,7 +82,7 @@ const proposalItemSchema = z.object({
   listPrice: z.coerce.number(),
   currency: z.enum(['TRY', 'USD', 'EUR']),
   discountRate: z.coerce.number().min(0).max(1),
-  profitMargin: z.coerce.number().min(0).max(1, 'Kar marjı 0 ile 1 arasında olmalı'), // Kâr marjı yüzde olarak (0.20 = %20)
+  profitMargin: z.coerce.number().min(0), // No upper limit needed, can be > 100%
   groupName: z.string().default('Diğer'),
   basePrice: z.coerce.number().default(0),
 });
@@ -196,11 +196,12 @@ export default function QuoteDetailPage() {
   
   // Automatically fetch rates once when data is loaded
   useEffect(() => {
-      if (proposal && initialItems && initialItems.length > 0) {
-        handleFetchRates();
-      }
+    // Only run if we have the data and the form has been reset
+    if (proposal && initialItems && initialItems.length > 0 && form.formState.isDirty === false) {
+      handleFetchRates();
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [proposal, initialItems]);
+  }, [proposal, initialItems, form.formState.isDirty]);
 
 
   useEffect(() => {
@@ -594,8 +595,8 @@ export default function QuoteDetailPage() {
                                 <TableHead className="py-2">Birim</TableHead>
                                 <TableHead className="text-right py-2">Liste Fiyatı</TableHead>
                                 <TableHead className="text-right py-2">Alış Fiyatı (TL)</TableHead>
-                                <TableHead className="text-center py-2">İskonto</TableHead>
-                                <TableHead className="text-center py-2">Kâr</TableHead>
+                                <TableHead className="text-center py-2">İskonto (%)</TableHead>
+                                <TableHead className="text-center py-2">Kâr (%)</TableHead>
                                 <TableHead className="text-right py-2">Birim Fiyat</TableHead>
                                 <TableHead className="text-right py-2">Toplam</TableHead>
                                 <TableHead className="w-10 py-2 pr-4"></TableHead>
@@ -611,7 +612,6 @@ export default function QuoteDetailPage() {
                                     ...itemValues,
                                     exchangeRate: itemValues.currency === 'USD' ? watchedRates.USD : itemValues.currency === 'EUR' ? watchedRates.EUR : 1,
                                 });
-                                const discountAmount = itemValues.listPrice * itemValues.discountRate;
 
                                 return (
                                   <TableRow key={item.formId} className="hover:bg-slate-50 group/row">
@@ -633,15 +633,34 @@ export default function QuoteDetailPage() {
                                     </TableCell>
                                     <TableCell className="text-right font-mono text-slate-500 py-1 w-32">{formatNumber(itemTotals.tlCost)}</TableCell>
                                     <TableCell className="w-44 py-1">
-                                       <div className="flex items-center gap-2">
-                                           <FormField control={form.control} name={`items.${originalIndex}.discountRate`} render={({ field }) => <Input {...field} type="number" step="0.01" max="1" className="w-20 text-center bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8" placeholder="0.15"/>} />
-                                           <div className="text-xs text-muted-foreground font-mono">({formatNumber(discountAmount)} {itemValues.currency})</div>
+                                       <div className="flex items-center justify-center gap-2">
+                                           <Controller
+                                                control={form.control}
+                                                name={`items.${originalIndex}.discountRate`}
+                                                render={({ field }) => (
+                                                    <Input 
+                                                        type="number"
+                                                        value={field.value * 100}
+                                                        onChange={e => field.onChange(parseFloat(e.target.value) / 100)}
+                                                        className="w-20 text-center bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8" placeholder="15"/>
+                                                )}
+                                            />
                                        </div>
                                     </TableCell>
                                     <TableCell className="w-48 py-1">
-                                       <div className="flex items-center gap-2">
-                                           <FormField control={form.control} name={`items.${originalIndex}.profitMargin`} render={({ field }) => <Input {...field} type="number" step="0.01" max="1" className="w-20 text-center bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8" placeholder="0.20"/>} />
-                                           <div className="text-xs text-green-600 font-mono">({formatNumber(itemTotals.profitAmount)} TL)</div>
+                                       <div className="flex items-center justify-center gap-2">
+                                            <Controller
+                                                control={form.control}
+                                                name={`items.${originalIndex}.profitMargin`}
+                                                render={({ field }) => (
+                                                    <Input
+                                                        type="number"
+                                                        value={field.value * 100}
+                                                        onChange={e => field.onChange(parseFloat(e.target.value) / 100)}
+                                                        className="w-20 text-center bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8" placeholder="20"/>
+                                                )}
+                                            />
+                                            <div className="text-xs text-green-600 font-mono">({formatNumber(itemTotals.profitAmount)} TL)</div>
                                        </div>
                                     </TableCell>
                                     <TableCell className="text-right font-mono text-slate-600 py-1 w-32">{formatNumber(itemTotals.tlSellPrice)}</TableCell>
