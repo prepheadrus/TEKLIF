@@ -48,6 +48,7 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { fetchExchangeRates } from '@/ai/flows/fetch-exchange-rates';
 
 
 const newQuoteSchema = z.object({
@@ -122,13 +123,11 @@ export default function QuotesPage() {
     }
     setIsSubmitting(true);
     try {
-        // Find customer name
         const selectedCustomer = customers?.find(c => c.id === values.customerId);
         if (!selectedCustomer) {
             throw new Error("Müşteri bulunamadı.");
         }
 
-        // Generate Quote Number
         const now = new Date();
         const month = (now.getMonth() + 1).toString().padStart(2, '0');
         const year = now.getFullYear().toString().slice(-2);
@@ -141,10 +140,12 @@ export default function QuotesPage() {
         const nextId = (monthProposalsSnap.size + 1).toString().padStart(3, '0');
         const quoteNumber = `${month}${year}/${nextId}`;
 
-        // Create initial proposal document
+        // Fetch latest exchange rates
+        const exchangeRates = await fetchExchangeRates();
+
         const newProposalRef = doc(collection(firestore, 'proposals'));
         const newProposalData = {
-            rootProposalId: newProposalRef.id, // The first proposal is its own root
+            rootProposalId: newProposalRef.id,
             version: 1,
             customerId: values.customerId,
             customerName: selectedCustomer.name,
@@ -153,7 +154,7 @@ export default function QuotesPage() {
             totalAmount: 0,
             status: 'Draft',
             createdAt: serverTimestamp(),
-            exchangeRates: { USD: 32.5, EUR: 35.0 }, // Dummy rates, should be updated.
+            exchangeRates: exchangeRates,
             versionNote: "İlk Versiyon"
         };
         await setDoc(newProposalRef, newProposalData);
@@ -186,7 +187,6 @@ export default function QuotesPage() {
         }
         const originalData = originalProposalSnap.data() as Proposal;
 
-        // Find the latest version in the chain
         const versionsQuery = query(
             collection(firestore, 'proposals'),
             where('rootProposalId', '==', originalData.rootProposalId),
@@ -194,10 +194,12 @@ export default function QuotesPage() {
         );
         const versionsSnap = await getDocs(versionsQuery);
         const latestVersion = versionsSnap.docs.length > 0 ? (versionsSnap.docs[0].data() as Proposal).version : 0;
+        
+        // Fetch latest exchange rates for the new revision
+        const exchangeRates = await fetchExchangeRates();
 
         const batch = writeBatch(firestore);
 
-        // Create new proposal version
         const newProposalRef = doc(collection(firestore, 'proposals'));
         const newProposalData = {
             ...originalData,
@@ -205,11 +207,11 @@ export default function QuotesPage() {
             status: 'Draft',
             createdAt: serverTimestamp(),
             versionNote: `Revizyon (v${originalData.version}'dan kopyalandı)`,
-            totalAmount: originalData.totalAmount, // Copy total amount for reference
+            totalAmount: originalData.totalAmount,
+            exchangeRates: exchangeRates, // Use fresh rates for the revision
         };
         batch.set(newProposalRef, newProposalData);
 
-        // Copy items
         const itemsRef = collection(firestore, 'proposals', proposalId, 'proposal_items');
         const itemsSnap = await getDocs(itemsRef);
         itemsSnap.forEach(itemDoc => {
@@ -232,7 +234,6 @@ export default function QuotesPage() {
   const handleDeleteProposal = async (proposalId: string) => {
     if (!firestore) return;
     try {
-        // Here you might also want to delete subcollections, but for simplicity, we delete the main doc.
         await deleteDoc(doc(firestore, 'proposals', proposalId));
         toast({ title: "Başarılı", description: "Teklif silindi." });
         refetchProposals();
@@ -271,7 +272,7 @@ export default function QuotesPage() {
                         <DialogHeader>
                           <DialogTitle>Yeni Teklif Başlat</DialogTitle>
                           <DialogDescription>
-                            Yeni bir teklif oluşturmak için müşteri ve proje adı seçin.
+                            Yeni bir teklif oluşturmak için müşteri ve proje adı seçin. Güncel döviz kurları otomatik olarak çekilecektir.
                           </DialogDescription>
                         </DialogHeader>
 

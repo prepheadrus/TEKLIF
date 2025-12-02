@@ -54,6 +54,7 @@ import {
   Thermometer,
   Wrench,
   Edit,
+  RefreshCw,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -68,6 +69,7 @@ import type { Product as ProductType } from '@/app/products/page';
 import { suggestMissingParts } from '@/ai/flows/suggest-missing-parts';
 import { cn } from '@/lib/utils';
 import type { InstallationType } from '@/app/installation-types/page';
+import { fetchExchangeRates } from '@/ai/flows/fetch-exchange-rates';
 
 
 const proposalItemSchema = z.object({
@@ -82,13 +84,16 @@ const proposalItemSchema = z.object({
   discountRate: z.coerce.number().min(0).max(1),
   profitMargin: z.coerce.number().min(0).max(1, 'Kar marjı 0 ile 1 arasında olmalı'), // Kâr marjı yüzde olarak (0.20 = %20)
   groupName: z.string().default('Diğer'),
-  // Add basePrice to the schema for cost calculation
   basePrice: z.coerce.number().default(0),
 });
 
 const proposalSchema = z.object({
   versionNote: z.string().optional(),
   items: z.array(proposalItemSchema),
+  exchangeRates: z.object({
+      USD: z.coerce.number(),
+      EUR: z.coerce.number()
+  })
 });
 
 type ProposalFormValues = z.infer<typeof proposalSchema>;
@@ -133,6 +138,7 @@ export default function QuoteDetailPage() {
   const groupNameInputRef = useRef<HTMLInputElement>(null);
   const [emptyGroups, setEmptyGroups] = useState<string[]>([]);
   const [targetGroupForProductAdd, setTargetGroupForProductAdd] = useState<string | undefined>(undefined);
+  const [isFetchingRates, setIsFetchingRates] = useState(false);
 
 
   // --- Data Fetching ---
@@ -140,7 +146,7 @@ export default function QuoteDetailPage() {
     () => (firestore && proposalId ? doc(firestore, 'proposals', proposalId) : null),
     [firestore, proposalId]
   );
-  const { data: proposal, isLoading: isLoadingProposal } = useDoc<Proposal>(proposalRef);
+  const { data: proposal, isLoading: isLoadingProposal, refetch: refetchProposal } = useDoc<Proposal>(proposalRef);
 
   const proposalItemsRef = useMemoFirebase(
     () => (firestore && proposalId ? collection(firestore, 'proposals', proposalId, 'proposal_items') : null),
@@ -159,6 +165,7 @@ export default function QuoteDetailPage() {
     defaultValues: {
       versionNote: '',
       items: [],
+      exchangeRates: { USD: 32.5, EUR: 35.0 }
     },
   });
   
@@ -169,10 +176,8 @@ export default function QuoteDetailPage() {
   });
   
   const watchedItems = form.watch('items');
+  const watchedRates = form.watch('exchangeRates');
 
-  // --- Calculations ---
-  // This is now calculated on every render, ensuring it's always up-to-date.
-  // We removed useMemo to fix the stale calculation issue.
   const calculateAllTotals = (items: ProposalItem[], exchangeRates: { USD: number; EUR: number }) => {
     let grandTotalSell = 0;
     let grandTotalCost = 0;
@@ -210,19 +215,20 @@ export default function QuoteDetailPage() {
     };
   };
 
-  const calculatedTotals = calculateAllTotals(watchedItems, proposal?.exchangeRates || { USD: 1, EUR: 1 });
+  const calculatedTotals = calculateAllTotals(watchedItems, watchedRates);
 
 
   const allGroups = useMemo(() => {
-    const itemGroups = fields.reduce((acc, field, index) => {
-        const item = watchedItems[index];
+    const itemGroups = watchedItems.reduce((acc, item, index) => {
         const groupName = item.groupName || 'Diğer';
         if (!acc[groupName]) {
             acc[groupName] = [];
         }
-        acc[groupName].push(field);
+        // Push the original field object from useFieldArray to preserve the key
+        acc[groupName].push(fields[index]);
         return acc;
-    }, {} as Record<string, (ProposalItem & { formId: string })[]>);
+    }, {} as Record<string, typeof fields>);
+
 
     emptyGroups.forEach(groupName => {
         if (!itemGroups[groupName]) {
@@ -236,7 +242,7 @@ export default function QuoteDetailPage() {
       return a.localeCompare(b);
     });
 
-  }, [fields, watchedItems, emptyGroups]);
+  }, [watchedItems, fields, emptyGroups]);
   
   // --- Effects ---
   useEffect(() => {
@@ -245,10 +251,11 @@ export default function QuoteDetailPage() {
         versionNote: proposal.versionNote || '',
         items: initialItems.map((item) => ({
           ...item,
-          id: item.id, // Ensure the document ID is passed
+          id: item.id,
           productId: item.productId || '',
           groupName: item.groupName || 'Diğer',
         })),
+        exchangeRates: proposal.exchangeRates || { USD: 32.5, EUR: 35.0 }
       });
     }
   }, [proposal, initialItems, form]);
@@ -266,7 +273,6 @@ export default function QuoteDetailPage() {
     const currentItems = form.getValues('items');
 
     selectedProducts.forEach(product => {
-        // Use targetGroupForProductAdd to ensure we only check within the correct group
         const existingItemIndex = currentItems.findIndex(
             item => item.productId === product.id && item.groupName === (targetGroupForProductAdd || 'Diğer')
         );
@@ -279,7 +285,6 @@ export default function QuoteDetailPage() {
             });
         } else {
             let groupName = targetGroupForProductAdd || 'Diğer';
-             // If no specific group was targeted, try to find the product's default installation category
              if (!targetGroupForProductAdd && product.installationTypeId && installationTypes) {
                 let current = installationTypes.find(it => it.id === product.installationTypeId);
                 let parent = current;
@@ -313,11 +318,10 @@ export default function QuoteDetailPage() {
 
     setIsProductSelectorOpen(false);
     
-    // If a product was added to a previously empty group, remove that group from the emptyGroups state
     if (targetGroupForProductAdd) {
-        setEmptyGroups(prev => prev.filter(g => g !== targetGroupForProductAdd));
+        setEmptyGroups(prev => prev.filter(g => g !== targetGroupFor-product-add));
     }
-    setTargetGroupForProductAdd(undefined); // Reset the target group
+    setTargetGroupForProductAdd(undefined);
     
     const firstNewProduct = selectedProducts.find(p => !currentItems.some(item => item.productId === p.id));
     if (firstNewProduct) {
@@ -328,7 +332,6 @@ export default function QuoteDetailPage() {
   const handleAddNewGroup = () => {
     const newGroupName = `Yeni Grup ${emptyGroups.length + allGroups.length + 1}`;
     setEmptyGroups(prev => [...prev, newGroupName]);
-    // Set a timeout to ensure the new input field is rendered before trying to focus it
     setTimeout(() => {
         setEditingGroupName(newGroupName);
     }, 100);
@@ -339,8 +342,6 @@ export default function QuoteDetailPage() {
         setEditingGroupName(null);
         return;
     }
-
-    // Update items in the form state
     const currentItems = form.getValues('items');
     currentItems.forEach((item, index) => {
         if (item.groupName === oldName) {
@@ -348,7 +349,6 @@ export default function QuoteDetailPage() {
         }
     });
 
-    // Update the emptyGroups state if the renamed group was an empty one
     setEmptyGroups(prev => prev.map(g => g === oldName ? newName : g).filter(g => g !== oldName || !allGroups.some(([groupName]) => groupName === newName)));
     
     setEditingGroupName(null);
@@ -371,6 +371,7 @@ export default function QuoteDetailPage() {
       batch.update(proposalDocRef, {
         versionNote: data.versionNote,
         totalAmount: calculatedTotals.grandTotalSell,
+        exchangeRates: data.exchangeRates,
         updatedAt: serverTimestamp(),
       });
 
@@ -401,6 +402,8 @@ export default function QuoteDetailPage() {
       await batch.commit();
       
       await refetchItems();
+      await refetchProposal();
+
 
       toast({
         title: 'Başarılı!',
@@ -422,6 +425,20 @@ export default function QuoteDetailPage() {
     setTargetGroupForProductAdd(groupName);
     setIsProductSelectorOpen(true);
   };
+  
+  const handleFetchRates = async () => {
+    setIsFetchingRates(true);
+    toast({ title: 'Kurlar alınıyor...', description: 'TCMB verileri çekiliyor.' });
+    try {
+      const newRates = await fetchExchangeRates();
+      form.setValue('exchangeRates', newRates, { shouldValidate: true, shouldDirty: true });
+      toast({ title: 'Başarılı!', description: 'Döviz kurları güncellendi.' });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Hata', description: 'Kurlar alınamadı.' });
+    } finally {
+      setIsFetchingRates(false);
+    }
+  }
 
 
   const isLoading = isLoadingProposal || isLoadingItems || isLoadingInstallationTypes;
@@ -462,16 +479,23 @@ export default function QuoteDetailPage() {
             </div>
             
             <div className="flex items-center gap-4">
-                <div className="flex gap-4 bg-slate-100 px-4 py-2 rounded-lg border border-slate-200">
-                    <div className="text-right">
-                        <span className="block text-[10px] text-slate-400 uppercase font-bold">Döviz (EUR)</span>
-                        <span className="block font-mono text-sm font-bold text-slate-700">{proposal.exchangeRates.EUR.toFixed(2)} ₺</span>
-                    </div>
-                    <div className="w-px bg-slate-300"></div>
-                     <div className="text-right">
-                        <span className="block text-[10px] text-slate-400 uppercase font-bold">Döviz (USD)</span>
-                        <span className="block font-mono text-sm font-bold text-slate-700">{proposal.exchangeRates.USD.toFixed(2)} ₺</span>
-                    </div>
+                <div className="flex items-center gap-2 bg-slate-100 px-4 py-2 rounded-lg border border-slate-200">
+                    <FormField control={form.control} name="exchangeRates.EUR" render={({ field }) => (
+                         <div className="text-right">
+                            <span className="block text-[10px] text-slate-400 uppercase font-bold">Döviz (EUR)</span>
+                            <Input {...field} type="number" step="any" className="h-auto p-0 border-0 rounded-none bg-transparent text-right font-mono text-sm font-bold text-slate-700 focus-visible:ring-0" />
+                        </div>
+                    )} />
+                    <div className="w-px h-full bg-slate-300"></div>
+                     <FormField control={form.control} name="exchangeRates.USD" render={({ field }) => (
+                         <div className="text-right">
+                            <span className="block text-[10px] text-slate-400 uppercase font-bold">Döviz (USD)</span>
+                            <Input {...field} type="number" step="any" className="h-auto p-0 border-0 rounded-none bg-transparent text-right font-mono text-sm font-bold text-slate-700 focus-visible:ring-0" />
+                        </div>
+                    )} />
+                    <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={handleFetchRates} disabled={isFetchingRates}>
+                        {isFetchingRates ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    </Button>
                 </div>
                  <Button
                     type="button"
@@ -574,7 +598,7 @@ export default function QuoteDetailPage() {
                                 if (!itemValues) return null;
                                 const itemTotals = calculateItemTotals({
                                     ...itemValues,
-                                    exchangeRate: itemValues.currency === 'USD' ? (proposal.exchangeRates?.USD || 1) : itemValues.currency === 'EUR' ? (proposal.exchangeRates?.EUR || 1) : 1,
+                                    exchangeRate: itemValues.currency === 'USD' ? watchedRates.USD : itemValues.currency === 'EUR' ? watchedRates.EUR : 1,
                                 });
                                 const discountAmount = itemValues.listPrice * itemValues.discountRate;
 
