@@ -196,11 +196,11 @@ export default function QuoteDetailPage() {
   
   useEffect(() => {
     // Only run if we have the data and the form has been reset
-    if (proposal && initialItems && form.formState.isSubmitSuccessful === false && form.formState.isDirty === false) {
+    if (proposal && initialItems && form.formState.isSubmitSuccessful === false) {
       handleFetchRates();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [proposal, initialItems]);
+  }, [proposal, initialItems, form.formState.isSubmitSuccessful]);
 
 
   useEffect(() => {
@@ -491,9 +491,9 @@ export default function QuoteDetailPage() {
   return (
     <>
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSaveChanges)} className="h-full flex flex-col">
+      <form onSubmit={form.handleSubmit(handleSaveChanges)} className="h-full flex flex-col bg-slate-50">
         
-        <header className="sticky top-[64px] z-40 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm px-8 py-4 flex justify-between items-center h-[88px]">
+        <header className="sticky top-[64px] z-20 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm px-8 py-4 flex justify-between items-center h-[88px]">
             <div>
                 <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
                     <Wrench className="w-6 h-6 text-primary" /> MechQuote <span className="text-slate-400 font-normal text-sm">| {proposal.quoteNumber} (v{proposal.version})</span>
@@ -535,7 +535,7 @@ export default function QuoteDetailPage() {
             </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-8 py-8 space-y-8">
+        <main className="flex-1 overflow-y-auto px-8 py-8 space-y-8">
              {activeProductForAISuggestion && (
                 <AISuggestionBox 
                     productName={activeProductForAISuggestion}
@@ -600,7 +600,7 @@ export default function QuoteDetailPage() {
 
                         <div className="overflow-x-auto">
                             <Table>
-                                <TableHeader className="sticky top-[152px] z-10 bg-white text-xs uppercase text-slate-400 font-semibold tracking-wider border-b border-slate-100">
+                                <TableHeader className="sticky top-0 z-10 bg-white/80 backdrop-blur-sm text-xs uppercase text-slate-400 font-semibold tracking-wider border-b border-slate-100">
                                   <TableRow>
                                     <TableHead className="w-2/6 py-2 pl-4">Malzeme / Poz</TableHead>
                                     <TableHead className="py-2">Marka</TableHead>
@@ -643,7 +643,7 @@ export default function QuoteDetailPage() {
                                         </TableCell>
                                         <TableCell className="text-right font-mono tabular-nums text-slate-500 py-1 w-32">{formatNumber(itemTotals.tlCost)}</TableCell>
                                         <TableCell className="w-44 py-1">
-                                           <div className="flex items-center justify-end gap-1">
+                                           <div className="flex items-center justify-end gap-1 font-mono">
                                                <Controller
                                                     control={form.control}
                                                     name={`items.${originalIndex}.discountRate`}
@@ -659,7 +659,7 @@ export default function QuoteDetailPage() {
                                            </div>
                                         </TableCell>
                                         <TableCell className="w-48 py-1">
-                                           <div className="flex items-center justify-end gap-1">
+                                           <div className="flex items-center justify-end gap-1 font-mono">
                                                 <Controller
                                                     control={form.control}
                                                     name={`items.${originalIndex}.profitMargin`}
@@ -702,9 +702,9 @@ export default function QuoteDetailPage() {
                 <PlusCircle className="h-6 w-6" />
                 <span>Yeni Mahal / Sistem Grubu Ekle</span>
             </Button>
-        </div>
+        </main>
 
-        <footer className="bg-white/95 backdrop-blur-sm border-t border-slate-200 shadow-[0_-5px_15px_rgba(0,0,0,0.05)] z-30">
+        <footer className="sticky bottom-0 z-20 bg-white/95 backdrop-blur-sm border-t border-slate-200 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
             <div className="max-w-screen-xl mx-auto px-8">
                 <div className="flex justify-between items-center h-24">
                     <div className="text-xs text-slate-500 space-x-4">
