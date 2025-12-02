@@ -11,6 +11,8 @@ import { Building, Home, Users, Package, FileText, Layers, BookCopy, Menu } from
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { NoSsr } from '@/components/no-ssr';
+
 
 const navItems = [
     { href: '/', label: 'Anasayfa', icon: Home },
@@ -43,7 +45,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
                     </Link>
                     <nav className="hidden md:flex gap-1">
                          {navItems.map((item) => (
-                            <NavItem key={item.href} item={item} />
+                            <NavItem key={item.href} href={item.href} label={item.label} />
                         ))}
                     </nav>
                 </div>
@@ -63,13 +65,13 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
   );
 }
 
-const NavItem = ({ item }: { item: { href: string, label: string } }) => {
+const NavItem = ({ href, label }: { href: string, label: string }) => {
     const pathname = usePathname();
-    const isActive = (pathname === '/' && item.href === '/') || (item.href !== '/' && pathname.startsWith(item.href));
+    const isActive = (pathname === '/' && href === '/') || (href !== '/' && pathname.startsWith(href));
 
     return (
         <Link 
-            href={item.href}
+            href={href}
             className={cn(
                 "px-3 py-2 rounded-md text-sm font-medium transition-colors",
                 isActive 
@@ -77,7 +79,7 @@ const NavItem = ({ item }: { item: { href: string, label: string } }) => {
                     : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
             )}
         >
-            {item.label}
+            {label}
         </Link>
     )
 }
@@ -137,7 +139,9 @@ export default function RootLayout({
         <FirebaseClientProvider>
           <AppInitializer>{children}</AppInitializer>
         </FirebaseClientProvider>
-        <Toaster />
+        <NoSsr>
+          <Toaster />
+        </NoSsr>
       </body>
     </html>
   );
