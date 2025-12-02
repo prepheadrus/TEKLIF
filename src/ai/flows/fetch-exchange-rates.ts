@@ -33,17 +33,26 @@ const fetchExchangeRatesFlow = ai.defineFlow(
   async () => {
     try {
       // This API fetches and parses the official TCMB XML data into a reliable JSON format.
-      const response = await fetch('https://api.tbtr.dev/v1/today.json', { cache: 'no-store' });
+      const response = await fetch('https://www.tcmb.gov.tr/kurlar/today.xml', { cache: 'no-store' });
       if (!response.ok) {
         throw new Error(`Failed to fetch exchange rates: ${response.statusText}`);
       }
-      const data = await response.json();
       
-      const usdRateStr = data.results.find((c: any) => c.code === 'USD')?.buying;
-      const eurRateStr = data.results.find((c: any) => c.code === 'EUR')?.buying;
+      const xmlText = await response.text();
       
+      // Basic manual XML parsing - This is fragile but avoids extra dependencies.
+      const findRate = (currencyCode: string): string | null => {
+        const currencyTag = `<Currency CrossOrder=.* CurrencyCode="${currencyCode}">`;
+        const regex = new RegExp(`${currencyTag}[\\s\\S]*?<ForexBuying>([\\d.]+)</ForexBuying>`);
+        const match = xmlText.match(regex);
+        return match ? match[1] : null;
+      };
+
+      const usdRateStr = findRate('USD');
+      const eurRateStr = findRate('EUR');
+
       if (!usdRateStr || !eurRateStr) {
-        throw new Error('USD or EUR rate not found in the API response.');
+        throw new Error('USD or EUR rate not found in the XML response.');
       }
 
       // The API returns strings, they need to be parsed to float.
