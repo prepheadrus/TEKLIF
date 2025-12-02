@@ -28,6 +28,7 @@ interface ProductSelectorProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   onProductsSelected: (products: Product[]) => void;
+  targetGroupName?: string; // Add this prop
 }
 
 const buildTree = (categories: InstallationType[]): TreeNode[] => {
@@ -92,6 +93,7 @@ export function ProductSelector({
   isOpen,
   onOpenChange,
   onProductsSelected,
+  targetGroupName,
 }: ProductSelectorProps) {
   const firestore = useFirestore();
   const [searchTerm, setSearchTerm] = useState('');
@@ -174,7 +176,10 @@ export function ProductSelector({
         <DialogHeader>
           <DialogTitle>Teklife Ürün Ekle</DialogTitle>
           <DialogDescription>
-            Kategori seçerek ve arama yaparak ürünleri filtreleyin, ardından eklemek istediklerinizi seçin.
+             {targetGroupName 
+                ? `"${targetGroupName}" grubuna ürün ekliyorsunuz.`
+                : "Kategori seçerek ve arama yaparak ürünleri filtreleyin, ardından eklemek istediklerinizi seçin."
+            }
           </DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 flex-1 overflow-hidden">

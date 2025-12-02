@@ -137,6 +137,7 @@ export default function QuoteDetailPage() {
   const [editingGroupName, setEditingGroupName] = useState<string | null>(null);
   const groupNameInputRef = useRef<HTMLInputElement>(null);
   const [emptyGroups, setEmptyGroups] = useState<string[]>([]);
+  const [targetGroupForProductAdd, setTargetGroupForProductAdd] = useState<string | undefined>(undefined);
 
 
   // --- Data Fetching ---
@@ -254,13 +255,13 @@ export default function QuoteDetailPage() {
 
 
   // --- Event Handlers ---
-   const handleProductsSelected = (selectedProducts: ProductType[], targetGroupName?: string) => {
+   const handleProductsSelected = (selectedProducts: ProductType[]) => {
     
     const newItems = selectedProducts.map(product => {
       let groupName = 'Diğer';
 
-      if (targetGroupName) {
-        groupName = targetGroupName;
+      if (targetGroupForProductAdd) {
+        groupName = targetGroupForProductAdd;
       } else if (product.installationTypeId && installationTypes) {
          // Find the top-level parent
          let current = installationTypes.find(it => it.id === product.installationTypeId);
@@ -293,8 +294,8 @@ export default function QuoteDetailPage() {
     setIsProductSelectorOpen(false);
 
     // If an empty group receives items, remove it from the emptyGroups state
-    if (targetGroupName) {
-        setEmptyGroups(prev => prev.filter(g => g !== targetGroupName));
+    if (targetGroupForProductAdd) {
+        setEmptyGroups(prev => prev.filter(g => g !== targetGroupForProductAdd));
     }
 
     if (newItems.length > 0) {
@@ -392,6 +393,12 @@ export default function QuoteDetailPage() {
       setIsSaving(false);
     }
   };
+
+  const openProductSelectorForGroup = (groupName: string) => {
+    setTargetGroupForProductAdd(groupName);
+    setIsProductSelectorOpen(true);
+  };
+
 
   const isLoading = isLoadingProposal || isLoadingItems || isLoadingInstallationTypes;
 
@@ -589,7 +596,7 @@ export default function QuoteDetailPage() {
                             </TableBody>
                         </Table>
                          <div className="p-2">
-                           <Button type="button" variant="ghost" className="w-full text-sm text-slate-500 hover:text-primary" onClick={() => setIsProductSelectorOpen(true)}>
+                           <Button type="button" variant="ghost" className="w-full text-sm text-slate-500 hover:text-primary" onClick={() => openProductSelectorForGroup(groupName)}>
                              <PlusCircle className="mr-2 h-4 w-4" /> Bu Gruba Ürün Ekle
                            </Button>
                         </div>
@@ -624,6 +631,7 @@ export default function QuoteDetailPage() {
         isOpen={isProductSelectorOpen}
         onOpenChange={setIsProductSelectorOpen}
         onProductsSelected={handleProductsSelected}
+        targetGroupName={targetGroupForProductAdd}
     />
     </>
   );
@@ -697,5 +705,3 @@ function AISuggestionBox({ productName, existingItems, onClose }: { productName:
         </div>
     )
 }
-
-    
