@@ -116,7 +116,7 @@ const getGroupIcon = (groupName: string) => {
     const lowerCaseName = groupName.toLowerCase();
     if (lowerCaseName.includes('isitma')) return <Flame className="w-5 h-5" />;
     if (lowerCaseName.includes('sihhi')) return <Droplets className="w-5 h-5" />;
-    if (lower.includes('soğutma')) return <Thermometer className="w-5 h-5" />;
+    if (lowerCaseName.includes('soğutma')) return <Thermometer className="w-5 h-5" />;
     if (lowerCaseName.includes('havalandirma')) return <Wind className="w-5 h-5" />;
     if (lowerCaseName.includes('yangin')) return <ShieldCheck className="w-5 h-5" />;
     return <Wrench className="w-5 h-5" />;
