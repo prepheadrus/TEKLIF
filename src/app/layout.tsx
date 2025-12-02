@@ -26,6 +26,10 @@ const navItems = [
 function AppInitializer({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
+  const pathname = usePathname();
+
+  const isQuoteDetailPage = pathname.includes('/quotes/') && !pathname.includes('/print');
+
 
   useEffect(() => {
     if (!isUserLoading && !user && auth) {
@@ -50,7 +54,8 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
                     </nav>
                 </div>
                 <div className="flex items-center gap-4">
-                    {/* User Menu can go here */}
+                     {/* Placeholder for Exchange Rates. Will be rendered by QuoteDetailPage via a portal */}
+                     {isQuoteDetailPage && <div id="exchange-rate-portal"></div>}
                     <div className="md:hidden">
                         <MobileNav />
                     </div>

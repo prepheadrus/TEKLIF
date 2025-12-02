@@ -1,5 +1,6 @@
 'use client';
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -123,6 +124,30 @@ const getGroupIcon = (groupName: string) => {
     return <Wrench className="w-5 h-5" />;
 }
 
+const ExchangeRateDisplay = ({ form, onRefresh, isFetching }: { form: any, onRefresh: () => void, isFetching: boolean }) => {
+    return (
+        <div className="flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">
+            <FormField control={form.control} name="exchangeRates.EUR" render={({ field }) => (
+                <div className="text-right">
+                    <span className="block text-[10px] text-blue-600 uppercase font-bold">EUR</span>
+                    <Input {...field} type="number" step="any" className="h-auto p-0 border-0 rounded-none bg-transparent text-right font-mono text-sm font-bold text-blue-800 focus-visible:ring-0 w-20" />
+                </div>
+            )} />
+            <div className="w-px h-6 bg-slate-300"></div>
+            <FormField control={form.control} name="exchangeRates.USD" render={({ field }) => (
+                <div className="text-right">
+                    <span className="block text-[10px] text-green-600 uppercase font-bold">USD</span>
+                    <Input {...field} type="number" step="any" className="h-auto p-0 border-0 rounded-none bg-transparent text-right font-mono text-sm font-bold text-green-800 focus-visible:ring-0 w-20" />
+                </div>
+            )} />
+            <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={onRefresh} disabled={isFetching}>
+                {isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            </Button>
+        </div>
+    );
+};
+
+
 // Main Component
 export default function QuoteDetailPage() {
   const params = useParams();
@@ -131,6 +156,7 @@ export default function QuoteDetailPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isProductSelectorOpen, setIsProductSelectorOpen] = useState(false);
   const [activeProductForAISuggestion, setActiveProductForAISuggestion] = useState<string | null>(null);
@@ -179,8 +205,15 @@ export default function QuoteDetailPage() {
   const watchedRates = form.watch('exchangeRates');
 
   // --- Effects ---
+   useEffect(() => {
+    // Find the portal container in the main layout
+    const container = document.getElementById('exchange-rate-portal');
+    setPortalContainer(container);
+  }, []);
+
   useEffect(() => {
-    if (proposal && initialItems) {
+    let isMounted = true;
+    if (proposal && initialItems && isMounted) {
       form.reset({
         versionNote: proposal.versionNote || '',
         items: initialItems.map((item) => ({
@@ -191,14 +224,10 @@ export default function QuoteDetailPage() {
         })),
         exchangeRates: proposal.exchangeRates || { USD: 32.5, EUR: 35.0 }
       });
-    }
-  }, [proposal, initialItems, form]);
-  
-  useEffect(() => {
-    // Only fetch rates once when the initial data is loaded.
-    if (proposal && initialItems) {
+      // Only fetch rates once when the initial data is loaded.
       handleFetchRates();
     }
+    return () => { isMounted = false; }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proposal, initialItems]);
 
@@ -415,7 +444,7 @@ export default function QuoteDetailPage() {
         const { ...dbItem } = item;
         const itemRef = item.id
           ? doc(itemsCollectionRef, item.id)
-          : doc(collectionRef);
+          : doc(itemsCollectionRef);
         batch.set(itemRef, dbItem, { merge: true });
       });
 
@@ -493,36 +522,22 @@ export default function QuoteDetailPage() {
 
   return (
     <>
+    {portalContainer && createPortal(
+        <ExchangeRateDisplay form={form} onRefresh={handleFetchRates} isFetching={isFetchingRates} />,
+        portalContainer
+    )}
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSaveChanges)} className="h-full flex flex-col bg-slate-50">
         
-        <header className="sticky top-[64px] z-30 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm px-8 py-4 flex justify-between items-center h-[88px]">
+        <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200 px-8 py-4 flex justify-between items-center h-[88px]">
             <div>
                 <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
                     <Wrench className="w-6 h-6 text-primary" /> MechQuote <span className="text-slate-400 font-normal text-sm">| {proposal.quoteNumber} (v{proposal.version})</span>
                 </h1>
-                <p className="text-xs text-slate-500 mt-1">Müşteri: <span className="font-medium text-slate-700">{proposal.customerName}</span> • Proje: <span className="font-medium text-slate-700">{proposal.projectName}</span></p>
+                <p className="text-sm text-slate-500 mt-1">Müşteri: <span className="font-semibold text-lg text-blue-700">{proposal.customerName}</span> • Proje: <span className="font-semibold text-lg text-blue-700">{proposal.projectName}</span></p>
             </div>
             
             <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 bg-slate-100 px-4 py-2 rounded-lg border border-slate-200">
-                    <FormField control={form.control} name="exchangeRates.EUR" render={({ field }) => (
-                         <div className="text-right">
-                            <span className="block text-[10px] text-slate-400 uppercase font-bold">EUR</span>
-                            <Input {...field} type="number" step="any" className="h-auto p-0 border-0 rounded-none bg-transparent text-right font-mono text-sm font-bold text-slate-700 focus-visible:ring-0" />
-                        </div>
-                    )} />
-                    <div className="w-px h-full bg-slate-300 mx-2"></div>
-                     <FormField control={form.control} name="exchangeRates.USD" render={({ field }) => (
-                         <div className="text-right">
-                            <span className="block text-[10px] text-slate-400 uppercase font-bold">USD</span>
-                            <Input {...field} type="number" step="any" className="h-auto p-0 border-0 rounded-none bg-transparent text-right font-mono text-sm font-bold text-slate-700 focus-visible:ring-0" />
-                        </div>
-                    )} />
-                    <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={handleFetchRates} disabled={isFetchingRates}>
-                        {isFetchingRates ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                    </Button>
-                </div>
                  <Button
                     type="button"
                     variant="outline"
@@ -554,8 +569,7 @@ export default function QuoteDetailPage() {
                 return (
                  <section key={groupName} className="group/section relative">
                     <div className="bg-white rounded-xl shadow-sm border border-slate-200">
-                        
-                         <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm">
+                        <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm">
                             <div className="px-6 py-3 border-b border-slate-200 flex justify-between items-center group/header">
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
@@ -603,18 +617,18 @@ export default function QuoteDetailPage() {
                                 </div>
                             </div>
                                <Table>
-                                    <TableHeader className="text-xs uppercase text-slate-400 font-semibold tracking-wider border-b border-slate-100">
+                                    <TableHeader>
                                     <TableRow>
-                                        <TableHead className="w-2/6 py-2 pl-4">Malzeme / Poz</TableHead>
-                                        <TableHead className="py-2">Marka</TableHead>
-                                        <TableHead className="text-right py-2">Miktar</TableHead>
-                                        <TableHead className="py-2">Birim</TableHead>
-                                        <TableHead className="text-right py-2">Liste Fiyatı</TableHead>
-                                        <TableHead className="text-right py-2">Alış Fiyatı (TL)</TableHead>
-                                        <TableHead className="text-right py-2">İskonto (%)</TableHead>
-                                        <TableHead className="text-right py-2">Kâr (%)</TableHead>
-                                        <TableHead className="text-right py-2">Birim Fiyat</TableHead>
-                                        <TableHead className="text-right py-2">Toplam</TableHead>
+                                        <TableHead className="w-2/6 py-2 pl-4 text-xs uppercase text-slate-400 font-semibold tracking-wider">Malzeme / Poz</TableHead>
+                                        <TableHead className="py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Marka</TableHead>
+                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Miktar</TableHead>
+                                        <TableHead className="py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Birim</TableHead>
+                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Liste Fiyatı</TableHead>
+                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Alış Fiyatı (TL)</TableHead>
+                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">İskonto (%)</TableHead>
+                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Kâr (%)</TableHead>
+                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Birim Fiyat</TableHead>
+                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Toplam</TableHead>
                                         <TableHead className="w-10 py-2 pr-4"></TableHead>
                                     </TableRow>
                                     </TableHeader>
