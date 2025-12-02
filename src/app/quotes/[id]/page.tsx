@@ -25,13 +25,6 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   Table,
   TableBody,
   TableCell,
@@ -39,11 +32,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -53,11 +44,10 @@ import {
   Trash2,
   PlusCircle,
   Loader2,
-  Save,
-  FileDown,
-  BrainCircuit,
-  X,
+  PaperPlaneRight,
   Bot,
+  X,
+  FileDown,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -67,11 +57,10 @@ import {
   useMemoFirebase,
 } from '@/firebase';
 import { calculatePrice } from '@/lib/pricing';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
 import { ProductSelector } from '@/components/app/product-selector';
 import type { Product as ProductType } from '@/app/products/page';
 import { suggestMissingParts } from '@/ai/flows/suggest-missing-parts';
+import { cn } from '@/lib/utils';
 
 const proposalItemSchema = z.object({
   id: z.string().optional(),
@@ -84,16 +73,16 @@ const proposalItemSchema = z.object({
   currency: z.enum(['TRY', 'USD', 'EUR']),
   discountRate: z.coerce.number().min(0).max(1),
   profitMargin: z.coerce.number().min(0),
-  // Calculated fields, not part of the form but good to have in the type
+  // Calculated fields, not part of the type
   cost: z.number().optional(),
   unitPrice: z.number().optional(),
   total: z.number().optional(),
 });
 
 const proposalSchema = z.object({
-  status: z.enum(['Draft', 'Sent', 'Approved', 'Rejected']),
   versionNote: z.string().optional(),
   items: z.array(proposalItemSchema),
+  // Status removed, will be handled separately.
 });
 
 type ProposalFormValues = z.infer<typeof proposalSchema>;
@@ -130,18 +119,17 @@ export default function QuoteDetailPage() {
     () => (firestore && proposalId ? doc(firestore, 'proposals', proposalId) : null),
     [firestore, proposalId]
   );
-  const { data: proposal, isLoading: isLoadingProposal } = useDoc<Proposal>(proposalRef);
+  const { data: proposal, isLoading: isLoadingProposal, refetch: refetchProposal } = useDoc<Proposal>(proposalRef);
 
   const proposalItemsRef = useMemoFirebase(
     () => (firestore && proposalId ? collection(firestore, 'proposals', proposalId, 'proposal_items') : null),
     [firestore, proposalId]
   );
-  const { data: initialItems, isLoading: isLoadingItems } = useCollection<ProposalItem>(proposalItemsRef);
+  const { data: initialItems, isLoading: isLoadingItems, refetch: refetchItems } = useCollection<ProposalItem>(proposalItemsRef);
 
   const form = useForm<ProposalFormValues>({
     resolver: zodResolver(proposalSchema),
     defaultValues: {
-      status: 'Draft',
       versionNote: '',
       items: [],
     },
@@ -154,12 +142,9 @@ export default function QuoteDetailPage() {
   });
 
   // --- Effects ---
-
-  // Effect to populate form when initial data loads
   useEffect(() => {
     if (proposal && initialItems) {
       form.reset({
-        status: proposal.status,
         versionNote: proposal.versionNote || '',
         items: initialItems.map((item) => ({
           ...item,
@@ -204,12 +189,7 @@ export default function QuoteDetailPage() {
       grandTotalTRY += priceInfo.tlSellPrice * item.quantity;
     });
 
-    const vat = grandTotalTRY * 0.20;
-    const subtotal = grandTotalTRY;
-    const grandTotalWithVAT = grandTotalTRY + vat;
-
-
-    return { subtotal, vat, grandTotal: grandTotalWithVAT };
+    return { grandTotal: grandTotalTRY };
   }, [form.watch('items'), proposal?.exchangeRates]);
 
 
@@ -235,7 +215,7 @@ export default function QuoteDetailPage() {
     }
   };
   
-  const onSubmit = async (data: ProposalFormValues) => {
+  const handleSaveChanges = async (data: ProposalFormValues) => {
     if (!firestore || !proposalId || !proposal) {
       toast({
         variant: 'destructive',
@@ -251,7 +231,6 @@ export default function QuoteDetailPage() {
       // 1. Update the main proposal document
       const proposalDocRef = doc(firestore, 'proposals', proposalId);
       batch.update(proposalDocRef, {
-        status: data.status,
         versionNote: data.versionNote,
         totalAmount: totals.grandTotal, // Save the calculated total
         updatedAt: serverTimestamp(),
@@ -265,28 +244,28 @@ export default function QuoteDetailPage() {
         'proposal_items'
       );
 
-      // Get existing items to find which ones to delete
       const existingItemsSnap = await getDocs(itemsCollectionRef);
       const existingIds = existingItemsSnap.docs.map((d) => d.id);
       const formIds = data.items.map((item) => item.id).filter(Boolean);
       
-      // Delete items that are in Firestore but not in the form
       const idsToDelete = existingIds.filter(id => !formIds.includes(id));
       idsToDelete.forEach(id => {
           batch.delete(doc(itemsCollectionRef, id));
       });
 
-      // Set (update or create) items from the form
       data.items.forEach((item) => {
-        // Remove calculated fields before saving
         const { cost, unitPrice, total, ...dbItem } = item;
         const itemRef = item.id
           ? doc(itemsCollectionRef, item.id)
-          : doc(itemsCollectionRef); // Create new doc if no ID
+          : doc(itemsCollectionRef);
         batch.set(itemRef, dbItem);
       });
 
       await batch.commit();
+      
+      // We need to refetch data to show updated values from DB
+      await Promise.all([refetchProposal(), refetchItems()]);
+
       toast({
         title: 'Başarılı!',
         description: 'Teklif başarıyla güncellendi.',
@@ -303,7 +282,9 @@ export default function QuoteDetailPage() {
     }
   };
 
-  if (isLoadingProposal || isLoadingItems) {
+  const isLoading = isLoadingProposal || isLoadingItems;
+
+  if (isLoading) {
     return (
       <div className="flex h-full w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -315,277 +296,180 @@ export default function QuoteDetailPage() {
     return <div>Teklif bulunamadı.</div>;
   }
   
-  const formatDate = (timestamp?: { seconds: number }) => {
-    if (!timestamp) return '-';
-    return new Date(timestamp.seconds * 1000).toLocaleDateString('tr-TR');
-  }
-
   const formatCurrency = (amount: number, currency: 'TRY' | 'USD' | 'EUR' = 'TRY') => {
-      return new Intl.NumberFormat('tr-TR', { style: 'currency', currency }).format(amount)
+      return new Intl.NumberFormat('tr-TR', { style: 'currency', currency, minimumFractionDigits: 2 }).format(amount)
   }
 
   return (
     <>
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
-        <div className="flex flex-col gap-8">
-          {/* Header */}
-          <header className="flex items-center justify-between">
+      <form onSubmit={form.handleSubmit(handleSaveChanges)}>
+        
+        {/* Sticky Header */}
+        <header className="sticky top-16 z-40 bg-background/80 backdrop-blur-md border-b border-slate-200 -mx-8 -mt-8 mb-8 px-8 py-4 flex justify-between items-center">
             <div>
-              <p className="text-muted-foreground">{proposal.quoteNumber} (v{proposal.version})</p>
-              <h1 className="text-2xl font-bold">
-                {proposal.customerName} - {proposal.projectName}
-              </h1>
-               <p className="text-sm text-muted-foreground">Oluşturulma Tarihi: {formatDate(proposal.createdAt)}</p>
+                <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                    MechQuote <span className="text-slate-400 font-normal text-sm">| {proposal.quoteNumber} (v{proposal.version})</span>
+                </h1>
+                <p className="text-xs text-slate-500 mt-1">Müşteri: <span className="font-medium text-slate-700">{proposal.customerName}</span> • Proje: <span className="font-medium text-slate-700">{proposal.projectName}</span></p>
             </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                type="button"
-                onClick={() =>
-                  router.push(
-                    `/quotes/${proposalId}/print?customerId=${proposal.customerId}`
-                  )
-                }
-              >
-                <FileDown className="mr-2 h-4 w-4" />
-                Yazdır / PDF
-              </Button>
-              <Button type="submit" disabled={isSaving}>
-                {isSaving ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="mr-2 h-4 w-4" />
-                )}
-                Kaydet
-              </Button>
+            
+            <div className="flex items-center gap-4">
+                <div className="flex gap-4 bg-slate-100 px-4 py-2 rounded-lg border border-slate-200">
+                    <div className="text-right">
+                        <span className="block text-[10px] text-slate-400 uppercase font-bold">Döviz (EUR)</span>
+                        <span className="block font-mono text-sm font-bold text-slate-700">{proposal.exchangeRates.EUR.toFixed(2)} ₺</span>
+                    </div>
+                    <div className="w-px bg-slate-300"></div>
+                     <div className="text-right">
+                        <span className="block text-[10px] text-slate-400 uppercase font-bold">Döviz (USD)</span>
+                        <span className="block font-mono text-sm font-bold text-slate-700">{proposal.exchangeRates.USD.toFixed(2)} ₺</span>
+                    </div>
+                </div>
+                 <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => router.push(`/quotes/${proposalId}/print?customerId=${proposal.customerId}`)}
+                    className="hidden sm:flex"
+                >
+                    <FileDown className="mr-2 h-4 w-4" /> PDF
+                </Button>
+                <Button type="submit" disabled={isSaving} className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/20 transition">
+                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PaperPlaneRight className="mr-2 h-4 w-4" />}
+                    Değişiklikleri Kaydet
+                </Button>
             </div>
-          </header>
+        </header>
 
-          {/* Main Content Grid */}
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-            {/* Left Column (Items) */}
-            <div className="lg:col-span-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Teklif Kalemleri</CardTitle>
-                  {activeProductForAISuggestion && (
-                    <AISuggestionBox 
-                        productName={activeProductForAISuggestion}
-                        existingItems={form.watch('items').map(i => i.name)}
-                        onClose={() => setActiveProductForAISuggestion(null)}
-                    />
-                   )}
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-1/3">Ürün/Hizmet</TableHead>
-                        <TableHead>Miktar</TableHead>
-                        <TableHead>Birim</TableHead>
-                        <TableHead>Liste Fiyatı</TableHead>
-                        <TableHead>İsk. (%)</TableHead>
-                        <TableHead>Kâr (%)</TableHead>
-                        <TableHead className="text-right">Birim Fiyat</TableHead>
-                        <TableHead className="text-right">Toplam</TableHead>
-                        <TableHead>
-                          <span className="sr-only">Sil</span>
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {fields.map((field, index) => {
-                        const itemValues = form.watch(`items.${index}`);
-                        const exchangeRate =
-                          itemValues.currency === 'USD'
-                            ? proposal.exchangeRates?.USD || 1
-                            : itemValues.currency === 'EUR'
-                            ? proposal.exchangeRates?.EUR || 1
-                            : 1;
+        {/* Main Content */}
+        <div className="space-y-8 pb-24">
+             {activeProductForAISuggestion && (
+                <AISuggestionBox 
+                    productName={activeProductForAISuggestion}
+                    existingItems={form.watch('items').map(i => i.name)}
+                    onClose={() => setActiveProductForAISuggestion(null)}
+                />
+            )}
+            
+            <section>
+                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="bg-slate-50/70 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+                        <h2 className="font-bold text-slate-800">Teklif Kalemleri</h2>
+                        <Button variant="outline" size="sm" onClick={() => setIsProductSelectorOpen(true)}>
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Kalem Ekle
+                        </Button>
+                    </div>
 
-                        const priceInfo = calculatePrice({
-                          listPrice: itemValues.listPrice,
-                          discountRate: itemValues.discountRate,
-                          profitMargin: itemValues.profitMargin,
-                          exchangeRate: exchangeRate,
-                        });
-
-                        return (
-                          <TableRow key={field.formId}>
-                            <TableCell>
-                                <p className="font-medium">{itemValues.name}</p>
-                                <p className="text-xs text-muted-foreground">{itemValues.brand}</p>
-                            </TableCell>
-                            <TableCell>
-                              <FormField
-                                control={form.control}
-                                name={`items.${index}.quantity`}
-                                render={({ field }) => <Input {...field} type="number" step="any" className="w-20" />}
-                              />
-                            </TableCell>
-                             <TableCell>
-                              <FormField
-                                control={form.control}
-                                name={`items.${index}.unit`}
-                                render={({ field }) => <Input {...field} className="w-20" />}
-                              />
-                            </TableCell>
-                            <TableCell>
-                                <div className="flex items-center gap-1">
-                                    <FormField
-                                        control={form.control}
-                                        name={`items.${index}.listPrice`}
-                                        render={({ field }) => <Input {...field} type="number" step="any" className="w-24"/>}
-                                    />
-                                     <FormField
-                                        control={form.control}
-                                        name={`items.${index}.currency`}
-                                        render={({ field }) => (
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                <FormControl>
-                                                    <SelectTrigger className="w-[70px]">
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent>
-                                                    <SelectItem value="TRY">TL</SelectItem>
-                                                    <SelectItem value="USD">$</SelectItem>
-                                                    <SelectItem value="EUR">€</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        )}
-                                    />
-                                </div>
-                            </TableCell>
-                            <TableCell>
-                               <FormField
-                                    control={form.control}
-                                    name={`items.${index}.discountRate`}
-                                    render={({ field }) => <Input {...field} type="number" step="0.01" className="w-20" placeholder="0.15"/>}
-                                />
-                            </TableCell>
-                             <TableCell>
-                               <FormField
-                                    control={form.control}
-                                    name={`items.${index}.profitMargin`}
-                                    render={({ field }) => <Input {...field} type="number" step="0.01" className="w-20" placeholder="0.20"/>}
-                                />
-                            </TableCell>
-                            <TableCell className="text-right">
-                                {formatCurrency(priceInfo.tlSellPrice)}
-                            </TableCell>
-                             <TableCell className="text-right font-medium">
-                                {formatCurrency(priceInfo.tlSellPrice * (itemValues.quantity || 0))}
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => remove(index)}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </TableCell>
+                    <Table>
+                        <TableHeader className="bg-white text-xs uppercase text-slate-400 font-semibold tracking-wider border-b border-slate-100">
+                          <TableRow>
+                            <TableHead className="w-2/5">Malzeme / Poz</TableHead>
+                            <TableHead className="text-center">Miktar</TableHead>
+                            <TableHead className="text-center">Liste Fiyatı</TableHead>
+                            <TableHead className="text-center">İsk. (%)</TableHead>
+                            <TableHead className="text-center">Kâr (%)</TableHead>
+                            <TableHead className="text-right">Birim Fiyat</TableHead>
+                            <TableHead className="text-right">Toplam</TableHead>
+                            <TableHead className="w-10"></TableHead>
                           </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-                <CardFooter className="justify-between">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setIsProductSelectorOpen(true)}
-                    >
-                        <PlusCircle className="mr-2" />
-                        Kalem Ekle
-                    </Button>
-                </CardFooter>
-              </Card>
-            </div>
+                        </TableHeader>
+                        <TableBody className="text-sm divide-y divide-slate-100">
+                          {fields.map((field, index) => {
+                            const itemValues = form.watch(`items.${index}`);
+                            const exchangeRate =
+                              itemValues.currency === 'USD'
+                                ? proposal.exchangeRates?.USD || 1
+                                : itemValues.currency === 'EUR'
+                                ? proposal.exchangeRates?.EUR || 1
+                                : 1;
 
-            {/* Right Column (Summary & Settings) */}
-            <div className="space-y-8">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Teklif Özeti</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span>Ara Toplam</span>
-                      <span>{formatCurrency(totals.subtotal)}</span>
-                    </div>
-                     <div className="flex justify-between">
-                      <span>KDV (%20)</span>
-                      <span>{formatCurrency(totals.vat)}</span>
-                    </div>
-                     <Separator />
-                     <div className="flex justify-between font-semibold text-lg">
-                      <span>Genel Toplam</span>
-                      <span>{formatCurrency(totals.grandTotal)}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Teklif Ayarları</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                   <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Durum</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Teklif durumunu seçin" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="Draft">
-                                <Badge variant="outline">Taslak</Badge>
-                            </SelectItem>
-                            <SelectItem value="Sent">
-                                <Badge variant="secondary">Gönderildi</Badge>
-                            </SelectItem>
-                            <SelectItem value="Approved">
-                                <Badge variant="default" className="bg-green-500">Onaylandı</Badge>
-                            </SelectItem>
-                             <SelectItem value="Rejected">
-                                <Badge variant="destructive">Reddedildi</Badge>
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="versionNote"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Versiyon Notu</FormLabel>
-                        <FormControl>
-                          <Textarea placeholder="Bu versiyondaki değişiklikleri açıklayın..." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+                            const priceInfo = calculatePrice({
+                              listPrice: itemValues.listPrice,
+                              discountRate: itemValues.discountRate,
+                              profitMargin: itemValues.profitMargin,
+                              exchangeRate: exchangeRate,
+                            });
+
+                            return (
+                              <TableRow key={field.formId} className="hover:bg-slate-50 group">
+                                <TableCell>
+                                    <div className="font-medium text-slate-800">{itemValues.name}</div>
+                                    <div className="text-xs text-slate-500">{itemValues.brand} • {itemValues.unit}</div>
+                                </TableCell>
+                                <TableCell className="w-24">
+                                  <FormField
+                                    control={form.control}
+                                    name={`items.${index}.quantity`}
+                                    render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-center bg-transparent border-dashed" />}
+                                  />
+                                </TableCell>
+                                <TableCell className="w-40">
+                                    <div className="flex items-center gap-1">
+                                        <FormField
+                                            control={form.control}
+                                            name={`items.${index}.listPrice`}
+                                            render={({ field }) => <Input {...field} type="number" step="any" className="w-28 text-right bg-transparent border-dashed"/>}
+                                        />
+                                        <span className="text-slate-500 font-mono text-xs">{itemValues.currency}</span>
+                                    </div>
+                                </TableCell>
+                                <TableCell className="w-28">
+                                   <FormField
+                                        control={form.control}
+                                        name={`items.${index}.discountRate`}
+                                        render={({ field }) => <Input {...field} type="number" step="0.01" className="w-24 text-center bg-transparent border-dashed" placeholder="0.15"/>}
+                                    />
+                                </TableCell>
+                                 <TableCell className="w-28">
+                                   <FormField
+                                        control={form.control}
+                                        name={`items.${index}.profitMargin`}
+                                        render={({ field }) => <Input {...field} type="number" step="0.01" className="w-24 text-center bg-transparent border-dashed" placeholder="0.20"/>}
+                                    />
+                                </TableCell>
+                                <TableCell className="text-right font-mono text-slate-600">
+                                    {formatCurrency(priceInfo.tlSellPrice)}
+                                </TableCell>
+                                 <TableCell className="text-right font-bold font-mono text-slate-800">
+                                    {formatCurrency(priceInfo.tlSellPrice * (itemValues.quantity || 0))}
+                                </TableCell>
+                                <TableCell className="px-2 text-center">
+                                  <Button variant="ghost" size="icon" onClick={() => remove(index)} className="h-8 w-8 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                    </Table>
+                 </div>
+            </section>
+
+             <Button type="button" className="w-full py-6 border-2 border-dashed border-slate-300 rounded-xl text-slate-400 font-medium bg-white hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all flex-col items-center gap-1 h-auto">
+                <PlusCircle className="h-6 w-6" />
+                <span>Yeni Mahal / Sistem Grubu Ekle (Yakında)</span>
+            </Button>
         </div>
+
+         {/* Sticky Footer */}
+        <footer className="fixed bottom-0 w-full bg-white/95 backdrop-blur-sm border-t border-slate-200 shadow-[0_-5px_15px_rgba(0,0,0,0.05)] z-30">
+            <div className="mx-auto px-8">
+                <div className="flex justify-between items-center h-20">
+                    <div className="text-xs text-slate-500 space-x-4">
+                        <span>Toplam Kalem: <b className="font-mono">{fields.length}</b></span>
+                    </div>
+                    <div className="flex items-end gap-2">
+                        <span className="text-sm text-slate-500 mb-1">Genel Toplam (KDV Dahil):</span>
+                        <span className="text-3xl font-bold font-mono text-slate-900">{formatCurrency(totals.grandTotal * 1.2)}</span>
+                    </div>
+                </div>
+            </div>
+        </footer>
       </form>
     </Form>
+
     <ProductSelector 
         isOpen={isProductSelectorOpen}
         onOpenChange={setIsProductSelectorOpen}
@@ -608,7 +492,6 @@ function AISuggestionBox({ productName, existingItems, onClose }: { productName:
                     productName: productName,
                     existingParts: existingItems,
                 });
-                // Filter out suggestions that are already in the list (case-insensitive)
                 const newSuggestions = result.suggestedParts.filter(
                     suggestion => !existingItems.some(item => item.toLowerCase().includes(suggestion.toLowerCase()))
                 );
@@ -626,36 +509,41 @@ function AISuggestionBox({ productName, existingItems, onClose }: { productName:
     }, [productName, existingItems]);
 
 
+    if (isLoading) {
+        return (
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-3 text-sm text-blue-700">
+                <Loader2 size={18} className="animate-spin" />
+                <span>AI Asistan, <b>'{productName}'</b> için ilgili parçaları arıyor...</span>
+            </div>
+        )
+    }
+
+    if (suggestions.length === 0) return null;
+
+
     return (
-         <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex justify-between items-center mb-2">
-                <div className="flex items-center gap-2">
-                    <Bot size={20} className="text-primary" />
-                    <h4 className="font-semibold text-primary">AI Önerisi: '{productName}'</h4>
+         <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex justify-between items-start mb-2">
+                <div className="flex items-start gap-3">
+                    <Bot size={20} className="text-primary mt-0.5" />
+                    <div>
+                        <h4 className="font-semibold text-primary">AI Önerisi: '{productName}'</h4>
+                        <p className="text-sm text-blue-800/80">Bu ürünle birlikte aşağıdaki parçaları da eklemek isteyebilirsiniz:</p>
+                    </div>
                 </div>
-                <Button variant="ghost" size="icon" onClick={onClose} className="h-6 w-6">
+                <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7 -mr-2 -mt-1">
                     <X size={16} />
                 </Button>
             </div>
-            {isLoading ? (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                    <Loader2 size={16} className="animate-spin" />
-                    <span>İlgili parçalar aranıyor...</span>
-                </div>
-            ) : suggestions.length > 0 ? (
-                 <div className="text-sm">
-                    <p className="mb-2">Bu ürünle birlikte aşağıdaki parçaları da eklemek isteyebilirsiniz:</p>
-                    <ul className="flex flex-wrap gap-2">
-                        {suggestions.map((part, i) => (
-                             <li key={i} className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
-                                {part}
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            ) : (
-                <p className="text-sm text-muted-foreground">Bu ürün için ek bir öneri bulunamadı.</p>
-            )}
+            <div className="pl-8 pt-1">
+                <ul className="flex flex-wrap gap-2">
+                    {suggestions.map((part, i) => (
+                         <li key={i} className="bg-blue-100 text-blue-800 px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer hover:bg-blue-200">
+                            {part}
+                        </li>
+                    ))}
+                </ul>
+            </div>
         </div>
     )
 }
