@@ -146,7 +146,7 @@ export default function QuoteDetailPage() {
     () => (firestore && proposalId ? doc(firestore, 'proposals', proposalId) : null),
     [firestore, proposalId]
   );
-  const { data: proposal, isLoading: isLoadingProposal, refetch: refetchProposal } = useDoc<Proposal>(proposalRef);
+  const { data: proposal, isLoading: isLoadingProposal } = useDoc<Proposal>(proposalRef);
 
   const proposalItemsRef = useMemoFirebase(
     () => (firestore && proposalId ? collection(firestore, 'proposals', proposalId, 'proposal_items') : null),
@@ -400,7 +400,6 @@ export default function QuoteDetailPage() {
       await batch.commit();
       
       await refetchItems();
-      await refetchProposal();
 
 
       toast({
@@ -596,8 +595,8 @@ export default function QuoteDetailPage() {
                               </TableRow>
                             </TableHeader>
                             <TableBody className="text-sm divide-y divide-slate-100">
-                                {itemsInGroup.map((field) => {
-                                const originalIndex = fields.findIndex(f => f.formId === field.formId);
+                                {itemsInGroup.map((item) => {
+                                const originalIndex = fields.findIndex(f => f.formId === item.formId);
                                 const itemValues = watchedItems[originalIndex];
                                 if (!itemValues) return null;
                                 const itemTotals = calculateItemTotals({
@@ -607,7 +606,7 @@ export default function QuoteDetailPage() {
                                 const discountAmount = itemValues.listPrice * itemValues.discountRate;
 
                                 return (
-                                  <TableRow key={field.formId} className="hover:bg-slate-50 group/row">
+                                  <TableRow key={item.formId} className="hover:bg-slate-50 group/row">
                                     <TableCell className="py-1 pl-4 font-medium text-slate-800">{itemValues.name}</TableCell>
                                     <TableCell className="py-1 w-36">
                                         <FormField control={form.control} name={`items.${originalIndex}.brand`} render={({ field }) => <Input {...field} className="w-32 h-8 bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary" />} />
@@ -769,5 +768,3 @@ function AISuggestionBox({ productName, existingItems, onClose }: { productName:
         </div>
     )
 }
-
-    
