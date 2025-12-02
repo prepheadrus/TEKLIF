@@ -32,6 +32,7 @@ type ProposalItem = {
     currency: 'TRY' | 'USD' | 'EUR';
     discountRate: number;
     profitMargin: number;
+    groupName?: string; // Add groupName
 };
 
 type Customer = {
@@ -41,6 +42,11 @@ type Customer = {
     phone?: string;
     address?: string;
     taxNumber?: string;
+};
+
+type CalculatedItem = ProposalItem & {
+    unitPrice: number;
+    total: number;
 };
 
 export default function PrintQuotePage() {
@@ -92,9 +98,10 @@ export default function PrintQuotePage() {
         return new Intl.NumberFormat('tr-TR', { style: 'currency', currency, minimumFractionDigits: 2 }).format(amount);
     }
     
-    const calculatedItems = useMemo(() => {
-        if (!items || !proposal) return [];
-        return items.map(item => {
+    const groupedAndCalculatedItems = useMemo(() => {
+        if (!items || !proposal) return { groups: [], totals: { subtotal: 0, vat: 0, grandTotal: 0 } };
+
+        const calculatedItems: CalculatedItem[] = items.map(item => {
             const exchangeRate =
                 item.currency === 'USD'
                 ? proposal.exchangeRates.USD
@@ -115,23 +122,39 @@ export default function PrintQuotePage() {
                 total: priceInfo.tlSellPrice * item.quantity,
             };
         });
-    }, [items, proposal]);
-    
-    const totals = useMemo(() => {
-        if (!calculatedItems.length || !proposal) return { subtotal: 0, vat: 0, grandTotal: proposal?.totalAmount || 0 };
+
+        // Group items
+        const itemGroups = calculatedItems.reduce((acc, item) => {
+          const groupName = item.groupName || 'Diğer';
+          if (!acc[groupName]) {
+            acc[groupName] = [];
+          }
+          acc[groupName].push(item);
+          return acc;
+        }, {} as Record<string, CalculatedItem[]>);
+
+
+        const sortedGroups = Object.entries(itemGroups).sort(([a], [b]) => {
+            if (a === 'Diğer') return 1;
+            if (b === 'Diğer') return -1;
+            return a.localeCompare(b);
+        });
         
-        // Use the grand total from the proposal, as it's the source of truth
         const grandTotal = proposal.totalAmount;
-        // Back-calculate subtotal and VAT
         const subTotalBeforeVat = grandTotal / 1.20;
         const vatAmount = grandTotal - subTotalBeforeVat;
-
-        return {
+        
+        const totals = {
             subtotal: subTotalBeforeVat,
             vat: vatAmount,
             grandTotal: grandTotal,
         };
-    }, [calculatedItems, proposal]);
+
+        return { groups: sortedGroups, totals };
+
+    }, [items, proposal]);
+
+    const { groups, totals } = groupedAndCalculatedItems;
 
 
     return (
@@ -186,33 +209,46 @@ export default function PrintQuotePage() {
                         </div>
                     </section>
 
-                    <section className="mb-6">
-                        <table className="w-full text-xs text-left">
-                            <thead className="bg-gray-100">
-                                <tr>
-                                    <th className="p-2 font-semibold">#</th>
-                                    <th className="p-2 font-semibold">Açıklama</th>
-                                    <th className="p-2 font-semibold">Marka</th>
-                                    <th className="p-2 text-center font-semibold">Miktar</th>
-                                    <th className="p-2 font-semibold">Birim</th>
-                                    <th className="p-2 text-right font-semibold">Birim Fiyat (TL)</th>
-                                    <th className="p-2 text-right font-semibold">Toplam Tutar (TL)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {calculatedItems.map((item, index) => (
-                                    <tr key={item.id} className="border-b">
-                                        <td className="p-2">{index + 1}</td>
-                                        <td className="p-2 font-medium">{item.name}</td>
-                                        <td className="p-2">{item.brand}</td>
-                                        <td className="p-2 text-center">{item.quantity}</td>
-                                        <td className="p-2">{item.unit}</td>
-                                        <td className="p-2 text-right">{formatCurrency(item.unitPrice, 'TRY')}</td>
-                                        <td className="p-2 text-right font-semibold">{formatCurrency(item.total, 'TRY')}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                    <section className="mb-6 space-y-6">
+                        {groups.map(([groupName, groupItems]) => (
+                            <div key={groupName}>
+                                <h3 className="text-base font-bold mb-2 p-2 bg-gray-100 rounded-t-md border-b-2 border-gray-300">{groupName}</h3>
+                                <table className="w-full text-xs text-left">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="p-2 font-semibold">#</th>
+                                            <th className="p-2 font-semibold">Açıklama</th>
+                                            <th className="p-2 font-semibold">Marka</th>
+                                            <th className="p-2 text-center font-semibold">Miktar</th>
+                                            <th className="p-2 font-semibold">Birim</th>
+                                            <th className="p-2 text-right font-semibold">Birim Fiyat (TL)</th>
+                                            <th className="p-2 text-right font-semibold">Toplam Tutar (TL)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {groupItems.map((item, index) => (
+                                            <tr key={item.id} className="border-b">
+                                                <td className="p-2">{index + 1}</td>
+                                                <td className="p-2 font-medium">{item.name}</td>
+                                                <td className="p-2">{item.brand}</td>
+                                                <td className="p-2 text-center">{item.quantity}</td>
+                                                <td className="p-2">{item.unit}</td>
+                                                <td className="p-2 text-right">{formatCurrency(item.unitPrice, 'TRY')}</td>
+                                                <td className="p-2 text-right font-semibold">{formatCurrency(item.total, 'TRY')}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                     <tfoot>
+                                        <tr className="bg-gray-100 font-bold">
+                                            <td colSpan={6} className="p-2 text-right">Grup Toplamı:</td>
+                                            <td className="p-2 text-right">
+                                                {formatCurrency(groupItems.reduce((sum, item) => sum + item.total, 0), 'TRY')}
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        ))}
                     </section>
 
                     <section className="flex justify-end mb-6">
