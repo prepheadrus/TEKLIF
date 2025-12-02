@@ -55,6 +55,9 @@ const fetchExchangeRatesFlow = ai.defineFlow(
       if (isNaN(usdRate) || isNaN(eurRate)) {
         throw new Error('Could not parse exchange rates to numbers.');
       }
+      
+      // DEBUG: Log the fetched rates to the server console for verification
+      console.error(`DEBUG: Fetched Rates from API -> USD: ${usdRate}, EUR: ${eurRate}`);
 
       return {
         USD: usdRate,

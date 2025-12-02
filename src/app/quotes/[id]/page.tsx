@@ -428,6 +428,9 @@ export default function QuoteDetailPage() {
     toast({ title: 'Kurlar alınıyor...', description: 'TCMB verileri çekiliyor.' });
     try {
         const newRates = await fetchExchangeRates();
+        // DEBUG: Log the rates received on the client
+        console.error("DEBUG: Client received rates:", newRates);
+        
         if (newRates && newRates.USD && newRates.EUR) {
             form.setValue('exchangeRates.USD', newRates.USD, { shouldValidate: true, shouldDirty: true });
             form.setValue('exchangeRates.EUR', newRates.EUR, { shouldValidate: true, shouldDirty: true });
@@ -597,6 +600,7 @@ export default function QuoteDetailPage() {
                             <TableBody className="text-sm divide-y divide-slate-100">
                                 {itemsInGroup.map((item) => {
                                 const originalIndex = fields.findIndex(f => f.formId === item.formId);
+                                if (originalIndex === -1) return null;
                                 const itemValues = watchedItems[originalIndex];
                                 if (!itemValues) return null;
                                 const itemTotals = calculateItemTotals({
