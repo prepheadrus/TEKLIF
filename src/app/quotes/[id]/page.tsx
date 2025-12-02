@@ -195,6 +195,7 @@ export default function QuoteDetailPage() {
   }, [proposal, initialItems, form]);
   
   useEffect(() => {
+    // Only fetch rates once when the initial data is loaded.
     if (proposal && initialItems && form.formState.isSubmitSuccessful === false) {
       handleFetchRates();
     }
@@ -209,7 +210,8 @@ export default function QuoteDetailPage() {
     }
   }, [editingGroupName]);
 
-  // --- Calculations (Run on every render) ---
+  // --- Calculations ---
+  // Renders on every form change, no useMemo to avoid stale state issues.
     let grandTotalSell = 0;
     let grandTotalCost = 0;
 
@@ -220,6 +222,7 @@ export default function QuoteDetailPage() {
             discountRate: item.discountRate,
             profitMargin: item.profitMargin,
             exchangeRate,
+            basePrice: item.basePrice,
         });
 
         const totalTlCost = priceInfo.tlCost * item.quantity;
@@ -534,7 +537,7 @@ export default function QuoteDetailPage() {
             </div>
         </header>
 
-        <main className="flex-1 px-8 py-8 space-y-8">
+        <main className="flex-1 px-8 py-8 space-y-8 overflow-y-auto">
              {activeProductForAISuggestion && (
                 <AISuggestionBox 
                     productName={activeProductForAISuggestion}
@@ -549,7 +552,7 @@ export default function QuoteDetailPage() {
                 
                 return (
                  <section key={groupName} className="group/section relative">
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200">
                         
                          <div className="bg-white/95 backdrop-blur-sm">
                             <div className="px-6 py-3 border-b border-slate-200 flex justify-between items-center group/header">
