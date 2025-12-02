@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -166,6 +165,7 @@ export default function QuoteDetailPage() {
   const { fields, append, remove, update } = useFieldArray({
     control: form.control,
     name: 'items',
+    keyName: "formId"
   });
   
   const watchedItems = form.watch('items');
@@ -179,7 +179,7 @@ export default function QuoteDetailPage() {
     const groupTotals = watchedItems.reduce((acc, item) => {
         const groupName = item.groupName || 'Diğer';
         if (!acc[groupName]) {
-            acc[groupName] = { totalSell: 0, totalCost: 0 };
+            acc[groupName] = { totalSell: 0, totalCost: 0, totalProfit: 0 };
         }
         
         const totals = calculateItemTotals({
@@ -189,9 +189,10 @@ export default function QuoteDetailPage() {
 
         acc[groupName].totalSell += totals.totalTlSell;
         acc[groupName].totalCost += totals.totalTlCost;
+        acc[groupName].totalProfit += totals.totalProfit;
 
         return acc;
-    }, {} as Record<string, { totalSell: number, totalCost: number }>);
+    }, {} as Record<string, { totalSell: number, totalCost: number, totalProfit: number }>);
     
     grandTotalSell = Object.values(groupTotals).reduce((sum, group) => sum + group.totalSell, 0);
     grandTotalCost = Object.values(groupTotals).reduce((sum, group) => sum + group.totalCost, 0);
@@ -215,10 +216,9 @@ export default function QuoteDetailPage() {
         if (!acc[groupName]) {
             acc[groupName] = [];
         }
-        // Instead of item, push the field from useFieldArray which contains the `id`
         acc[groupName].push(field);
         return acc;
-    }, {} as Record<string, (ProposalItem & { id: string })[]>);
+    }, {} as Record<string, (ProposalItem & { formId: string })[]>);
 
     emptyGroups.forEach(groupName => {
         if (!itemGroups[groupName]) {
@@ -237,8 +237,6 @@ export default function QuoteDetailPage() {
   // --- Effects ---
   useEffect(() => {
     if (proposal && initialItems) {
-      // useFieldArray's `update` function is for updating fields, not resetting the whole array.
-      // `reset` is the correct way to synchronize the form state with new initial data.
       form.reset({
         versionNote: proposal.versionNote || '',
         items: initialItems.map((item) => ({
@@ -490,9 +488,8 @@ export default function QuoteDetailPage() {
             )}
             
             {allGroups.map(([groupName, itemsInGroup]) => {
-                const groupTotal = calculatedTotals.groupTotals[groupName] || { totalSell: 0, totalCost: 0 };
-                const groupProfit = groupTotal.totalSell - groupTotal.totalCost;
-                const groupProfitMargin = groupTotal.totalSell > 0 ? (groupProfit / groupTotal.totalSell) : 0;
+                const groupTotal = calculatedTotals.groupTotals[groupName] || { totalSell: 0, totalCost: 0, totalProfit: 0 };
+                const groupProfitMargin = groupTotal.totalSell > 0 ? (groupTotal.totalProfit / groupTotal.totalSell) : 0;
                 
                 return (
                  <section key={groupName} className="group/section relative">
@@ -535,7 +532,7 @@ export default function QuoteDetailPage() {
                             <div className="flex items-center gap-6 text-right">
                                <div>
                                    <p className="text-xs text-slate-500">Grup Kârı</p>
-                                   <p className="font-mono font-bold text-green-600">{formatCurrency(groupProfit)} <span className="text-xs font-medium">({formatPercent(groupProfitMargin)})</span></p>
+                                   <p className="font-mono font-bold text-green-600">{formatCurrency(groupTotal.totalProfit)} <span className="text-xs font-medium">({formatPercent(groupProfitMargin)})</span></p>
                                </div>
                                <div>
                                    <p className="text-xs text-slate-500">Grup Toplamı</p>
@@ -561,27 +558,27 @@ export default function QuoteDetailPage() {
                               </TableRow>
                             </TableHeader>
                             <TableBody className="text-sm divide-y divide-slate-100">
-                                {itemsInGroup.map((field, indexInGroup) => {
-                                const originalIndex = fields.findIndex(f => f.id === field.id);
+                                {itemsInGroup.map((field) => {
+                                const originalIndex = fields.findIndex(f => f.formId === field.formId);
                                 const itemValues = watchedItems[originalIndex];
-                                if (!itemValues) return null; // Add a guard clause
+                                if (!itemValues) return null;
                                 const itemTotals = calculateItemTotals({
                                     ...itemValues,
                                     exchangeRate: itemValues.currency === 'USD' ? (proposal.exchangeRates?.USD || 1) : itemValues.currency === 'EUR' ? (proposal.exchangeRates?.EUR || 1) : 1,
                                 });
-                                const discountAmount = itemTotals.listPrice * itemTotals.discountRate;
+                                const discountAmount = itemValues.listPrice * itemValues.discountRate;
 
                                 return (
-                                  <TableRow key={field.id} className="hover:bg-slate-50 group/row">
+                                  <TableRow key={field.formId} className="hover:bg-slate-50 group/row">
                                     <TableCell className="py-1 pl-4 font-medium text-slate-800">{itemValues.name}</TableCell>
                                     <TableCell className="py-1 w-36">
-                                        <FormField control={form.control} name={`items.${originalIndex}.brand`} render={({ field }) => <Input {...field} className="w-32 h-8" />} />
+                                        <FormField control={form.control} name={`items.${originalIndex}.brand`} render={({ field }) => <Input {...field} className="w-32 h-8 bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary" />} />
                                     </TableCell>
                                     <TableCell className="w-24 py-1">
                                       <FormField control={form.control} name={`items.${originalIndex}.quantity`} render={({ field }) => <Input {...field} type="number" step="any" className="w-20 text-center bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8" />} />
                                     </TableCell>
                                     <TableCell className="py-1 w-24">
-                                        <FormField control={form.control} name={`items.${originalIndex}.unit`} render={({ field }) => <Input {...field} className="w-20 h-8" />} />
+                                        <FormField control={form.control} name={`items.${originalIndex}.unit`} render={({ field }) => <Input {...field} className="w-20 h-8 bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary" />} />
                                     </TableCell>
                                     <TableCell className="w-40 py-1 text-right">
                                         <div className="flex items-center justify-end gap-1">
