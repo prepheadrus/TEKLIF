@@ -44,7 +44,7 @@ import {
   Trash2,
   PlusCircle,
   Loader2,
-  PaperPlaneRight,
+  Send,
   Bot,
   X,
   FileDown,
@@ -334,8 +334,8 @@ export default function QuoteDetailPage() {
                 >
                     <FileDown className="mr-2 h-4 w-4" /> PDF
                 </Button>
-                <Button type="submit" disabled={isSaving} className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/20 transition">
-                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PaperPlaneRight className="mr-2 h-4 w-4" />}
+                <Button type="submit" disabled={isSaving} className="bg-primary text-primary-foreground hover:bg-primary/90 transition">
+                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                     Değişiklikleri Kaydet
                 </Button>
             </div>
