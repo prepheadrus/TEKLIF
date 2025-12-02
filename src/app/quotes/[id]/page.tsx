@@ -515,7 +515,7 @@ export default function QuoteDetailPage() {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSaveChanges)} className="h-full flex flex-col bg-slate-50">
         
-        <header className="px-8 py-4 flex justify-between items-center h-[88px]">
+        <header className="px-8 py-4 flex justify-between items-center bg-white border-b border-slate-200 sticky top-0 z-20">
              <div>
                 <p className="text-sm text-slate-500 mt-1">
                   Müşteri: <span className="font-bold text-xl text-blue-700">{proposal.customerName}</span> • Proje: <span className="font-bold text-xl text-blue-700">{proposal.projectName}</span>
@@ -556,54 +556,54 @@ export default function QuoteDetailPage() {
                 
                 return (
                  <section key={groupName} className="group/section relative">
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 ">
-                        <div className="px-6 py-3 border-b border-slate-200 flex justify-between items-center group/header">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
-                                    {getGroupIcon(groupName)}
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+                        <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm">
+                            <div className="px-6 py-3 border-b border-slate-200 flex justify-between items-center group/header">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
+                                        {getGroupIcon(groupName)}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        {editingGroupName === groupName ? (
+                                            <Input
+                                                ref={groupNameInputRef}
+                                                defaultValue={groupName}
+                                                onBlur={(e) => handleGroupNameChange(groupName, e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        handleGroupNameChange(groupName, e.currentTarget.value);
+                                                    }
+                                                    if (e.key === 'Escape') setEditingGroupName(null);
+                                                }}
+                                                className="h-8 text-lg font-bold"
+                                            />
+                                        ) : (
+                                            <>
+                                                <h2 className="font-bold text-slate-800 text-lg">{groupName}</h2>
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon" 
+                                                    className="h-7 w-7 text-slate-400 opacity-0 group-hover/header:opacity-100 transition-opacity"
+                                                    onClick={() => setEditingGroupName(groupName)}
+                                                >
+                                                    <Edit className="h-4 w-4"/>
+                                                </Button>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    {editingGroupName === groupName ? (
-                                        <Input
-                                            ref={groupNameInputRef}
-                                            defaultValue={groupName}
-                                            onBlur={(e) => handleGroupNameChange(groupName, e.target.value)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    e.preventDefault();
-                                                    handleGroupNameChange(groupName, e.currentTarget.value);
-                                                }
-                                                if (e.key === 'Escape') setEditingGroupName(null);
-                                            }}
-                                            className="h-8 text-lg font-bold"
-                                        />
-                                    ) : (
-                                        <>
-                                            <h2 className="font-bold text-slate-800 text-lg">{groupName}</h2>
-                                            <Button 
-                                                variant="ghost" 
-                                                size="icon" 
-                                                className="h-7 w-7 text-slate-400 opacity-0 group-hover/header:opacity-100 transition-opacity"
-                                                onClick={() => setEditingGroupName(groupName)}
-                                            >
-                                                <Edit className="h-4 w-4"/>
-                                            </Button>
-                                        </>
-                                    )}
+                                <div className="flex items-center gap-6 text-right">
+                                    <div>
+                                        <p className="text-xs text-slate-500">Grup Kârı</p>
+                                        <p className="font-mono text-2xl font-bold text-green-600">{formatCurrency(groupTotal.totalProfit)} <span className="text-sm font-medium">({formatPercent(groupProfitMargin)})</span></p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-slate-500">Grup Toplamı</p>
+                                        <p className="font-mono text-2xl font-bold text-slate-800">{formatCurrency(groupTotal.totalSell)}</p>
+                                    </div>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-6 text-right">
-                                <div>
-                                    <p className="text-xs text-slate-500">Grup Kârı</p>
-                                    <p className="font-mono text-2xl font-bold text-green-600">{formatCurrency(groupTotal.totalProfit)} <span className="text-sm font-medium">({formatPercent(groupProfitMargin)})</span></p>
-                                </div>
-                                <div>
-                                    <p className="text-xs text-slate-500">Grup Toplamı</p>
-                                    <p className="font-mono text-2xl font-bold text-slate-800">{formatCurrency(groupTotal.totalSell)}</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="h-[400px] overflow-y-auto resize-y min-h-[150px]">
                             <Table>
                                 <TableHeader>
                                 <TableRow>
@@ -620,6 +620,10 @@ export default function QuoteDetailPage() {
                                     <TableHead className="w-10 py-2 pr-4"></TableHead>
                                 </TableRow>
                                 </TableHeader>
+                            </Table>
+                        </div>
+                        <div className="h-[400px] overflow-y-auto resize-y min-h-[150px]">
+                            <Table>
                                 <TableBody className="text-sm divide-y divide-slate-100">
                                     {itemsInGroup.map((item) => {
                                     const originalIndex = fields.findIndex(f => f.formId === item.formId);
