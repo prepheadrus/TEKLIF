@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -82,6 +83,8 @@ const proposalItemSchema = z.object({
   discountRate: z.coerce.number().min(0).max(1),
   profitMargin: z.coerce.number().min(0).max(1, 'Kar marjı 0 ile 1 arasında olmalı'), // Kâr marjı yüzde olarak (0.20 = %20)
   groupName: z.string().default('Diğer'),
+  // Add basePrice to the schema for cost calculation
+  basePrice: z.coerce.number().default(0),
 });
 
 const proposalSchema = z.object({
@@ -163,7 +166,6 @@ export default function QuoteDetailPage() {
   const { fields, append, remove, update } = useFieldArray({
     control: form.control,
     name: 'items',
-    keyName: 'formId',
   });
   
   const watchedItems = form.watch('items');
@@ -213,9 +215,10 @@ export default function QuoteDetailPage() {
         if (!acc[groupName]) {
             acc[groupName] = [];
         }
-        acc[groupName].push({ ...item, fieldId: field.formId, originalIndex: index });
+        // Instead of item, push the field from useFieldArray which contains the `id`
+        acc[groupName].push(field);
         return acc;
-    }, {} as Record<string, (ProposalItem & { originalIndex: number, fieldId: string })[]>);
+    }, {} as Record<string, (ProposalItem & { id: string })[]>);
 
     emptyGroups.forEach(groupName => {
         if (!itemGroups[groupName]) {
@@ -234,10 +237,13 @@ export default function QuoteDetailPage() {
   // --- Effects ---
   useEffect(() => {
     if (proposal && initialItems) {
+      // useFieldArray's `update` function is for updating fields, not resetting the whole array.
+      // `reset` is the correct way to synchronize the form state with new initial data.
       form.reset({
         versionNote: proposal.versionNote || '',
         items: initialItems.map((item) => ({
           ...item,
+          id: item.id, // Ensure the document ID is passed
           productId: item.productId || '',
           groupName: item.groupName || 'Diğer',
         })),
@@ -295,6 +301,7 @@ export default function QuoteDetailPage() {
                 discountRate: product.discountRate || 0,
                 profitMargin: 0.2, // Default 20%
                 groupName: groupName,
+                basePrice: product.basePrice,
             };
             append(newItem);
         }
@@ -334,7 +341,7 @@ export default function QuoteDetailPage() {
         }
     });
 
-    setEmptyGroups(prev => prev.map(g => g === oldName ? newName : g));
+    setEmptyGroups(prev => prev.map(g => g === oldName ? newName : g).filter(g => g !== oldName || !allGroups.some(([groupName]) => groupName === newName)));
     
     setEditingGroupName(null);
   };
@@ -554,9 +561,9 @@ export default function QuoteDetailPage() {
                               </TableRow>
                             </TableHeader>
                             <TableBody className="text-sm divide-y divide-slate-100">
-                              {itemsInGroup.map((item) => {
-                                const index = item.originalIndex;
-                                const itemValues = watchedItems[index];
+                                {itemsInGroup.map((field, indexInGroup) => {
+                                const originalIndex = fields.findIndex(f => f.id === field.id);
+                                const itemValues = watchedItems[originalIndex];
                                 if (!itemValues) return null; // Add a guard clause
                                 const itemTotals = calculateItemTotals({
                                     ...itemValues,
@@ -565,40 +572,40 @@ export default function QuoteDetailPage() {
                                 const discountAmount = itemTotals.listPrice * itemTotals.discountRate;
 
                                 return (
-                                  <TableRow key={item.fieldId} className="hover:bg-slate-50 group/row">
+                                  <TableRow key={field.id} className="hover:bg-slate-50 group/row">
                                     <TableCell className="py-1 pl-4 font-medium text-slate-800">{itemValues.name}</TableCell>
                                     <TableCell className="py-1 w-36">
-                                        <FormField control={form.control} name={`items.${index}.brand`} render={({ field }) => <Input {...field} className="w-32 h-8" />} />
+                                        <FormField control={form.control} name={`items.${originalIndex}.brand`} render={({ field }) => <Input {...field} className="w-32 h-8" />} />
                                     </TableCell>
                                     <TableCell className="w-24 py-1">
-                                      <FormField control={form.control} name={`items.${index}.quantity`} render={({ field }) => <Input {...field} type="number" step="any" className="w-20 text-center bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8" />} />
+                                      <FormField control={form.control} name={`items.${originalIndex}.quantity`} render={({ field }) => <Input {...field} type="number" step="any" className="w-20 text-center bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8" />} />
                                     </TableCell>
                                     <TableCell className="py-1 w-24">
-                                        <FormField control={form.control} name={`items.${index}.unit`} render={({ field }) => <Input {...field} className="w-20 h-8" />} />
+                                        <FormField control={form.control} name={`items.${originalIndex}.unit`} render={({ field }) => <Input {...field} className="w-20 h-8" />} />
                                     </TableCell>
                                     <TableCell className="w-40 py-1 text-right">
                                         <div className="flex items-center justify-end gap-1">
-                                            <FormField control={form.control} name={`items.${index}.listPrice`} render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-right bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8"/>} />
+                                            <FormField control={form.control} name={`items.${originalIndex}.listPrice`} render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-right bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8"/>} />
                                             <span className="text-slate-500 font-mono text-xs">{itemValues.currency}</span>
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-right font-mono text-slate-500 py-1 w-32">{formatNumber(itemTotals.tlCost)}</TableCell>
                                     <TableCell className="w-44 py-1">
                                        <div className="flex items-center gap-2">
-                                           <FormField control={form.control} name={`items.${index}.discountRate`} render={({ field }) => <Input {...field} type="number" step="0.01" max="1" className="w-20 text-center bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8" placeholder="0.15"/>} />
+                                           <FormField control={form.control} name={`items.${originalIndex}.discountRate`} render={({ field }) => <Input {...field} type="number" step="0.01" max="1" className="w-20 text-center bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8" placeholder="0.15"/>} />
                                            <div className="text-xs text-muted-foreground font-mono">({formatNumber(discountAmount)} {itemValues.currency})</div>
                                        </div>
                                     </TableCell>
                                     <TableCell className="w-48 py-1">
                                        <div className="flex items-center gap-2">
-                                           <FormField control={form.control} name={`items.${index}.profitMargin`} render={({ field }) => <Input {...field} type="number" step="0.01" max="1" className="w-20 text-center bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8" placeholder="0.20"/>} />
+                                           <FormField control={form.control} name={`items.${originalIndex}.profitMargin`} render={({ field }) => <Input {...field} type="number" step="0.01" max="1" className="w-20 text-center bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8" placeholder="0.20"/>} />
                                            <div className="text-xs text-green-600 font-mono">({formatNumber(itemTotals.profitAmount)} TL)</div>
                                        </div>
                                     </TableCell>
                                     <TableCell className="text-right font-mono text-slate-600 py-1 w-32">{formatNumber(itemTotals.tlSellPrice)}</TableCell>
                                     <TableCell className="text-right font-bold font-mono text-slate-800 py-1 w-36">{formatCurrency(itemTotals.totalTlSell)}</TableCell>
                                     <TableCell className="px-2 text-center py-1">
-                                      <Button variant="ghost" size="icon" onClick={() => remove(index)} className="h-8 w-8 text-slate-400 hover:text-red-500 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                                      <Button variant="ghost" size="icon" onClick={() => remove(originalIndex)} className="h-8 w-8 text-slate-400 hover:text-red-500 opacity-0 group-hover/row:opacity-100 transition-opacity">
                                         <Trash2 className="h-4 w-4" />
                                       </Button>
                                     </TableCell>
