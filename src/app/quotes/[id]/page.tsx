@@ -178,11 +178,11 @@ export default function QuoteDetailPage() {
   const watchedItems = form.watch('items');
   const watchedRates = form.watch('exchangeRates');
 
-  const calculateAllTotals = (items: ProposalItem[], exchangeRates: { USD: number; EUR: number }) => {
+  const calculatedTotals = useMemo(() => {
     let grandTotalSell = 0;
     let grandTotalCost = 0;
 
-    const groupTotals = items.reduce((acc, item) => {
+    const groupTotals = watchedItems.reduce((acc, item) => {
         const groupName = item.groupName || 'Diğer';
         if (!acc[groupName]) {
             acc[groupName] = { totalSell: 0, totalCost: 0, totalProfit: 0 };
@@ -190,7 +190,7 @@ export default function QuoteDetailPage() {
         
         const totals = calculateItemTotals({
             ...item,
-            exchangeRate: item.currency === 'USD' ? exchangeRates.USD : item.currency === 'EUR' ? exchangeRates.EUR : 1,
+            exchangeRate: item.currency === 'USD' ? watchedRates.USD : item.currency === 'EUR' ? watchedRates.EUR : 1,
         });
 
         acc[groupName].totalSell += totals.totalTlSell;
@@ -213,9 +213,7 @@ export default function QuoteDetailPage() {
         grandTotalProfit,
         grandTotalProfitMargin
     };
-  };
-
-  const calculatedTotals = calculateAllTotals(watchedItems, watchedRates);
+  }, [watchedItems, watchedRates]);
 
 
   const allGroups = useMemo(() => {
@@ -225,9 +223,9 @@ export default function QuoteDetailPage() {
             acc[groupName] = [];
         }
         // Push the original field object from useFieldArray to preserve the key
-        acc[groupName].push(fields[index]);
+        acc[groupName].push({ ...item, ...fields[index] });
         return acc;
-    }, {} as Record<string, typeof fields>);
+    }, {} as Record<string, (ProposalItem & {formId: string})[]>);
 
 
     emptyGroups.forEach(groupName => {
@@ -319,7 +317,7 @@ export default function QuoteDetailPage() {
     setIsProductSelectorOpen(false);
     
     if (targetGroupForProductAdd) {
-        setEmptyGroups(prev => prev.filter(g => g !== targetGroupFor-product-add));
+        setEmptyGroups(prev => prev.filter(g => g !== targetGroupForProductAdd));
     }
     setTargetGroupForProductAdd(undefined);
     
@@ -430,13 +428,19 @@ export default function QuoteDetailPage() {
     setIsFetchingRates(true);
     toast({ title: 'Kurlar alınıyor...', description: 'TCMB verileri çekiliyor.' });
     try {
-      const newRates = await fetchExchangeRates();
-      form.setValue('exchangeRates', newRates, { shouldValidate: true, shouldDirty: true });
-      toast({ title: 'Başarılı!', description: 'Döviz kurları güncellendi.' });
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Hata', description: 'Kurlar alınamadı.' });
+        const newRates = await fetchExchangeRates();
+        if (newRates && newRates.USD && newRates.EUR) {
+            form.setValue('exchangeRates.USD', newRates.USD, { shouldValidate: true, shouldDirty: true });
+            form.setValue('exchangeRates.EUR', newRates.EUR, { shouldValidate: true, shouldDirty: true });
+            await form.trigger(['exchangeRates.USD', 'exchangeRates.EUR']);
+            toast({ title: 'Başarılı!', description: 'Döviz kurları güncellendi.' });
+        } else {
+            throw new Error("API'den geçerli kur bilgisi alınamadı.");
+        }
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Hata', description: `Kurlar alınamadı: ${error.message}` });
     } finally {
-      setIsFetchingRates(false);
+        setIsFetchingRates(false);
     }
   }
 
@@ -482,14 +486,14 @@ export default function QuoteDetailPage() {
                 <div className="flex items-center gap-2 bg-slate-100 px-4 py-2 rounded-lg border border-slate-200">
                     <FormField control={form.control} name="exchangeRates.EUR" render={({ field }) => (
                          <div className="text-right">
-                            <span className="block text-[10px] text-slate-400 uppercase font-bold">Döviz (EUR)</span>
+                            <span className="block text-[10px] text-slate-400 uppercase font-bold">EUR</span>
                             <Input {...field} type="number" step="any" className="h-auto p-0 border-0 rounded-none bg-transparent text-right font-mono text-sm font-bold text-slate-700 focus-visible:ring-0" />
                         </div>
                     )} />
-                    <div className="w-px h-full bg-slate-300"></div>
+                    <div className="w-px h-full bg-slate-300 mx-2"></div>
                      <FormField control={form.control} name="exchangeRates.USD" render={({ field }) => (
                          <div className="text-right">
-                            <span className="block text-[10px] text-slate-400 uppercase font-bold">Döviz (USD)</span>
+                            <span className="block text-[10px] text-slate-400 uppercase font-bold">USD</span>
                             <Input {...field} type="number" step="any" className="h-auto p-0 border-0 rounded-none bg-transparent text-right font-mono text-sm font-bold text-slate-700 focus-visible:ring-0" />
                         </div>
                     )} />
@@ -765,3 +769,5 @@ function AISuggestionBox({ productName, existingItems, onClose }: { productName:
         </div>
     )
 }
+
+    
