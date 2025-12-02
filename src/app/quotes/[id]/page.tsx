@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -64,7 +65,7 @@ import {
   useCollection,
   useMemoFirebase,
 } from '@/firebase';
-import { calculatePrice } from '@/lib/pricing';
+import { calculatePrice, calculateItemTotals } from '@/lib/pricing';
 import { ProductSelector } from '@/components/app/product-selector';
 import type { Product as ProductType } from '@/app/products/page';
 import { suggestMissingParts } from '@/ai/flows/suggest-missing-parts';
@@ -124,7 +125,7 @@ const getGroupIcon = (groupName: string) => {
     return <Wrench className="w-5 h-5" />;
 }
 
-const ExchangeRateDisplay = ({ form, onRefresh, isFetching }: { form: any, onRefresh: () => void, isFetching: boolean }) => {
+export const ExchangeRateDisplay = ({ form, onRefresh, isFetching }: { form: any, onRefresh: () => void, isFetching: boolean }) => {
     return (
         <div className="flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">
             <FormField control={form.control} name="exchangeRates.EUR" render={({ field }) => (
@@ -206,7 +207,6 @@ export default function QuoteDetailPage() {
 
   // --- Effects ---
    useEffect(() => {
-    // Find the portal container in the main layout
     const container = document.getElementById('exchange-rate-portal');
     setPortalContainer(container);
   }, []);
@@ -224,8 +224,9 @@ export default function QuoteDetailPage() {
         })),
         exchangeRates: proposal.exchangeRates || { USD: 32.5, EUR: 35.0 }
       });
-      // Only fetch rates once when the initial data is loaded.
-      handleFetchRates();
+       if (!form.formState.isDirty) {
+         handleFetchRates();
+       }
     }
     return () => { isMounted = false; }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -240,56 +241,42 @@ export default function QuoteDetailPage() {
   }, [editingGroupName]);
 
   // --- Calculations ---
-    const calculateItemTotals = (item: ProposalItem) => {
-        const exchangeRate = item.currency === 'USD' ? watchedRates.USD : item.currency === 'EUR' ? watchedRates.EUR : 1;
-        const priceInfo = calculatePrice({
-            listPrice: item.listPrice,
-            discountRate: item.discountRate,
-            profitMargin: item.profitMargin,
-            exchangeRate,
-            basePrice: item.basePrice || 0,
+  const calculatedTotals = useMemo(() => {
+    let grandTotalSell = 0;
+    let grandTotalCost = 0;
+
+    const groupTotals = watchedItems.reduce((acc, item) => {
+        const groupName = item.groupName || 'Diğer';
+        if (!acc[groupName]) {
+            acc[groupName] = { totalSell: 0, totalCost: 0, totalProfit: 0 };
+        }
+        
+        const totals = calculateItemTotals({
+            ...item,
+            exchangeRate: item.currency === 'USD' ? watchedRates.USD : item.currency === 'EUR' ? watchedRates.EUR : 1,
         });
 
-        const totalTlCost = (item.basePrice || 0) * (1 - item.discountRate) * exchangeRate * item.quantity;
-        const totalTlSell = priceInfo.tlSellPrice * item.quantity;
-        const totalProfit = totalTlSell - totalTlCost;
+        acc[groupName].totalSell += totals.totalTlSell;
+        acc[groupName].totalCost += totals.totalTlCost;
+        acc[groupName].totalProfit += totals.totalProfit;
 
-        return { ...priceInfo, totalTlCost, totalTlSell, totalProfit };
+        return acc;
+    }, {} as Record<string, { totalSell: number, totalCost: number, totalProfit: number }>);
+    
+    grandTotalSell = Object.values(groupTotals).reduce((sum, group) => sum + group.totalSell, 0);
+    grandTotalCost = Object.values(groupTotals).reduce((sum, group) => sum + group.totalCost, 0);
+    
+    const grandTotalProfit = grandTotalSell - grandTotalCost;
+    const grandTotalProfitMargin = grandTotalSell > 0 ? (grandTotalProfit / grandTotalSell) : 0;
+
+    return { 
+        groupTotals, 
+        grandTotalSell, 
+        grandTotalCost,
+        grandTotalProfit,
+        grandTotalProfitMargin
     };
-
-    const calculatedTotals = useMemo(() => {
-        let grandTotalSell = 0;
-        let grandTotalCost = 0;
-
-        const groupTotals = watchedItems.reduce((acc, item) => {
-            const groupName = item.groupName || 'Diğer';
-            if (!acc[groupName]) {
-                acc[groupName] = { totalSell: 0, totalCost: 0, totalProfit: 0 };
-            }
-            
-            const totals = calculateItemTotals(item);
-
-            acc[groupName].totalSell += totals.totalTlSell;
-            acc[groupName].totalCost += totals.totalTlCost;
-            acc[groupName].totalProfit += totals.totalProfit;
-
-            return acc;
-        }, {} as Record<string, { totalSell: number, totalCost: number, totalProfit: number }>);
-        
-        grandTotalSell = Object.values(groupTotals).reduce((sum, group) => sum + group.totalSell, 0);
-        grandTotalCost = Object.values(groupTotals).reduce((sum, group) => sum + group.totalCost, 0);
-        
-        const grandTotalProfit = grandTotalSell - grandTotalCost;
-        const grandTotalProfitMargin = grandTotalSell > 0 ? (grandTotalProfit / grandTotalSell) : 0;
-
-        return { 
-            groupTotals, 
-            grandTotalSell, 
-            grandTotalCost,
-            grandTotalProfit,
-            grandTotalProfitMargin
-        };
-    }, [watchedItems, watchedRates]);
+  }, [watchedItems, watchedRates]);
 
   const allGroups = useMemo(() => {
     const itemGroups = watchedItems.reduce((acc, item, index) => {
@@ -297,7 +284,6 @@ export default function QuoteDetailPage() {
         if (!acc[groupName]) {
             acc[groupName] = [];
         }
-        // Push the original field object from useFieldArray to preserve the key
         acc[groupName].push({ ...item, ...fields[index] });
         return acc;
     }, {} as Record<string, (ProposalItem & {formId: string})[]>);
@@ -529,12 +515,14 @@ export default function QuoteDetailPage() {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSaveChanges)} className="h-full flex flex-col bg-slate-50">
         
-        <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200 px-8 py-4 flex justify-between items-center h-[88px]">
-            <div>
-                <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                    <Wrench className="w-6 h-6 text-primary" /> MechQuote <span className="text-slate-400 font-normal text-sm">| {proposal.quoteNumber} (v{proposal.version})</span>
+        <header className="px-8 py-4 flex justify-between items-center h-[88px]">
+             <div>
+                <p className="text-sm text-slate-500 mt-1">
+                  Müşteri: <span className="font-bold text-xl text-blue-700">{proposal.customerName}</span> • Proje: <span className="font-bold text-xl text-blue-700">{proposal.projectName}</span>
+                </p>
+                <h1 className="text-sm text-slate-400 font-normal mt-1">
+                   {proposal.quoteNumber} (v{proposal.version})
                 </h1>
-                <p className="text-sm text-slate-500 mt-1">Müşteri: <span className="font-semibold text-lg text-blue-700">{proposal.customerName}</span> • Proje: <span className="font-semibold text-lg text-blue-700">{proposal.projectName}</span></p>
             </div>
             
             <div className="flex items-center gap-4">
@@ -568,44 +556,43 @@ export default function QuoteDetailPage() {
                 
                 return (
                  <section key={groupName} className="group/section relative">
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200">
-                        <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm">
-                            <div className="px-6 py-3 border-b border-slate-200 flex justify-between items-center group/header">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
-                                        {getGroupIcon(groupName)}
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        {editingGroupName === groupName ? (
-                                            <Input
-                                                ref={groupNameInputRef}
-                                                defaultValue={groupName}
-                                                onBlur={(e) => handleGroupNameChange(groupName, e.target.value)}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        handleGroupNameChange(groupName, e.currentTarget.value);
-                                                    }
-                                                    if (e.key === 'Escape') setEditingGroupName(null);
-                                                }}
-                                                className="h-8 text-lg font-bold"
-                                            />
-                                        ) : (
-                                            <>
-                                                <h2 className="font-bold text-slate-800 text-lg">{groupName}</h2>
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="icon" 
-                                                    className="h-7 w-7 text-slate-400 opacity-0 group-hover/header:opacity-100 transition-opacity"
-                                                    onClick={() => setEditingGroupName(groupName)}
-                                                >
-                                                    <Edit className="h-4 w-4"/>
-                                                </Button>
-                                            </>
-                                        )}
-                                    </div>
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 ">
+                        <div className="px-6 py-3 border-b border-slate-200 flex justify-between items-center group/header">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
+                                    {getGroupIcon(groupName)}
                                 </div>
-                                <div className="flex items-center gap-6 text-right">
+                                <div className="flex items-center gap-2">
+                                    {editingGroupName === groupName ? (
+                                        <Input
+                                            ref={groupNameInputRef}
+                                            defaultValue={groupName}
+                                            onBlur={(e) => handleGroupNameChange(groupName, e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    handleGroupNameChange(groupName, e.currentTarget.value);
+                                                }
+                                                if (e.key === 'Escape') setEditingGroupName(null);
+                                            }}
+                                            className="h-8 text-lg font-bold"
+                                        />
+                                    ) : (
+                                        <>
+                                            <h2 className="font-bold text-slate-800 text-lg">{groupName}</h2>
+                                            <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                className="h-7 w-7 text-slate-400 opacity-0 group-hover/header:opacity-100 transition-opacity"
+                                                onClick={() => setEditingGroupName(groupName)}
+                                            >
+                                                <Edit className="h-4 w-4"/>
+                                            </Button>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-6 text-right">
                                 <div>
                                     <p className="text-xs text-slate-500">Grup Kârı</p>
                                     <p className="font-mono text-2xl font-bold text-green-600">{formatCurrency(groupTotal.totalProfit)} <span className="text-sm font-medium">({formatPercent(groupProfitMargin)})</span></p>
@@ -614,35 +601,36 @@ export default function QuoteDetailPage() {
                                     <p className="text-xs text-slate-500">Grup Toplamı</p>
                                     <p className="font-mono text-2xl font-bold text-slate-800">{formatCurrency(groupTotal.totalSell)}</p>
                                 </div>
-                                </div>
                             </div>
-                               <Table>
-                                    <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-2/6 py-2 pl-4 text-xs uppercase text-slate-400 font-semibold tracking-wider">Malzeme / Poz</TableHead>
-                                        <TableHead className="py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Marka</TableHead>
-                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Miktar</TableHead>
-                                        <TableHead className="py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Birim</TableHead>
-                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Liste Fiyatı</TableHead>
-                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Alış Fiyatı (TL)</TableHead>
-                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">İskonto (%)</TableHead>
-                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Kâr (%)</TableHead>
-                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Birim Fiyat</TableHead>
-                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Toplam</TableHead>
-                                        <TableHead className="w-10 py-2 pr-4"></TableHead>
-                                    </TableRow>
-                                    </TableHeader>
-                                </Table>
                         </div>
                         <div className="h-[400px] overflow-y-auto resize-y min-h-[150px]">
                             <Table>
+                                <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-2/6 py-2 pl-4 text-xs uppercase text-slate-400 font-semibold tracking-wider">Malzeme / Poz</TableHead>
+                                    <TableHead className="py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Marka</TableHead>
+                                    <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Miktar</TableHead>
+                                    <TableHead className="py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Birim</TableHead>
+                                    <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Liste Fiyatı</TableHead>
+                                    <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Alış Fiyatı (TL)</TableHead>
+                                    <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">İskonto (%)</TableHead>
+                                    <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Kâr (%)</TableHead>
+                                    <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Birim Fiyat</TableHead>
+                                    <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Toplam</TableHead>
+                                    <TableHead className="w-10 py-2 pr-4"></TableHead>
+                                </TableRow>
+                                </TableHeader>
                                 <TableBody className="text-sm divide-y divide-slate-100">
                                     {itemsInGroup.map((item) => {
                                     const originalIndex = fields.findIndex(f => f.formId === item.formId);
                                     if (originalIndex === -1) return null;
                                     const itemValues = watchedItems[originalIndex];
                                     if (!itemValues) return null;
-                                    const itemTotals = calculateItemTotals(itemValues);
+                                    
+                                    const itemTotals = calculateItemTotals({
+                                        ...itemValues,
+                                        exchangeRate: itemValues.currency === 'USD' ? watchedRates.USD : itemValues.currency === 'EUR' ? watchedRates.EUR : 1,
+                                    });
 
                                     return (
                                       <TableRow key={item.formId} className="hover:bg-slate-50 group/row">
@@ -663,8 +651,8 @@ export default function QuoteDetailPage() {
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-right font-mono tabular-nums text-slate-500 py-1 w-32">{formatNumber(itemTotals.tlCost)}</TableCell>
-                                        <TableCell className="w-44 py-1">
-                                           <div className="flex items-center justify-end gap-1 font-mono">
+                                        <TableCell className="w-32 py-1 font-mono">
+                                           <div className="flex items-center justify-end gap-1">
                                                <Controller
                                                     control={form.control}
                                                     name={`items.${originalIndex}.discountRate`}
@@ -679,8 +667,8 @@ export default function QuoteDetailPage() {
                                                 <span className="text-slate-400">%</span>
                                            </div>
                                         </TableCell>
-                                        <TableCell className="w-48 py-1">
-                                           <div className="flex items-center justify-end gap-1 font-mono">
+                                        <TableCell className="w-32 py-1 font-mono">
+                                           <div className="flex items-center justify-end gap-1">
                                                 <Controller
                                                     control={form.control}
                                                     name={`items.${originalIndex}.profitMargin`}
@@ -693,7 +681,6 @@ export default function QuoteDetailPage() {
                                                     )}
                                                 />
                                                 <span className="text-slate-400">%</span>
-                                                <div className="text-xs text-green-600 font-mono tabular-nums">({formatNumber(itemTotals.profitAmount)})</div>
                                            </div>
                                         </TableCell>
                                         <TableCell className="text-right font-mono tabular-nums font-semibold text-slate-600 py-1 w-32 text-lg">{formatNumber(itemTotals.tlSellPrice)}</TableCell>
@@ -837,3 +824,5 @@ function AISuggestionBox({ productName, existingItems, onClose }: { productName:
         </div>
     )
 }
+
+    
