@@ -507,256 +507,254 @@ export default function QuoteDetailPage() {
   }
 
   return (
-    <>
-    {portalContainer && createPortal(
-        <ExchangeRateDisplay form={form} onRefresh={handleFetchRates} isFetching={isFetchingRates} />,
-        portalContainer
-    )}
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSaveChanges)} className="h-full flex flex-col bg-slate-50">
-        
-        <header className="px-8 py-4 flex justify-between items-center bg-white border-b border-slate-200 sticky top-0 z-20">
-             <div>
-                <p className="text-sm text-slate-500 mt-1">
-                  Müşteri: <span className="font-bold text-xl text-blue-700">{proposal.customerName}</span> • Proje: <span className="font-bold text-xl text-blue-700">{proposal.projectName}</span>
-                </p>
-                <h1 className="text-sm text-slate-400 font-normal mt-1">
-                   {proposal.quoteNumber} (v{proposal.version})
-                </h1>
-            </div>
-            
-            <div className="flex items-center gap-4">
-                 <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => router.push(`/quotes/${proposalId}/print?customerId=${proposal.customerId}`)}
-                    className="hidden sm:flex"
-                >
-                    <FileDown className="mr-2 h-4 w-4" /> PDF
-                </Button>
-                <Button type="submit" disabled={isSaving} className="bg-primary text-white hover:bg-primary/90 transition">
-                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                    Değişiklikleri Kaydet
-                </Button>
-            </div>
-        </header>
+    <div className="h-full max-h-screen flex flex-col bg-slate-50">
+      {portalContainer && createPortal(
+          <ExchangeRateDisplay form={form} onRefresh={handleFetchRates} isFetching={isFetchingRates} />,
+          portalContainer
+      )}
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(handleSaveChanges)} className="flex-1 flex flex-col min-h-0">
+          
+          <header className="px-8 py-4 flex justify-between items-center bg-white border-b border-slate-200 flex-shrink-0">
+               <div>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Müşteri: <span className="font-bold text-xl text-blue-700">{proposal.customerName}</span> • Proje: <span className="font-bold text-xl text-blue-700">{proposal.projectName}</span>
+                  </p>
+                  <h1 className="text-sm text-slate-400 font-normal mt-1">
+                     {proposal.quoteNumber} (v{proposal.version})
+                  </h1>
+              </div>
+              
+              <div className="flex items-center gap-4">
+                   <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => router.push(`/quotes/${proposalId}/print?customerId=${proposal.customerId}`)}
+                      className="hidden sm:flex"
+                  >
+                      <FileDown className="mr-2 h-4 w-4" /> PDF
+                  </Button>
+                  <Button type="submit" disabled={isSaving} className="bg-primary text-white hover:bg-primary/90 transition">
+                      {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                      Değişiklikleri Kaydet
+                  </Button>
+              </div>
+          </header>
 
-        <main className="flex-1 px-8 py-8 space-y-8 overflow-y-auto">
-             {activeProductForAISuggestion && (
-                <AISuggestionBox 
-                    productName={activeProductForAISuggestion}
-                    existingItems={form.watch('items').map(i => i.name)}
-                    onClose={() => setActiveProductForAISuggestion(null)}
-                />
-            )}
-            
-            {allGroups.map(([groupName, itemsInGroup]) => {
-                const groupTotal = calculatedTotals.groupTotals[groupName] || { totalSell: 0, totalCost: 0, totalProfit: 0 };
-                const groupProfitMargin = groupTotal.totalSell > 0 ? (groupTotal.totalProfit / groupTotal.totalSell) : 0;
-                
-                return (
-                 <section key={groupName} className="group/section relative">
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200">
-                        <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm">
-                            <div className="px-6 py-3 border-b border-slate-200 flex justify-between items-center group/header">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
-                                        {getGroupIcon(groupName)}
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        {editingGroupName === groupName ? (
-                                            <Input
-                                                ref={groupNameInputRef}
-                                                defaultValue={groupName}
-                                                onBlur={(e) => handleGroupNameChange(groupName, e.target.value)}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        handleGroupNameChange(groupName, e.currentTarget.value);
-                                                    }
-                                                    if (e.key === 'Escape') setEditingGroupName(null);
-                                                }}
-                                                className="h-8 text-lg font-bold"
-                                            />
-                                        ) : (
-                                            <>
-                                                <h2 className="font-bold text-slate-800 text-lg">{groupName}</h2>
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="icon" 
-                                                    className="h-7 w-7 text-slate-400 opacity-0 group-hover/header:opacity-100 transition-opacity"
-                                                    onClick={() => setEditingGroupName(groupName)}
-                                                >
-                                                    <Edit className="h-4 w-4"/>
-                                                </Button>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-6 text-right">
-                                    <div>
-                                        <p className="text-xs text-slate-500">Grup Kârı</p>
-                                        <p className="font-mono text-2xl font-bold text-green-600">{formatCurrency(groupTotal.totalProfit)} <span className="text-sm font-medium">({formatPercent(groupProfitMargin)})</span></p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-slate-500">Grup Toplamı</p>
-                                        <p className="font-mono text-2xl font-bold text-slate-800">{formatCurrency(groupTotal.totalSell)}</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <Table>
-                                <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-2/6 py-2 pl-4 text-xs uppercase text-slate-400 font-semibold tracking-wider">Malzeme / Poz</TableHead>
-                                    <TableHead className="py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Marka</TableHead>
-                                    <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Miktar</TableHead>
-                                    <TableHead className="py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Birim</TableHead>
-                                    <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Liste Fiyatı</TableHead>
-                                    <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Alış Fiyatı (TL)</TableHead>
-                                    <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">İskonto (%)</TableHead>
-                                    <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Kâr (%)</TableHead>
-                                    <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Birim Fiyat</TableHead>
-                                    <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Toplam</TableHead>
-                                    <TableHead className="w-10 py-2 pr-4"></TableHead>
-                                </TableRow>
-                                </TableHeader>
-                            </Table>
-                        </div>
-                        <div className="h-[400px] overflow-y-auto resize-y min-h-[150px]">
-                            <Table>
-                                <TableBody className="text-sm divide-y divide-slate-100">
-                                    {itemsInGroup.map((item) => {
-                                    const originalIndex = fields.findIndex(f => f.formId === item.formId);
-                                    if (originalIndex === -1) return null;
-                                    const itemValues = watchedItems[originalIndex];
-                                    if (!itemValues) return null;
-                                    
-                                    const itemTotals = calculateItemTotals({
-                                        ...itemValues,
-                                        exchangeRate: itemValues.currency === 'USD' ? watchedRates.USD : itemValues.currency === 'EUR' ? watchedRates.EUR : 1,
-                                    });
+          <main className="flex-1 px-8 py-8 space-y-8 overflow-y-auto">
+               {activeProductForAISuggestion && (
+                  <AISuggestionBox 
+                      productName={activeProductForAISuggestion}
+                      existingItems={form.watch('items').map(i => i.name)}
+                      onClose={() => setActiveProductForAISuggestion(null)}
+                  />
+              )}
+              
+              {allGroups.map(([groupName, itemsInGroup]) => {
+                  const groupTotal = calculatedTotals.groupTotals[groupName] || { totalSell: 0, totalCost: 0, totalProfit: 0 };
+                  const groupProfitMargin = groupTotal.totalSell > 0 ? (groupTotal.totalProfit / groupTotal.totalSell) : 0;
+                  
+                  return (
+                   <section key={groupName} className="group/section relative">
+                      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                          <div className="px-6 py-3 border-b border-slate-200 flex justify-between items-center group/header">
+                              <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
+                                      {getGroupIcon(groupName)}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                      {editingGroupName === groupName ? (
+                                          <Input
+                                              ref={groupNameInputRef}
+                                              defaultValue={groupName}
+                                              onBlur={(e) => handleGroupNameChange(groupName, e.target.value)}
+                                              onKeyDown={(e) => {
+                                                  if (e.key === 'Enter') {
+                                                      e.preventDefault();
+                                                      handleGroupNameChange(groupName, e.currentTarget.value);
+                                                  }
+                                                  if (e.key === 'Escape') setEditingGroupName(null);
+                                              }}
+                                              className="h-8 text-lg font-bold"
+                                          />
+                                      ) : (
+                                          <>
+                                              <h2 className="font-bold text-slate-800 text-lg">{groupName}</h2>
+                                              <Button 
+                                                  variant="ghost" 
+                                                  size="icon" 
+                                                  className="h-7 w-7 text-slate-400 opacity-0 group-hover/header:opacity-100 transition-opacity"
+                                                  onClick={() => setEditingGroupName(groupName)}
+                                              >
+                                                  <Edit className="h-4 w-4"/>
+                                              </Button>
+                                          </>
+                                      )}
+                                  </div>
+                              </div>
+                              <div className="flex items-center gap-6 text-right">
+                                  <div>
+                                      <p className="text-xs text-slate-500">Grup Kârı</p>
+                                      <p className="font-mono text-2xl font-bold text-green-600">{formatCurrency(groupTotal.totalProfit)} <span className="text-sm font-medium">({formatPercent(groupProfitMargin)})</span></p>
+                                  </div>
+                                  <div>
+                                      <p className="text-xs text-slate-500">Grup Toplamı</p>
+                                      <p className="font-mono text-2xl font-bold text-slate-800">{formatCurrency(groupTotal.totalSell)}</p>
+                                  </div>
+                              </div>
+                          </div>
+                          <Table>
+                              <TableHeader>
+                              <TableRow>
+                                  <TableHead className="py-2 pl-4 text-xs uppercase text-slate-400 font-semibold tracking-wider w-[30%]">Malzeme / Poz</TableHead>
+                                  <TableHead className="py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Marka</TableHead>
+                                  <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Miktar</TableHead>
+                                  <TableHead className="py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Birim</TableHead>
+                                  <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Liste Fiyatı</TableHead>
+                                  <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Alış Fiyatı (TL)</TableHead>
+                                  <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">İskonto (%)</TableHead>
+                                  <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Kâr (%)</TableHead>
+                                  <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Birim Fiyat</TableHead>
+                                  <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Toplam</TableHead>
+                                  <TableHead className="w-10 py-2 pr-4"></TableHead>
+                              </TableRow>
+                              </TableHeader>
+                          </Table>
+                          <div className="h-[400px] overflow-y-auto resize-y min-h-[150px]">
+                              <Table>
+                                  <TableBody className="text-sm divide-y divide-slate-100">
+                                      {itemsInGroup.map((item) => {
+                                      const originalIndex = fields.findIndex(f => f.formId === item.formId);
+                                      if (originalIndex === -1) return null;
+                                      const itemValues = watchedItems[originalIndex];
+                                      if (!itemValues) return null;
+                                      
+                                      const itemTotals = calculateItemTotals({
+                                          ...itemValues,
+                                          exchangeRate: itemValues.currency === 'USD' ? watchedRates.USD : itemValues.currency === 'EUR' ? watchedRates.EUR : 1,
+                                      });
 
-                                    return (
-                                      <TableRow key={item.formId} className="hover:bg-slate-50 group/row">
-                                        <TableCell className="py-1 pl-4 font-medium text-slate-800 w-2/6">{itemValues.name}</TableCell>
-                                        <TableCell className="py-1 w-36">
-                                            <FormField control={form.control} name={`items.${originalIndex}.brand`} render={({ field }) => <Input {...field} className="w-32 h-8 bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary" />} />
-                                        </TableCell>
-                                        <TableCell className="w-24 py-1">
-                                          <FormField control={form.control} name={`items.${originalIndex}.quantity`} render={({ field }) => <Input {...field} type="number" step="any" className="w-20 font-mono text-right bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8" />} />
-                                        </TableCell>
-                                        <TableCell className="py-1 w-24">
-                                            <FormField control={form.control} name={`items.${originalIndex}.unit`} render={({ field }) => <Input {...field} className="w-20 h-8 bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary" />} />
-                                        </TableCell>
-                                        <TableCell className="w-40 py-1 font-mono text-right">
-                                            <div className="flex items-center justify-end gap-1">
-                                                <FormField control={form.control} name={`items.${originalIndex}.listPrice`} render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-right font-mono bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8"/>} />
-                                                <span className="text-slate-500 font-mono text-xs">{itemValues.currency}</span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-right font-mono tabular-nums text-slate-500 py-1 w-32">{formatNumber(itemTotals.tlCost)}</TableCell>
-                                        <TableCell className="w-32 py-1 font-mono">
-                                           <div className="flex items-center justify-end gap-1">
-                                               <Controller
-                                                    control={form.control}
-                                                    name={`items.${originalIndex}.discountRate`}
-                                                    render={({ field }) => (
-                                                        <Input 
-                                                            type="number"
-                                                            value={Math.round(field.value * 100)}
-                                                            onChange={e => field.onChange(parseFloat(e.target.value) / 100)}
-                                                            className="w-16 text-right font-mono bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8" placeholder="15"/>
-                                                    )}
-                                                />
-                                                <span className="text-slate-400">%</span>
-                                           </div>
-                                        </TableCell>
-                                        <TableCell className="w-32 py-1 font-mono">
-                                           <div className="flex items-center justify-end gap-1">
-                                                <Controller
-                                                    control={form.control}
-                                                    name={`items.${originalIndex}.profitMargin`}
-                                                    render={({ field }) => (
-                                                        <Input
-                                                            type="number"
-                                                            value={Math.round(field.value * 100)}
-                                                            onChange={e => field.onChange(parseFloat(e.target.value) / 100)}
-                                                            className="w-16 text-right font-mono bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8" placeholder="20"/>
-                                                    )}
-                                                />
-                                                <span className="text-slate-400">%</span>
-                                           </div>
-                                        </TableCell>
-                                        <TableCell className="text-right font-mono tabular-nums font-semibold text-slate-600 py-1 w-32 text-lg">{formatNumber(itemTotals.tlSellPrice)}</TableCell>
-                                        <TableCell className="text-right font-bold font-mono tabular-nums text-lg text-slate-800 py-1 w-36">{formatCurrency(itemTotals.totalTlSell)}</TableCell>
-                                        <TableCell className="px-2 text-center py-1">
-                                          <Button variant="ghost" size="icon" onClick={() => remove(originalIndex)} className="h-8 w-8 text-slate-400 hover:text-red-500 opacity-0 group-hover/row:opacity-100 transition-opacity">
-                                            <Trash2 className="h-4 w-4" />
-                                          </Button>
-                                        </TableCell>
-                                      </TableRow>
-                                    );
-                                  })}
-                                </TableBody>
-                            </Table>
-                        </div>
-                         <div className="p-2 border-t">
-                           <Button type="button" variant="ghost" className="w-full text-sm text-slate-500 hover:text-primary" onClick={() => openProductSelectorForGroup(groupName)}>
-                             <PlusCircle className="mr-2 h-4 w-4" /> Bu Gruba Ürün Ekle
-                           </Button>
-                        </div>
-                    </div>
-                </section>
-                )
-            })}
+                                      return (
+                                        <TableRow key={item.formId} className="hover:bg-slate-50 group/row">
+                                          <TableCell className="py-1 pl-4 font-medium text-slate-800 w-[30%]">{itemValues.name}</TableCell>
+                                          <TableCell className="py-1 w-36">
+                                              <FormField control={form.control} name={`items.${originalIndex}.brand`} render={({ field }) => <Input {...field} className="w-32 h-8 bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary" />} />
+                                          </TableCell>
+                                          <TableCell className="w-24 py-1">
+                                            <FormField control={form.control} name={`items.${originalIndex}.quantity`} render={({ field }) => <Input {...field} type="number" step="any" className="w-20 font-mono text-right bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8" />} />
+                                          </TableCell>
+                                          <TableCell className="py-1 w-24">
+                                              <FormField control={form.control} name={`items.${originalIndex}.unit`} render={({ field }) => <Input {...field} className="w-20 h-8 bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary" />} />
+                                          </TableCell>
+                                          <TableCell className="w-40 py-1 font-mono text-right">
+                                              <div className="flex items-center justify-end gap-1">
+                                                  <FormField control={form.control} name={`items.${originalIndex}.listPrice`} render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-right font-mono bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8"/>} />
+                                                  <span className="text-slate-500 font-mono text-xs">{itemValues.currency}</span>
+                                              </div>
+                                          </TableCell>
+                                          <TableCell className="text-right font-mono tabular-nums text-slate-500 py-1 w-32">{formatNumber(itemTotals.tlCost)}</TableCell>
+                                          <TableCell className="w-32 py-1 font-mono">
+                                             <div className="flex items-center justify-end gap-1">
+                                                 <Controller
+                                                      control={form.control}
+                                                      name={`items.${originalIndex}.discountRate`}
+                                                      render={({ field }) => (
+                                                          <Input 
+                                                              type="number"
+                                                              value={Math.round(field.value * 100)}
+                                                              onChange={e => field.onChange(parseFloat(e.target.value) / 100)}
+                                                              className="w-16 text-right font-mono bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8" placeholder="15"/>
+                                                      )}
+                                                  />
+                                                  <span className="text-slate-400">%</span>
+                                             </div>
+                                          </TableCell>
+                                          <TableCell className="w-32 py-1 font-mono">
+                                             <div className="flex items-center justify-end gap-1">
+                                                  <Controller
+                                                      control={form.control}
+                                                      name={`items.${originalIndex}.profitMargin`}
+                                                      render={({ field }) => (
+                                                          <Input
+                                                              type="number"
+                                                              value={Math.round(field.value * 100)}
+                                                              onChange={e => field.onChange(parseFloat(e.target.value) / 100)}
+                                                              className="w-16 text-right font-mono bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8" placeholder="20"/>
+                                                      )}
+                                                  />
+                                                  <span className="text-slate-400">%</span>
+                                             </div>
+                                          </TableCell>
+                                          <TableCell className="text-right font-mono tabular-nums font-semibold text-slate-600 py-1 w-32 text-lg">{formatNumber(itemTotals.tlSellPrice)}</TableCell>
+                                          <TableCell className="text-right font-bold font-mono tabular-nums text-lg text-slate-800 py-1 w-36">{formatCurrency(itemTotals.totalTlSell)}</TableCell>
+                                          <TableCell className="px-2 text-center py-1">
+                                            <Button variant="ghost" size="icon" onClick={() => remove(originalIndex)} className="h-8 w-8 text-slate-400 hover:text-red-500 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                                              <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                          </TableCell>
+                                        </TableRow>
+                                      );
+                                    })}
+                                  </TableBody>
+                              </Table>
+                          </div>
+                           <div className="p-2 border-t">
+                             <Button type="button" variant="ghost" className="w-full text-sm text-slate-500 hover:text-primary" onClick={() => openProductSelectorForGroup(groupName)}>
+                               <PlusCircle className="mr-2 h-4 w-4" /> Bu Gruba Ürün Ekle
+                             </Button>
+                          </div>
+                      </div>
+                  </section>
+                  )
+              })}
 
-            <Button type="button" className="w-full py-6 border-2 border-dashed border-slate-300 rounded-xl text-slate-400 font-medium bg-white hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all flex-col items-center gap-1 h-auto" onClick={handleAddNewGroup}>
-                <PlusCircle className="h-6 w-6" />
-                <span>Yeni Mahal / Sistem Grubu Ekle</span>
-            </Button>
-        </main>
+              <Button type="button" className="w-full py-6 border-2 border-dashed border-slate-300 rounded-xl text-slate-400 font-medium bg-white hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all flex-col items-center gap-1 h-auto" onClick={handleAddNewGroup}>
+                  <PlusCircle className="h-6 w-6" />
+                  <span>Yeni Mahal / Sistem Grubu Ekle</span>
+              </Button>
+          </main>
 
-        <footer className="sticky bottom-0 z-30 bg-white/95 backdrop-blur-sm border-t border-slate-200 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
-            <div className="mx-auto px-8">
-                <div className="flex justify-between items-center h-24">
-                    <div className="flex-1 flex items-center gap-4 overflow-x-auto">
-                        <span className="text-sm font-semibold text-slate-500 whitespace-nowrap">Grup Dağılımı:</span>
-                         <div className="flex items-center gap-4">
-                            {Object.entries(calculatedTotals.groupTotals).map(([groupName, totals]) => (
-                                <div key={groupName} className="text-center bg-slate-100 p-2 rounded-md">
-                                    <div className="text-xs text-slate-600 truncate max-w-24">{groupName}</div>
-                                    <div className="text-sm font-bold font-mono text-slate-800">{formatCurrency(totals.totalSell)}</div>
-                                    <div className="text-xs font-mono text-green-600">{formatCurrency(totals.totalProfit)}</div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                    <div className="flex items-end gap-8 pl-8">
-                        <div className="text-right">
-                           <span className="text-sm text-slate-500 mb-1">Toplam Kâr:</span>
-                           <span className="block text-3xl font-bold font-mono tabular-nums text-green-600">
-                            {formatCurrency(calculatedTotals.grandTotalProfit)}
-                            <span className="text-base font-medium ml-2">({formatPercent(calculatedTotals.grandTotalProfitMargin)})</span>
-                           </span>
-                        </div>
-                         <div className="text-right">
-                            <span className="text-sm text-slate-500 mb-1">Genel Toplam (KDV Dahil):</span>
-                            <span className="block text-5xl font-bold font-mono tabular-nums text-slate-900">{formatCurrency(calculatedTotals.grandTotalSell * 1.2)}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </footer>
-      </form>
-    </Form>
+          <footer className="bg-white/95 backdrop-blur-sm border-t border-slate-200 shadow-[0_-5px_15px_rgba(0,0,0,0.05)] flex-shrink-0">
+              <div className="mx-auto px-8">
+                  <div className="flex justify-between items-center h-24">
+                      <div className="flex-1 flex items-center gap-4 overflow-x-auto">
+                          <span className="text-sm font-semibold text-slate-500 whitespace-nowrap">Grup Dağılımı:</span>
+                           <div className="flex items-center gap-4">
+                              {Object.entries(calculatedTotals.groupTotals).map(([groupName, totals]) => (
+                                  <div key={groupName} className="text-center bg-slate-100 p-2 rounded-md">
+                                      <div className="text-xs text-slate-600 truncate max-w-24">{groupName}</div>
+                                      <div className="text-sm font-bold font-mono text-slate-800">{formatCurrency(totals.totalSell)}</div>
+                                      <div className="text-xs font-mono text-green-600">{formatCurrency(totals.totalProfit)}</div>
+                                  </div>
+                              ))}
+                          </div>
+                      </div>
+                      <div className="flex items-end gap-8 pl-8">
+                          <div className="text-right">
+                             <span className="text-sm text-slate-500 mb-1">Toplam Kâr:</span>
+                             <span className="block text-3xl font-bold font-mono tabular-nums text-green-600">
+                              {formatCurrency(calculatedTotals.grandTotalProfit)}
+                              <span className="text-base font-medium ml-2">({formatPercent(calculatedTotals.grandTotalProfitMargin)})</span>
+                             </span>
+                          </div>
+                           <div className="text-right">
+                              <span className="text-sm text-slate-500 mb-1">Genel Toplam (KDV Dahil):</span>
+                              <span className="block text-5xl font-bold font-mono tabular-nums text-slate-900">{formatCurrency(calculatedTotals.grandTotalSell * 1.2)}</span>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </footer>
+        </form>
+      </Form>
 
-    <ProductSelector 
-        isOpen={isProductSelectorOpen}
-        onOpenChange={setIsProductSelectorOpen}
-        onProductsSelected={handleProductsSelected}
-        targetGroupName={targetGroupForProductAdd}
-    />
-    </>
+      <ProductSelector 
+          isOpen={isProductSelectorOpen}
+          onOpenChange={setIsProductSelectorOpen}
+          onProductsSelected={handleProductsSelected}
+          targetGroupName={targetGroupForProductAdd}
+      />
+    </div>
   );
 }
 
