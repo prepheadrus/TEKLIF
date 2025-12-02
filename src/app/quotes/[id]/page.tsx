@@ -196,7 +196,7 @@ export default function QuoteDetailPage() {
   
   useEffect(() => {
     // Only fetch rates once when the initial data is loaded.
-    if (proposal && initialItems && form.formState.isSubmitSuccessful === false) {
+    if (proposal && initialItems) {
       handleFetchRates();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -211,7 +211,6 @@ export default function QuoteDetailPage() {
   }, [editingGroupName]);
 
   // --- Calculations ---
-  // Renders on every form change, no useMemo to avoid stale state issues.
     let grandTotalSell = 0;
     let grandTotalCost = 0;
 
@@ -222,7 +221,7 @@ export default function QuoteDetailPage() {
             discountRate: item.discountRate,
             profitMargin: item.profitMargin,
             exchangeRate,
-            basePrice: item.basePrice,
+            basePrice: item.basePrice || 0,
         });
 
         const totalTlCost = priceInfo.tlCost * item.quantity;
@@ -554,7 +553,7 @@ export default function QuoteDetailPage() {
                  <section key={groupName} className="group/section relative">
                     <div className="bg-white rounded-xl shadow-sm border border-slate-200">
                         
-                         <div className="bg-white/95 backdrop-blur-sm">
+                         <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm">
                             <div className="px-6 py-3 border-b border-slate-200 flex justify-between items-center group/header">
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
@@ -619,7 +618,7 @@ export default function QuoteDetailPage() {
                                     </TableHeader>
                                 </Table>
                         </div>
-                        <div className="max-h-[400px] overflow-y-auto resize-y min-h-[150px]">
+                        <div className="h-[400px] overflow-y-auto resize-y min-h-[150px]">
                             <Table>
                                 <TableBody className="text-sm divide-y divide-slate-100">
                                     {itemsInGroup.map((item) => {
