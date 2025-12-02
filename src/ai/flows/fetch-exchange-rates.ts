@@ -39,20 +39,29 @@ const fetchExchangeRatesFlow = ai.defineFlow(
       }
       const data = await response.json();
       
-      const usdRate = data['USD']?.alis;
-      const eurRate = data['EUR']?.alis;
+      const usdRateStr = data['USD']?.alis;
+      const eurRateStr = data['EUR']?.alis;
       
-      if (!usdRate || !eurRate) {
+      if (!usdRateStr || !eurRateStr) {
         throw new Error('USD or EUR rate not found in the API response.');
       }
 
+      // IMPORTANT: The API returns strings with commas as decimal separators (e.g., "32,85").
+      // We must replace the comma with a dot to parse it correctly as a float.
+      const usdRate = parseFloat(usdRateStr.replace(',', '.'));
+      const eurRate = parseFloat(eurRateStr.replace(',', '.'));
+
+      if (isNaN(usdRate) || isNaN(eurRate)) {
+        throw new Error('Could not parse exchange rates to numbers.');
+      }
+
       return {
-        USD: parseFloat(usdRate),
-        EUR: parseFloat(eurRate),
+        USD: usdRate,
+        EUR: eurRate,
       };
     } catch (error: any) {
-        console.error("Error fetching exchange rates:", error);
-        // Fallback to default rates in case of an error
+        console.error("Error fetching or parsing exchange rates:", error);
+        // Fallback to default rates in case of any error during fetch or parse
         return {
             USD: 32.5,
             EUR: 35.0
