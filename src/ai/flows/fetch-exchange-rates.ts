@@ -22,7 +22,7 @@ export async function fetchExchangeRates(): Promise<ExchangeRatesOutput> {
 }
 
 /**
- * Fetches daily exchange rates from a reliable JSON source that processes TCMB's XML data.
+ * Fetches daily exchange rates from a reliable JSON source that processes TCMB's official XML data.
  * This is a tool and does not use an LLM.
  */
 const fetchExchangeRatesFlow = ai.defineFlow(
@@ -64,6 +64,7 @@ const fetchExchangeRatesFlow = ai.defineFlow(
     } catch (error: any) {
         console.error("Critical error fetching or parsing exchange rates:", error);
         // Fallback to default rates ONLY in case of a critical failure.
+        // This prevents the entire quote creation from failing if TCMB is temporarily unreachable.
         return {
             USD: 33.0,
             EUR: 35.5
