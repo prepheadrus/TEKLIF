@@ -32,7 +32,7 @@ type ProposalItem = {
     currency: 'TRY' | 'USD' | 'EUR';
     discountRate: number;
     profitMargin: number;
-    groupName?: string; // Add groupName
+    groupName?: string;
 };
 
 type Customer = {

@@ -176,17 +176,23 @@ export default function QuoteDetailPage() {
   const watchedItems = form.watch('items');
 
   const allGroups = useMemo(() => {
-    const currentItems = watchedItems;
-    
+    // We use `fields` from useFieldArray as it's the source of truth for the rendered list
+    // and it includes the unique `formId`. `watchedItems` has the live data.
+    const currentItemsWithFormId = fields.map((field, index) => ({
+      ...watchedItems[index], // get live data from watch
+      formId: field.formId,   // ensure formId from fields is present
+      originalIndex: index,
+    }));
+
     // Group items by 'groupName'
-    const itemGroups = currentItems.reduce((acc, item, index) => {
-      const groupName = item.groupName || 'Diğer';
-      if (!acc[groupName]) {
-        acc[groupName] = [];
-      }
-      acc[groupName].push({ ...item, originalIndex: index });
-      return acc;
-    }, {} as Record<string, (ProposalItem & { originalIndex: number })[]>);
+    const itemGroups = currentItemsWithFormId.reduce((acc, item) => {
+        const groupName = item.groupName || 'Diğer';
+        if (!acc[groupName]) {
+            acc[groupName] = [];
+        }
+        acc[groupName].push(item);
+        return acc;
+    }, {} as Record<string, (ProposalItem & { originalIndex: number, formId: string })[]>);
 
     // Add empty groups to the map if they don't already exist
     emptyGroups.forEach(groupName => {
@@ -202,7 +208,7 @@ export default function QuoteDetailPage() {
       return a.localeCompare(b);
     });
 
-  }, [watchedItems, emptyGroups]);
+  }, [fields, watchedItems, emptyGroups]); // Depend on fields as well
   
   // --- Effects ---
   useEffect(() => {
@@ -289,7 +295,7 @@ export default function QuoteDetailPage() {
                 groupName = parent?.name || 'Diğer';
             }
             
-            const newItem = {
+            const newItem: ProposalItem = {
                 productId: product.id,
                 name: product.name,
                 brand: product.brand,
@@ -311,18 +317,12 @@ export default function QuoteDetailPage() {
         setEmptyGroups(prev => prev.filter(g => g !== targetGroupForProductAdd));
     }
     setTargetGroupForProductAdd(undefined);
-
-    if (selectedProducts.length > 0 && existingItemIndex(selectedProducts[0]) === -1) {
-      setActiveProductForAISuggestion(selectedProducts[0].name);
+    
+    const firstNewProduct = selectedProducts.find(p => !currentItems.some(item => item.productId === p.id));
+    if (firstNewProduct) {
+        setActiveProductForAISuggestion(firstNewProduct.name);
     }
   };
-
-  function existingItemIndex(product: ProductType): number {
-    const currentItems = form.getValues('items');
-    return currentItems.findIndex(
-        item => item.productId === product.id && item.groupName === targetGroupForProductAdd
-    );
-  }
 
   const handleAddNewGroup = () => {
     const newGroupName = `Yeni Grup ${emptyGroups.length + allGroups.length + 1}`;
@@ -340,10 +340,11 @@ export default function QuoteDetailPage() {
 
     // Update items in the form
     const currentItems = form.getValues('items');
-    const updatedItems = currentItems.map(item => 
-        item.groupName === oldName ? { ...item, groupName: newName } : item
-    );
-    form.setValue('items', updatedItems, { shouldDirty: true });
+    currentItems.forEach((item, index) => {
+        if (item.groupName === oldName) {
+            update(index, { ...item, groupName: newName });
+        }
+    });
 
     // Update empty groups state if the renamed group was an empty one
     setEmptyGroups(prev => prev.map(g => g === oldName ? newName : g));
@@ -535,14 +536,14 @@ export default function QuoteDetailPage() {
                         <Table>
                             <TableHeader className="bg-white text-xs uppercase text-slate-400 font-semibold tracking-wider border-b border-slate-100">
                               <TableRow>
-                                <TableHead className="w-2/5">Malzeme / Poz</TableHead>
-                                <TableHead className="text-center">Miktar</TableHead>
-                                <TableHead className="text-center">Liste Fiyatı</TableHead>
-                                <TableHead className="text-center">İsk. (%)</TableHead>
-                                <TableHead className="text-center">Kâr (%)</TableHead>
-                                <TableHead className="text-right">Birim Fiyat</TableHead>
-                                <TableHead className="text-right">Toplam</TableHead>
-                                <TableHead className="w-10"></TableHead>
+                                <TableHead className="w-2/5 py-2">Malzeme / Poz</TableHead>
+                                <TableHead className="text-center py-2">Miktar</TableHead>
+                                <TableHead className="text-center py-2">Liste Fiyatı</TableHead>
+                                <TableHead className="text-center py-2">İsk. (%)</TableHead>
+                                <TableHead className="text-center py-2">Kâr (%)</TableHead>
+                                <TableHead className="text-right py-2">Birim Fiyat</TableHead>
+                                <TableHead className="text-right py-2">Toplam</TableHead>
+                                <TableHead className="w-10 py-2"></TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody className="text-sm divide-y divide-slate-100">
