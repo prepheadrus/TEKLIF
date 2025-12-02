@@ -22,7 +22,7 @@ export async function fetchExchangeRates(): Promise<ExchangeRatesOutput> {
 }
 
 /**
- * Fetches daily exchange rates from a reliable JSON source.
+ * Fetches daily exchange rates from a reliable JSON source that processes TCMB's XML data.
  * This is a tool and does not use an LLM.
  */
 const fetchExchangeRatesFlow = ai.defineFlow(
@@ -32,7 +32,8 @@ const fetchExchangeRatesFlow = ai.defineFlow(
   },
   async () => {
     try {
-      // Using a more reliable JSON API that mirrors TCMB data
+      // This API fetches and parses the official TCMB XML data into JSON format.
+      // It's a reliable way to get TCMB data without needing an XML parser in the project.
       const response = await fetch('https://hasaneke.com/api/tcmb', { cache: 'no-store' });
       if (!response.ok) {
         throw new Error(`Failed to fetch exchange rates: ${response.statusText}`);
@@ -40,35 +41,34 @@ const fetchExchangeRatesFlow = ai.defineFlow(
       const data = await response.json();
       
       const usdRateStr = data['USD']?.alis;
-      // CORRECTED: The API uses 'AVRUPA' for EUR, not 'EUR'
+      // The API uses 'AVRUPA' for EUR, which corresponds to the Euro.
       const eurRateStr = data['AVRUPA']?.alis;
       
       if (!usdRateStr || !eurRateStr) {
         throw new Error('USD or EUR rate not found in the API response.');
       }
 
-      // IMPORTANT: The API returns strings with commas as decimal separators (e.g., "32,85").
-      // We must replace the comma with a dot to parse it correctly as a float.
+      // The API returns strings with commas as decimal separators (e.g., "32,85").
+      // Replace the comma with a dot to parse it correctly as a float.
       const usdRate = parseFloat(usdRateStr.replace(',', '.'));
       const eurRate = parseFloat(eurRateStr.replace(',', '.'));
 
       if (isNaN(usdRate) || isNaN(eurRate)) {
         throw new Error('Could not parse exchange rates to numbers.');
       }
-      
-      // DEBUG: Log the fetched rates to the server console for verification
-      console.error(`DEBUG: Fetched Rates from API -> USD: ${usdRate}, EUR: ${eurRate}`);
+
+      console.log(`Successfully fetched and parsed rates -> USD: ${usdRate}, EUR: ${eurRate}`);
 
       return {
         USD: usdRate,
         EUR: eurRate,
       };
     } catch (error: any) {
-        console.error("Error fetching or parsing exchange rates:", error);
-        // Fallback to default rates in case of any error during fetch or parse
+        console.error("Critical error fetching or parsing exchange rates:", error);
+        // Fallback to default rates ONLY in case of a critical failure.
         return {
-            USD: 32.5,
-            EUR: 35.0
+            USD: 33.0,
+            EUR: 35.5
         };
     }
   }
