@@ -507,13 +507,13 @@ export default function QuoteDetailPage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden">
+    <div className="flex flex-1 flex-col h-full overflow-hidden">
         {portalContainer && createPortal(
           <ExchangeRateDisplay form={form} onRefresh={handleFetchRates} isFetching={isFetchingRates} />,
           portalContainer
         )}
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSaveChanges)} className="flex-1 flex flex-col overflow-hidden">
+            <form onSubmit={form.handleSubmit(handleSaveChanges)} className="flex-1 flex flex-col h-full overflow-hidden">
                 <header className="flex-shrink-0 px-8 py-4 flex justify-between items-center bg-white border-b border-slate-200">
                     <div>
                         <p className="text-sm text-slate-500 mt-1">
