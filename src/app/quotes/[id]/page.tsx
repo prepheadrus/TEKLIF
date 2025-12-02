@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -55,6 +55,7 @@ import {
   Thermometer,
   Wrench,
   ChevronDown,
+  Edit,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -133,6 +134,9 @@ export default function QuoteDetailPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isProductSelectorOpen, setIsProductSelectorOpen] = useState(false);
   const [activeProductForAISuggestion, setActiveProductForAISuggestion] = useState<string | null>(null);
+  const [editingGroupName, setEditingGroupName] = useState<string | null>(null);
+  const groupNameInputRef = useRef<HTMLInputElement>(null);
+
 
   // --- Data Fetching ---
   const proposalRef = useMemoFirebase(
@@ -205,6 +209,13 @@ export default function QuoteDetailPage() {
       });
     }
   }, [proposal, initialItems, form]);
+  
+  useEffect(() => {
+    if (editingGroupName && groupNameInputRef.current) {
+        groupNameInputRef.current.focus();
+        groupNameInputRef.current.select();
+    }
+  }, [editingGroupName]);
 
 
   // --- Calculations ---
@@ -277,6 +288,19 @@ export default function QuoteDetailPage() {
     if (newItems.length > 0) {
       setActiveProductForAISuggestion(newItems[0].name);
     }
+  };
+
+  const handleGroupNameChange = (oldName: string, newName: string) => {
+    if (!newName || oldName === newName) {
+        setEditingGroupName(null);
+        return;
+    }
+    const currentItems = form.getValues('items');
+    const updatedItems = currentItems.map(item => 
+        item.groupName === oldName ? { ...item, groupName: newName } : item
+    );
+    form.setValue('items', updatedItems, { shouldDirty: true });
+    setEditingGroupName(null);
   };
   
   const handleSaveChanges = async (data: ProposalFormValues) => {
@@ -411,25 +435,46 @@ export default function QuoteDetailPage() {
             )}
             
             {groupedItems.map(([groupName, itemsInGroup]) => (
-                 <section key={groupName} className="group relative">
+                 <section key={groupName} className="group/section relative">
                     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div className="bg-slate-50/70 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+                        <div className="bg-slate-50/70 px-6 py-4 border-b border-slate-200 flex justify-between items-center group/header">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
                                     {getGroupIcon(groupName)}
                                 </div>
-                                <div>
-                                    <h2 className="font-bold text-slate-800">{groupName}</h2>
-                                    <p className="text-xs text-slate-500">Grup Toplamı: <span className="font-mono font-bold text-slate-700">{formatCurrency(totals.groupTotals[groupName] || 0)}</span></p>
+                                <div className="flex items-center gap-2">
+                                     {editingGroupName === groupName ? (
+                                        <Input
+                                            ref={groupNameInputRef}
+                                            defaultValue={groupName}
+                                            onBlur={(e) => handleGroupNameChange(groupName, e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    handleGroupNameChange(groupName, e.currentTarget.value);
+                                                }
+                                                if (e.key === 'Escape') setEditingGroupName(null);
+                                            }}
+                                            className="h-8 text-lg font-bold"
+                                        />
+                                    ) : (
+                                        <>
+                                            <h2 className="font-bold text-slate-800 text-lg">{groupName}</h2>
+                                            <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                className="h-7 w-7 text-slate-400 opacity-0 group-hover/header:opacity-100 transition-opacity"
+                                                onClick={() => setEditingGroupName(groupName)}
+                                            >
+                                                <Edit className="h-4 w-4"/>
+                                            </Button>
+                                        </>
+                                    )}
                                 </div>
                             </div>
-                            <div className="flex gap-2">
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsProductSelectorOpen(true)}>
-                                    <PlusCircle className="h-5 w-5" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                    <ChevronDown className="h-5 w-5" />
-                                </Button>
+                            <div className="text-right">
+                               <p className="text-xs text-slate-500">Grup Toplamı</p>
+                               <p className="font-mono font-bold text-slate-700">{formatCurrency(totals.groupTotals[groupName] || 0)}</p>
                             </div>
                         </div>
 
@@ -465,7 +510,7 @@ export default function QuoteDetailPage() {
                                 });
 
                                 return (
-                                  <TableRow key={item.id || item.productId} className="hover:bg-slate-50 group">
+                                  <TableRow key={item.id || item.productId + index} className="hover:bg-slate-50 group/row">
                                     <TableCell>
                                         <div className="font-medium text-slate-800">{itemValues.name}</div>
                                         <div className="text-xs text-slate-500">{itemValues.brand} • {itemValues.unit}</div>
@@ -508,7 +553,7 @@ export default function QuoteDetailPage() {
                                         {formatCurrency(priceInfo.tlSellPrice * (itemValues.quantity || 0))}
                                      </TableCell>
                                     <TableCell className="px-2 text-center">
-                                      <Button variant="ghost" size="icon" onClick={() => remove(index)} className="h-8 w-8 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <Button variant="ghost" size="icon" onClick={() => remove(index)} className="h-8 w-8 text-slate-400 hover:text-red-500 opacity-0 group-hover/row:opacity-100 transition-opacity">
                                         <Trash2 className="h-4 w-4" />
                                       </Button>
                                     </TableCell>
@@ -517,6 +562,11 @@ export default function QuoteDetailPage() {
                               })}
                             </TableBody>
                         </Table>
+                         <div className="p-2">
+                           <Button type="button" variant="ghost" className="w-full text-sm text-slate-500 hover:text-primary" onClick={() => setIsProductSelectorOpen(true)}>
+                             <PlusCircle className="mr-2 h-4 w-4" /> Bu Gruba Ürün Ekle
+                           </Button>
+                        </div>
                     </div>
                 </section>
             ))}
