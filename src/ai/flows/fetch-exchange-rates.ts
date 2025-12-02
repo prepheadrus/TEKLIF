@@ -11,8 +11,8 @@ import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
 const ExchangeRatesOutputSchema = z.object({
-  USD: z.number().describe('The buying exchange rate for USD to TRY.'),
-  EUR: z.number().describe('The buying exchange rate for EUR to TRY.'),
+  USD: z.number().describe('The selling exchange rate for USD to TRY.'),
+  EUR: z.number().describe('The selling exchange rate for EUR to TRY.'),
 });
 export type ExchangeRatesOutput = z.infer<typeof ExchangeRatesOutputSchema>;
 
@@ -22,7 +22,7 @@ export async function fetchExchangeRates(): Promise<ExchangeRatesOutput> {
 }
 
 /**
- * Fetches daily exchange rates from a reliable JSON source that processes TCMB's official XML data.
+ * Fetches daily exchange rates directly from TCMB's official XML source.
  * This is a tool and does not use an LLM.
  */
 const fetchExchangeRatesFlow = ai.defineFlow(
@@ -32,7 +32,6 @@ const fetchExchangeRatesFlow = ai.defineFlow(
   },
   async () => {
     try {
-      // This API fetches and parses the official TCMB XML data into a reliable JSON format.
       const response = await fetch('https://www.tcmb.gov.tr/kurlar/today.xml', { cache: 'no-store' });
       if (!response.ok) {
         throw new Error(`Failed to fetch exchange rates: ${response.statusText}`);
@@ -40,10 +39,10 @@ const fetchExchangeRatesFlow = ai.defineFlow(
       
       const xmlText = await response.text();
       
-      // Basic manual XML parsing - This is fragile but avoids extra dependencies.
+      // This function now specifically targets the 'ForexSelling' tag.
       const findRate = (currencyCode: string): string | null => {
         const currencyTag = `<Currency CrossOrder=.* CurrencyCode="${currencyCode}">`;
-        const regex = new RegExp(`${currencyTag}[\\s\\S]*?<ForexBuying>([\\d.]+)</ForexBuying>`);
+        const regex = new RegExp(`${currencyTag}[\\s\\S]*?<ForexSelling>([\\d.]+)</ForexSelling>`);
         const match = xmlText.match(regex);
         return match ? match[1] : null;
       };
@@ -63,7 +62,7 @@ const fetchExchangeRatesFlow = ai.defineFlow(
         throw new Error('Could not parse exchange rates to numbers.');
       }
 
-      console.log(`Successfully fetched and parsed rates -> USD: ${usdRate}, EUR: ${eurRate}`);
+      console.log(`Successfully fetched and parsed SELL rates -> USD: ${usdRate}, EUR: ${eurRate}`);
 
       return {
         USD: usdRate,
