@@ -167,17 +167,30 @@ export default function QuoteDetailPage() {
     keyName: 'formId',
   });
 
+  // This useMemo creates a stable, grouped representation of items for rendering.
   const groupedItems = useMemo(() => {
-    const items = form.watch('items');
-    return items.reduce((acc, item, index) => {
+    // Watch for changes in 'items' to trigger recalculation
+    const currentItems = form.watch('items');
+    
+    // Group items by 'groupName'
+    const groups = currentItems.reduce((acc, item, index) => {
       const groupName = item.groupName || 'Diğer';
       if (!acc[groupName]) {
         acc[groupName] = [];
       }
+      // Push the item along with its original index in the flat array
       acc[groupName].push({ ...item, originalIndex: index });
       return acc;
     }, {} as Record<string, (ProposalItem & { originalIndex: number })[]>);
-  }, [form.watch('items')]);
+
+    // Sort the groups by name, except for 'Diğer' which should be last
+    return Object.entries(groups).sort(([a], [b]) => {
+      if (a === 'Diğer') return 1;
+      if (b === 'Diğer') return -1;
+      return a.localeCompare(b);
+    });
+
+  }, [form.watch('items')]); // Dependency on watched items
   
   // --- Effects ---
   useEffect(() => {
@@ -201,25 +214,22 @@ export default function QuoteDetailPage() {
     
     let grandTotalTRY = 0;
 
-    const groupTotals = Object.entries(groupedItems).reduce((acc, [groupName, itemsInGroup]) => {
-      acc[groupName] = itemsInGroup.reduce((total, item) => {
-         const exchangeRate =
-          item.currency === 'USD'
-            ? exchangeRates.USD
-            : item.currency === 'EUR'
-            ? exchangeRates.EUR
-            : 1;
+    const groupTotals = Object.fromEntries(groupedItems.map(([groupName, itemsInGroup]) => {
+        const groupTotal = itemsInGroup.reduce((total, item) => {
+            const exchangeRate =
+                item.currency === 'USD' ? exchangeRates.USD :
+                item.currency === 'EUR' ? exchangeRates.EUR : 1;
 
-        const priceInfo = calculatePrice({
-            listPrice: item.listPrice,
-            discountRate: item.discountRate,
-            profitMargin: item.profitMargin,
-            exchangeRate: exchangeRate,
-        });
-        return total + priceInfo.tlSellPrice * item.quantity;
-      }, 0);
-      return acc;
-    }, {} as Record<string, number>);
+            const priceInfo = calculatePrice({
+                listPrice: item.listPrice,
+                discountRate: item.discountRate,
+                profitMargin: item.profitMargin,
+                exchangeRate: exchangeRate,
+            });
+            return total + (priceInfo.tlSellPrice * item.quantity);
+        }, 0);
+        return [groupName, groupTotal];
+    }));
 
     grandTotalTRY = Object.values(groupTotals).reduce((sum, total) => sum + total, 0);
 
@@ -400,7 +410,7 @@ export default function QuoteDetailPage() {
                 />
             )}
             
-            {Object.entries(groupedItems).map(([groupName, itemsInGroup]) => (
+            {groupedItems.map(([groupName, itemsInGroup]) => (
                  <section key={groupName} className="group relative">
                     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                         <div className="bg-slate-50/70 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
@@ -464,15 +474,15 @@ export default function QuoteDetailPage() {
                                       <FormField
                                         control={form.control}
                                         name={`items.${index}.quantity`}
-                                        render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-center bg-transparent border-dashed" />}
+                                        render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-center bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary" />}
                                       />
                                     </TableCell>
                                     <TableCell className="w-40">
-                                        <div className="flex items-center gap-1">
+                                        <div className="flex items-center justify-end gap-1">
                                             <FormField
                                                 control={form.control}
                                                 name={`items.${index}.listPrice`}
-                                                render={({ field }) => <Input {...field} type="number" step="any" className="w-28 text-right bg-transparent border-dashed"/>}
+                                                render={({ field }) => <Input {...field} type="number" step="any" className="w-28 text-right bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary"/>}
                                             />
                                             <span className="text-slate-500 font-mono text-xs">{itemValues.currency}</span>
                                         </div>
@@ -481,14 +491,14 @@ export default function QuoteDetailPage() {
                                        <FormField
                                             control={form.control}
                                             name={`items.${index}.discountRate`}
-                                            render={({ field }) => <Input {...field} type="number" step="0.01" className="w-24 text-center bg-transparent border-dashed" placeholder="0.15"/>}
+                                            render={({ field }) => <Input {...field} type="number" step="0.01" className="w-24 text-center bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary" placeholder="0.15"/>}
                                         />
                                     </TableCell>
                                      <TableCell className="w-28">
                                        <FormField
                                             control={form.control}
                                             name={`items.${index}.profitMargin`}
-                                            render={({ field }) => <Input {...field} type="number" step="0.01" className="w-24 text-center bg-transparent border-dashed" placeholder="0.20"/>}
+                                            render={({ field }) => <Input {...field} type="number" step="0.01" className="w-24 text-center bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary" placeholder="0.20"/>}
                                         />
                                     </TableCell>
                                     <TableCell className="text-right font-mono text-slate-600">
@@ -522,7 +532,7 @@ export default function QuoteDetailPage() {
                 <div className="flex justify-between items-center h-20">
                     <div className="text-xs text-slate-500 space-x-4">
                         <span>Toplam Kalem: <b className="font-mono">{fields.length}</b></span>
-                         <span>Toplam Grup: <b className="font-mono">{Object.keys(groupedItems).length}</b></span>
+                         <span>Toplam Grup: <b className="font-mono">{groupedItems.length}</b></span>
                     </div>
                     <div className="flex items-end gap-2">
                         <span className="text-sm text-slate-500 mb-1">Genel Toplam (KDV Dahil):</span>
