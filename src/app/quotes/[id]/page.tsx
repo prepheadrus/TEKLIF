@@ -192,7 +192,7 @@ export default function QuoteDetailPage() {
         exchangeRates: proposal.exchangeRates || { USD: 32.5, EUR: 35.0 }
       });
     }
-  }, [proposal, initialItems, form.reset]);
+  }, [proposal, initialItems, form]);
   
   useEffect(() => {
     if (proposal && initialItems && form.formState.isSubmitSuccessful === false) {
@@ -534,7 +534,7 @@ export default function QuoteDetailPage() {
             </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto px-8 py-8 space-y-8">
+        <main className="flex-1 px-8 py-8 space-y-8">
              {activeProductForAISuggestion && (
                 <AISuggestionBox 
                     productName={activeProductForAISuggestion}
@@ -551,7 +551,7 @@ export default function QuoteDetailPage() {
                  <section key={groupName} className="group/section relative">
                     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                         
-                         <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm">
+                         <div className="bg-white/95 backdrop-blur-sm">
                             <div className="px-6 py-3 border-b border-slate-200 flex justify-between items-center group/header">
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
@@ -598,7 +598,6 @@ export default function QuoteDetailPage() {
                                 </div>
                                 </div>
                             </div>
-                            <div className="overflow-x-auto">
                                <Table>
                                     <TableHeader className="text-xs uppercase text-slate-400 font-semibold tracking-wider border-b border-slate-100">
                                     <TableRow>
@@ -616,10 +615,8 @@ export default function QuoteDetailPage() {
                                     </TableRow>
                                     </TableHeader>
                                 </Table>
-                            </div>
                         </div>
-
-                        <div className="overflow-x-auto">
+                        <div className="max-h-[400px] overflow-y-auto">
                             <Table>
                                 <TableBody className="text-sm divide-y divide-slate-100">
                                     {itemsInGroup.map((item) => {
@@ -694,7 +691,7 @@ export default function QuoteDetailPage() {
                                 </TableBody>
                             </Table>
                         </div>
-                         <div className="p-2">
+                         <div className="p-2 border-t">
                            <Button type="button" variant="ghost" className="w-full text-sm text-slate-500 hover:text-primary" onClick={() => openProductSelectorForGroup(groupName)}>
                              <PlusCircle className="mr-2 h-4 w-4" /> Bu Gruba Ürün Ekle
                            </Button>
