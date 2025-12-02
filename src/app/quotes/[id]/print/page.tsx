@@ -140,14 +140,15 @@ export default function PrintQuotePage() {
             return a.localeCompare(b);
         });
         
-        const grandTotal = proposal.totalAmount;
-        const subTotalBeforeVat = grandTotal / 1.20;
-        const vatAmount = grandTotal - subTotalBeforeVat;
+        const grandTotal = sortedGroups.flatMap(([, groupItems]) => groupItems).reduce((sum, item) => sum + item.total, 0);
+        const subTotalBeforeVat = grandTotal; // Assuming totalAmount in proposal is already without VAT, and we add it at the end.
+        const vatAmount = subTotalBeforeVat * 0.20;
+        const finalTotal = subTotalBeforeVat + vatAmount;
         
         const totals = {
             subtotal: subTotalBeforeVat,
             vat: vatAmount,
-            grandTotal: grandTotal,
+            grandTotal: finalTotal,
         };
 
         return { groups: sortedGroups, totals };

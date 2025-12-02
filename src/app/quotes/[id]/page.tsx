@@ -172,9 +172,11 @@ export default function QuoteDetailPage() {
     name: 'items',
     keyName: 'formId',
   });
+  
+  const watchedItems = form.watch('items');
 
   const allGroups = useMemo(() => {
-    const currentItems = form.watch('items');
+    const currentItems = watchedItems;
     
     // Group items by 'groupName'
     const itemGroups = currentItems.reduce((acc, item, index) => {
@@ -200,7 +202,7 @@ export default function QuoteDetailPage() {
       return a.localeCompare(b);
     });
 
-  }, [form.watch('items'), emptyGroups]);
+  }, [watchedItems, emptyGroups]);
   
   // --- Effects ---
   useEffect(() => {
@@ -226,7 +228,7 @@ export default function QuoteDetailPage() {
 
   // --- Calculations ---
   const totals = useMemo(() => {
-    const items = form.watch('items');
+    const items = watchedItems;
     const exchangeRates = proposal?.exchangeRates || { USD: 1, EUR: 1 };
     
     let grandTotalTRY = 0;
@@ -251,57 +253,76 @@ export default function QuoteDetailPage() {
     grandTotalTRY = Object.values(groupTotals).reduce((sum, total) => sum + total, 0);
 
     return { grandTotal: grandTotalTRY, groupTotals };
-  }, [form.watch('items'), proposal?.exchangeRates, allGroups]);
+  }, [watchedItems, proposal?.exchangeRates, allGroups]);
 
 
   // --- Event Handlers ---
    const handleProductsSelected = (selectedProducts: ProductType[]) => {
-    
-    const newItems = selectedProducts.map(product => {
-      let groupName = 'Diğer';
+    const currentItems = form.getValues('items');
 
-      if (targetGroupForProductAdd) {
-        groupName = targetGroupForProductAdd;
-      } else if (product.installationTypeId && installationTypes) {
-         // Find the top-level parent
-         let current = installationTypes.find(it => it.id === product.installationTypeId);
-         let parent = current;
-         while(parent?.parentId) {
-             const nextParent = installationTypes.find(it => it.id === parent?.parentId);
-             if (nextParent) {
-                 parent = nextParent;
-             } else {
-                 break;
-             }
-         }
-         groupName = parent?.name || 'Diğer';
-      }
+    selectedProducts.forEach(product => {
+        const existingItemIndex = currentItems.findIndex(
+            item => item.productId === product.id && item.groupName === targetGroupForProductAdd
+        );
 
-      return {
-          productId: product.id,
-          name: product.name,
-          brand: product.brand,
-          unit: product.unit,
-          quantity: 1,
-          listPrice: product.listPrice,
-          currency: product.currency,
-          discountRate: product.discountRate,
-          profitMargin: 0.2, // Default 20%
-          groupName: groupName,
-      };
+        if (existingItemIndex !== -1) {
+            const existingItem = currentItems[existingItemIndex];
+            update(existingItemIndex, {
+                ...existingItem,
+                quantity: existingItem.quantity + 1,
+            });
+        } else {
+            let groupName = 'Diğer';
+            if (targetGroupForProductAdd) {
+                groupName = targetGroupForProductAdd;
+            } else if (product.installationTypeId && installationTypes) {
+                let current = installationTypes.find(it => it.id === product.installationTypeId);
+                let parent = current;
+                while (parent?.parentId) {
+                    const nextParent = installationTypes.find(it => it.id === parent.parentId);
+                    if (nextParent) {
+                        parent = nextParent;
+                    } else {
+                        break;
+                    }
+                }
+                groupName = parent?.name || 'Diğer';
+            }
+            
+            const newItem = {
+                productId: product.id,
+                name: product.name,
+                brand: product.brand,
+                unit: product.unit,
+                quantity: 1,
+                listPrice: product.listPrice,
+                currency: product.currency,
+                discountRate: product.discountRate,
+                profitMargin: 0.2, // Default 20%
+                groupName: groupName,
+            };
+            append(newItem);
+        }
     });
-    append(newItems);
+
     setIsProductSelectorOpen(false);
 
-    // If an empty group receives items, remove it from the emptyGroups state
     if (targetGroupForProductAdd) {
         setEmptyGroups(prev => prev.filter(g => g !== targetGroupForProductAdd));
     }
+    setTargetGroupForProductAdd(undefined);
 
-    if (newItems.length > 0) {
-      setActiveProductForAISuggestion(newItems[0].name);
+    if (selectedProducts.length > 0 && existingItemIndex(selectedProducts[0]) === -1) {
+      setActiveProductForAISuggestion(selectedProducts[0].name);
     }
   };
+
+  function existingItemIndex(product: ProductType): number {
+    const currentItems = form.getValues('items');
+    return currentItems.findIndex(
+        item => item.productId === product.id && item.groupName === targetGroupForProductAdd
+    );
+  }
 
   const handleAddNewGroup = () => {
     const newGroupName = `Yeni Grup ${emptyGroups.length + allGroups.length + 1}`;
@@ -527,7 +548,7 @@ export default function QuoteDetailPage() {
                             <TableBody className="text-sm divide-y divide-slate-100">
                               {itemsInGroup.map((item) => {
                                 const index = item.originalIndex;
-                                const itemValues = form.watch(`items.${index}`);
+                                const itemValues = watchedItems[index];
                                 const exchangeRate =
                                   itemValues.currency === 'USD'
                                     ? proposal.exchangeRates?.USD || 1
@@ -543,49 +564,49 @@ export default function QuoteDetailPage() {
                                 });
 
                                 return (
-                                  <TableRow key={item.id || item.productId + index} className="hover:bg-slate-50 group/row">
-                                    <TableCell>
+                                  <TableRow key={item.formId} className="hover:bg-slate-50 group/row">
+                                    <TableCell className="py-1">
                                         <div className="font-medium text-slate-800">{itemValues.name}</div>
                                         <div className="text-xs text-slate-500">{itemValues.brand} • {itemValues.unit}</div>
                                     </TableCell>
-                                    <TableCell className="w-24">
+                                    <TableCell className="w-24 py-1">
                                       <FormField
                                         control={form.control}
                                         name={`items.${index}.quantity`}
-                                        render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-center bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary" />}
+                                        render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-center bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8" />}
                                       />
                                     </TableCell>
-                                    <TableCell className="w-40">
+                                    <TableCell className="w-40 py-1">
                                         <div className="flex items-center justify-end gap-1">
                                             <FormField
                                                 control={form.control}
                                                 name={`items.${index}.listPrice`}
-                                                render={({ field }) => <Input {...field} type="number" step="any" className="w-28 text-right bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary"/>}
+                                                render={({ field }) => <Input {...field} type="number" step="any" className="w-28 text-right bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8"/>}
                                             />
                                             <span className="text-slate-500 font-mono text-xs">{itemValues.currency}</span>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="w-28">
+                                    <TableCell className="w-28 py-1">
                                        <FormField
                                             control={form.control}
                                             name={`items.${index}.discountRate`}
-                                            render={({ field }) => <Input {...field} type="number" step="0.01" className="w-24 text-center bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary" placeholder="0.15"/>}
+                                            render={({ field }) => <Input {...field} type="number" step="0.01" className="w-24 text-center bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8" placeholder="0.15"/>}
                                         />
                                     </TableCell>
-                                     <TableCell className="w-28">
+                                     <TableCell className="w-28 py-1">
                                        <FormField
                                             control={form.control}
                                             name={`items.${index}.profitMargin`}
-                                            render={({ field }) => <Input {...field} type="number" step="0.01" className="w-24 text-center bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary" placeholder="0.20"/>}
+                                            render={({ field }) => <Input {...field} type="number" step="0.01" className="w-24 text-center bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8" placeholder="0.20"/>}
                                         />
                                     </TableCell>
-                                    <TableCell className="text-right font-mono text-slate-600">
+                                    <TableCell className="text-right font-mono text-slate-600 py-1">
                                         {formatCurrency(priceInfo.tlSellPrice)}
                                     </TableCell>
-                                     <TableCell className="text-right font-bold font-mono text-slate-800">
+                                     <TableCell className="text-right font-bold font-mono text-slate-800 py-1">
                                         {formatCurrency(priceInfo.tlSellPrice * (itemValues.quantity || 0))}
                                      </TableCell>
-                                    <TableCell className="px-2 text-center">
+                                    <TableCell className="px-2 text-center py-1">
                                       <Button variant="ghost" size="icon" onClick={() => remove(index)} className="h-8 w-8 text-slate-400 hover:text-red-500 opacity-0 group-hover/row:opacity-100 transition-opacity">
                                         <Trash2 className="h-4 w-4" />
                                       </Button>
