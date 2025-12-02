@@ -8,7 +8,7 @@ import { collection, doc } from 'firebase/firestore';
 import { Loader2, Printer } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { calculatePrice } from '@/lib/pricing';
+import { calculateItemTotals } from '@/lib/pricing';
 
 
 type Proposal = {
@@ -76,7 +76,6 @@ export default function PrintQuotePage() {
     
     useEffect(() => {
         if (proposal && items && customer) {
-          // A small delay allows the browser to render the content before opening the print dialog.
           const timer = setTimeout(() => {
             window.print();
           }, 500);
@@ -102,24 +101,15 @@ export default function PrintQuotePage() {
         if (!items || !proposal) return { groups: [], totals: { subtotal: 0, vat: 0, grandTotal: 0 } };
 
         const calculatedItems: CalculatedItem[] = items.map(item => {
-            const exchangeRate =
-                item.currency === 'USD'
-                ? proposal.exchangeRates.USD
-                : item.currency === 'EUR'
-                ? proposal.exchangeRates.EUR
-                : 1;
-
-            const priceInfo = calculatePrice({
-                listPrice: item.listPrice,
-                discountRate: item.discountRate,
-                profitMargin: item.profitMargin,
-                exchangeRate: exchangeRate,
+            const totals = calculateItemTotals({
+                ...item,
+                 exchangeRate: item.currency === 'USD' ? (proposal.exchangeRates?.USD || 1) : item.currency === 'EUR' ? (proposal.exchangeRates?.EUR || 1) : 1,
             });
 
             return {
                 ...item,
-                unitPrice: priceInfo.tlSellPrice,
-                total: priceInfo.tlSellPrice * item.quantity,
+                unitPrice: totals.tlSellPrice,
+                total: totals.totalTlSell,
             };
         });
 
@@ -141,7 +131,7 @@ export default function PrintQuotePage() {
         });
         
         const grandTotal = sortedGroups.flatMap(([, groupItems]) => groupItems).reduce((sum, item) => sum + item.total, 0);
-        const subTotalBeforeVat = grandTotal; // Assuming totalAmount in proposal is already without VAT, and we add it at the end.
+        const subTotalBeforeVat = grandTotal; 
         const vatAmount = subTotalBeforeVat * 0.20;
         const finalTotal = subTotalBeforeVat + vatAmount;
         
@@ -218,7 +208,7 @@ export default function PrintQuotePage() {
                                     <thead className="bg-gray-50">
                                         <tr>
                                             <th className="p-2 font-semibold">#</th>
-                                            <th className="p-2 font-semibold">Açıklama</th>
+                                            <th className="p-2 font-semibold w-2/5">Açıklama</th>
                                             <th className="p-2 font-semibold">Marka</th>
                                             <th className="p-2 text-center font-semibold">Miktar</th>
                                             <th className="p-2 font-semibold">Birim</th>
