@@ -192,10 +192,9 @@ export default function QuoteDetailPage() {
         exchangeRates: proposal.exchangeRates || { USD: 32.5, EUR: 35.0 }
       });
     }
-  }, [proposal, initialItems, form]);
+  }, [proposal, initialItems, form.reset]);
   
   useEffect(() => {
-    // Only run if we have the data and the form has been reset
     if (proposal && initialItems && form.formState.isSubmitSuccessful === false) {
       handleFetchRates();
     }
@@ -493,7 +492,7 @@ export default function QuoteDetailPage() {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSaveChanges)} className="h-full flex flex-col bg-slate-50">
         
-        <header className="sticky top-[64px] z-20 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm px-8 py-4 flex justify-between items-center h-[88px]">
+        <header className="sticky top-[64px] z-30 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm px-8 py-4 flex justify-between items-center h-[88px]">
             <div>
                 <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
                     <Wrench className="w-6 h-6 text-primary" /> MechQuote <span className="text-slate-400 font-normal text-sm">| {proposal.quoteNumber} (v{proposal.version})</span>
@@ -551,70 +550,77 @@ export default function QuoteDetailPage() {
                 return (
                  <section key={groupName} className="group/section relative">
                     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div className="bg-slate-50/70 px-6 py-3 border-b border-slate-200 flex justify-between items-center group/header">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
-                                    {getGroupIcon(groupName)}
+                        
+                         <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm">
+                            <div className="px-6 py-3 border-b border-slate-200 flex justify-between items-center group/header">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
+                                        {getGroupIcon(groupName)}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        {editingGroupName === groupName ? (
+                                            <Input
+                                                ref={groupNameInputRef}
+                                                defaultValue={groupName}
+                                                onBlur={(e) => handleGroupNameChange(groupName, e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        handleGroupNameChange(groupName, e.currentTarget.value);
+                                                    }
+                                                    if (e.key === 'Escape') setEditingGroupName(null);
+                                                }}
+                                                className="h-8 text-lg font-bold"
+                                            />
+                                        ) : (
+                                            <>
+                                                <h2 className="font-bold text-slate-800 text-lg">{groupName}</h2>
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon" 
+                                                    className="h-7 w-7 text-slate-400 opacity-0 group-hover/header:opacity-100 transition-opacity"
+                                                    onClick={() => setEditingGroupName(groupName)}
+                                                >
+                                                    <Edit className="h-4 w-4"/>
+                                                </Button>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                     {editingGroupName === groupName ? (
-                                        <Input
-                                            ref={groupNameInputRef}
-                                            defaultValue={groupName}
-                                            onBlur={(e) => handleGroupNameChange(groupName, e.target.value)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    e.preventDefault();
-                                                    handleGroupNameChange(groupName, e.currentTarget.value);
-                                                }
-                                                if (e.key === 'Escape') setEditingGroupName(null);
-                                            }}
-                                            className="h-8 text-lg font-bold"
-                                        />
-                                    ) : (
-                                        <>
-                                            <h2 className="font-bold text-slate-800 text-lg">{groupName}</h2>
-                                            <Button 
-                                                variant="ghost" 
-                                                size="icon" 
-                                                className="h-7 w-7 text-slate-400 opacity-0 group-hover/header:opacity-100 transition-opacity"
-                                                onClick={() => setEditingGroupName(groupName)}
-                                            >
-                                                <Edit className="h-4 w-4"/>
-                                            </Button>
-                                        </>
-                                    )}
+                                <div className="flex items-center gap-6 text-right">
+                                <div>
+                                    <p className="text-xs text-slate-500">Grup Kârı</p>
+                                    <p className="font-mono text-2xl font-bold text-green-600">{formatCurrency(groupTotal.totalProfit)} <span className="text-sm font-medium">({formatPercent(groupProfitMargin)})</span></p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-slate-500">Grup Toplamı</p>
+                                    <p className="font-mono text-2xl font-bold text-slate-800">{formatCurrency(groupTotal.totalSell)}</p>
+                                </div>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-6 text-right">
-                               <div>
-                                   <p className="text-xs text-slate-500">Grup Kârı</p>
-                                   <p className="font-mono text-2xl font-bold text-green-600">{formatCurrency(groupTotal.totalProfit)} <span className="text-sm font-medium">({formatPercent(groupProfitMargin)})</span></p>
-                               </div>
-                               <div>
-                                   <p className="text-xs text-slate-500">Grup Toplamı</p>
-                                   <p className="font-mono text-2xl font-bold text-slate-800">{formatCurrency(groupTotal.totalSell)}</p>
-                               </div>
+                            <div className="overflow-x-auto">
+                               <Table>
+                                    <TableHeader className="text-xs uppercase text-slate-400 font-semibold tracking-wider border-b border-slate-100">
+                                    <TableRow>
+                                        <TableHead className="w-2/6 py-2 pl-4">Malzeme / Poz</TableHead>
+                                        <TableHead className="py-2">Marka</TableHead>
+                                        <TableHead className="text-right py-2">Miktar</TableHead>
+                                        <TableHead className="py-2">Birim</TableHead>
+                                        <TableHead className="text-right py-2">Liste Fiyatı</TableHead>
+                                        <TableHead className="text-right py-2">Alış Fiyatı (TL)</TableHead>
+                                        <TableHead className="text-right py-2">İskonto (%)</TableHead>
+                                        <TableHead className="text-right py-2">Kâr (%)</TableHead>
+                                        <TableHead className="text-right py-2">Birim Fiyat</TableHead>
+                                        <TableHead className="text-right py-2">Toplam</TableHead>
+                                        <TableHead className="w-10 py-2 pr-4"></TableHead>
+                                    </TableRow>
+                                    </TableHeader>
+                                </Table>
                             </div>
                         </div>
 
                         <div className="overflow-x-auto">
                             <Table>
-                                <TableHeader className="sticky top-0 z-10 bg-white/80 backdrop-blur-sm text-xs uppercase text-slate-400 font-semibold tracking-wider border-b border-slate-100">
-                                  <TableRow>
-                                    <TableHead className="w-2/6 py-2 pl-4">Malzeme / Poz</TableHead>
-                                    <TableHead className="py-2">Marka</TableHead>
-                                    <TableHead className="text-right py-2">Miktar</TableHead>
-                                    <TableHead className="py-2">Birim</TableHead>
-                                    <TableHead className="text-right py-2">Liste Fiyatı</TableHead>
-                                    <TableHead className="text-right py-2">Alış Fiyatı (TL)</TableHead>
-                                    <TableHead className="text-right py-2">İskonto (%)</TableHead>
-                                    <TableHead className="text-right py-2">Kâr (%)</TableHead>
-                                    <TableHead className="text-right py-2">Birim Fiyat</TableHead>
-                                    <TableHead className="text-right py-2">Toplam</TableHead>
-                                    <TableHead className="w-10 py-2 pr-4"></TableHead>
-                                  </TableRow>
-                                </TableHeader>
                                 <TableBody className="text-sm divide-y divide-slate-100">
                                     {itemsInGroup.map((item) => {
                                     const originalIndex = fields.findIndex(f => f.formId === item.formId);
@@ -625,7 +631,7 @@ export default function QuoteDetailPage() {
 
                                     return (
                                       <TableRow key={item.formId} className="hover:bg-slate-50 group/row">
-                                        <TableCell className="py-1 pl-4 font-medium text-slate-800">{itemValues.name}</TableCell>
+                                        <TableCell className="py-1 pl-4 font-medium text-slate-800 w-2/6">{itemValues.name}</TableCell>
                                         <TableCell className="py-1 w-36">
                                             <FormField control={form.control} name={`items.${originalIndex}.brand`} render={({ field }) => <Input {...field} className="w-32 h-8 bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary" />} />
                                         </TableCell>
@@ -704,7 +710,7 @@ export default function QuoteDetailPage() {
             </Button>
         </main>
 
-        <footer className="sticky bottom-0 z-20 bg-white/95 backdrop-blur-sm border-t border-slate-200 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
+        <footer className="sticky bottom-0 z-30 bg-white/95 backdrop-blur-sm border-t border-slate-200 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
             <div className="max-w-screen-xl mx-auto px-8">
                 <div className="flex justify-between items-center h-24">
                     <div className="text-xs text-slate-500 space-x-4">
