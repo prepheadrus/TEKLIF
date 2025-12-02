@@ -260,12 +260,8 @@ export default function QuoteDetailPage() {
   
   // Automatically fetch rates once when data is loaded
   useEffect(() => {
-      if (proposal && initialItems) {
-        // Only run once when the data is first loaded
-        // We use a flag to prevent re-fetching on every render
-        if (!form.formState.isDirty) {
-            handleFetchRates();
-        }
+      if (proposal && initialItems && initialItems.length > 0) {
+        handleFetchRates();
       }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proposal, initialItems]);
