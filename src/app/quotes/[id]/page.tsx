@@ -10,8 +10,8 @@ import {
   writeBatch,
   getDocs,
   query,
-  where,
   serverTimestamp,
+  getDoc,
 } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
@@ -48,6 +48,13 @@ import {
   Bot,
   X,
   FileDown,
+  Flame,
+  Droplets,
+  Wind,
+  ShieldCheck,
+  Thermometer,
+  Wrench,
+  ChevronDown,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -61,6 +68,8 @@ import { ProductSelector } from '@/components/app/product-selector';
 import type { Product as ProductType } from '@/app/products/page';
 import { suggestMissingParts } from '@/ai/flows/suggest-missing-parts';
 import { cn } from '@/lib/utils';
+import type { InstallationType } from '@/app/installation-types/page';
+
 
 const proposalItemSchema = z.object({
   id: z.string().optional(),
@@ -73,6 +82,8 @@ const proposalItemSchema = z.object({
   currency: z.enum(['TRY', 'USD', 'EUR']),
   discountRate: z.coerce.number().min(0).max(1),
   profitMargin: z.coerce.number().min(0),
+  // New grouping field
+  groupName: z.string().default('Diğer'),
   // Calculated fields, not part of the type
   cost: z.number().optional(),
   unitPrice: z.number().optional(),
@@ -82,7 +93,6 @@ const proposalItemSchema = z.object({
 const proposalSchema = z.object({
   versionNote: z.string().optional(),
   items: z.array(proposalItemSchema),
-  // Status removed, will be handled separately.
 });
 
 type ProposalFormValues = z.infer<typeof proposalSchema>;
@@ -102,6 +112,16 @@ type Proposal = {
   createdAt: { seconds: number };
 };
 
+const getGroupIcon = (groupName: string) => {
+    const lowerCaseName = groupName.toLowerCase();
+    if (lowerCaseName.includes('isitma')) return <Flame className="w-5 h-5" />;
+    if (lowerCaseName.includes('sihhi')) return <Droplets className="w-5 h-5" />;
+    if (lower.includes('soğutma')) return <Thermometer className="w-5 h-5" />;
+    if (lowerCaseName.includes('havalandirma')) return <Wind className="w-5 h-5" />;
+    if (lowerCaseName.includes('yangin')) return <ShieldCheck className="w-5 h-5" />;
+    return <Wrench className="w-5 h-5" />;
+}
+
 // Main Component
 export default function QuoteDetailPage() {
   const params = useParams();
@@ -119,13 +139,19 @@ export default function QuoteDetailPage() {
     () => (firestore && proposalId ? doc(firestore, 'proposals', proposalId) : null),
     [firestore, proposalId]
   );
-  const { data: proposal, isLoading: isLoadingProposal, refetch: refetchProposal } = useDoc<Proposal>(proposalRef);
+  const { data: proposal, isLoading: isLoadingProposal } = useDoc<Proposal>(proposalRef);
 
   const proposalItemsRef = useMemoFirebase(
     () => (firestore && proposalId ? collection(firestore, 'proposals', proposalId, 'proposal_items') : null),
     [firestore, proposalId]
   );
   const { data: initialItems, isLoading: isLoadingItems, refetch: refetchItems } = useCollection<ProposalItem>(proposalItemsRef);
+
+  const installationTypesRef = useMemoFirebase(
+    () => (firestore ? collection(firestore, 'installation_types') : null),
+    [firestore]
+  );
+  const { data: installationTypes, isLoading: isLoadingInstallationTypes } = useCollection<InstallationType>(installationTypesRef);
 
   const form = useForm<ProposalFormValues>({
     resolver: zodResolver(proposalSchema),
@@ -138,9 +164,21 @@ export default function QuoteDetailPage() {
   const { fields, append, remove, update } = useFieldArray({
     control: form.control,
     name: 'items',
-    keyName: 'formId', // Use 'formId' to avoid conflict with document 'id'
+    keyName: 'formId',
   });
 
+  const groupedItems = useMemo(() => {
+    const items = form.watch('items');
+    return items.reduce((acc, item, index) => {
+      const groupName = item.groupName || 'Diğer';
+      if (!acc[groupName]) {
+        acc[groupName] = [];
+      }
+      acc[groupName].push({ ...item, originalIndex: index });
+      return acc;
+    }, {} as Record<string, (ProposalItem & { originalIndex: number })[]>);
+  }, [form.watch('items')]);
+  
   // --- Effects ---
   useEffect(() => {
     if (proposal && initialItems) {
@@ -149,14 +187,7 @@ export default function QuoteDetailPage() {
         items: initialItems.map((item) => ({
           ...item,
           productId: item.productId || '',
-          name: item.name || '',
-          brand: item.brand || '',
-          quantity: item.quantity || 1,
-          unit: item.unit || '',
-          listPrice: item.listPrice || 0,
-          currency: item.currency || 'TRY',
-          discountRate: item.discountRate || 0,
-          profitMargin: item.profitMargin || 0,
+          groupName: item.groupName || 'Diğer',
         })),
       });
     }
@@ -170,46 +201,69 @@ export default function QuoteDetailPage() {
     
     let grandTotalTRY = 0;
 
-    items.forEach((item) => {
-      if (!item.listPrice || !item.quantity) return;
-      const exchangeRate =
-        item.currency === 'USD'
-          ? exchangeRates.USD
-          : item.currency === 'EUR'
-          ? exchangeRates.EUR
-          : 1;
+    const groupTotals = Object.entries(groupedItems).reduce((acc, [groupName, itemsInGroup]) => {
+      acc[groupName] = itemsInGroup.reduce((total, item) => {
+         const exchangeRate =
+          item.currency === 'USD'
+            ? exchangeRates.USD
+            : item.currency === 'EUR'
+            ? exchangeRates.EUR
+            : 1;
 
-      const priceInfo = calculatePrice({
-        listPrice: item.listPrice,
-        discountRate: item.discountRate,
-        profitMargin: item.profitMargin,
-        exchangeRate: exchangeRate,
-      });
+        const priceInfo = calculatePrice({
+            listPrice: item.listPrice,
+            discountRate: item.discountRate,
+            profitMargin: item.profitMargin,
+            exchangeRate: exchangeRate,
+        });
+        return total + priceInfo.tlSellPrice * item.quantity;
+      }, 0);
+      return acc;
+    }, {} as Record<string, number>);
 
-      grandTotalTRY += priceInfo.tlSellPrice * item.quantity;
-    });
+    grandTotalTRY = Object.values(groupTotals).reduce((sum, total) => sum + total, 0);
 
-    return { grandTotal: grandTotalTRY };
-  }, [form.watch('items'), proposal?.exchangeRates]);
+    return { grandTotal: grandTotalTRY, groupTotals };
+  }, [form.watch('items'), proposal?.exchangeRates, groupedItems]);
 
 
   // --- Event Handlers ---
-  const handleProductsSelected = (selectedProducts: ProductType[]) => {
-    const newItems = selectedProducts.map(product => ({
-      productId: product.id,
-      name: product.name,
-      brand: product.brand,
-      unit: product.unit,
-      quantity: 1,
-      listPrice: product.listPrice,
-      currency: product.currency,
-      discountRate: product.discountRate,
-      profitMargin: 0.2, // Default 20%
-    }));
+   const handleProductsSelected = (selectedProducts: ProductType[]) => {
+    const installationTypeMap = new Map(installationTypes?.map(it => [it.id, it.name]));
+
+    const newItems = selectedProducts.map(product => {
+      let groupName = 'Diğer';
+      if (product.installationTypeId && installationTypes) {
+         // Find the top-level parent
+         let current = installationTypes.find(it => it.id === product.installationTypeId);
+         let parent = current;
+         while(parent?.parentId) {
+             const nextParent = installationTypes.find(it => it.id === parent?.parentId);
+             if (nextParent) {
+                 parent = nextParent;
+             } else {
+                 break;
+             }
+         }
+         groupName = parent?.name || 'Diğer';
+      }
+
+      return {
+          productId: product.id,
+          name: product.name,
+          brand: product.brand,
+          unit: product.unit,
+          quantity: 1,
+          listPrice: product.listPrice,
+          currency: product.currency,
+          discountRate: product.discountRate,
+          profitMargin: 0.2, // Default 20%
+          groupName: groupName,
+      };
+    });
     append(newItems);
     setIsProductSelectorOpen(false);
 
-    // AI Suggestion for the first added product
     if (newItems.length > 0) {
       setActiveProductForAISuggestion(newItems[0].name);
     }
@@ -228,22 +282,20 @@ export default function QuoteDetailPage() {
     try {
       const batch = writeBatch(firestore);
 
-      // 1. Update the main proposal document
       const proposalDocRef = doc(firestore, 'proposals', proposalId);
       batch.update(proposalDocRef, {
         versionNote: data.versionNote,
-        totalAmount: totals.grandTotal, // Save the calculated total
+        totalAmount: totals.grandTotal,
         updatedAt: serverTimestamp(),
       });
 
-      // 2. Sync proposal items
       const itemsCollectionRef = collection(
         firestore,
         'proposals',
         proposalId,
         'proposal_items'
       );
-
+      
       const existingItemsSnap = await getDocs(itemsCollectionRef);
       const existingIds = existingItemsSnap.docs.map((d) => d.id);
       const formIds = data.items.map((item) => item.id).filter(Boolean);
@@ -258,13 +310,12 @@ export default function QuoteDetailPage() {
         const itemRef = item.id
           ? doc(itemsCollectionRef, item.id)
           : doc(itemsCollectionRef);
-        batch.set(itemRef, dbItem);
+        batch.set(itemRef, dbItem, { merge: true });
       });
 
       await batch.commit();
       
-      // We need to refetch data to show updated values from DB
-      await Promise.all([refetchProposal(), refetchItems()]);
+      await refetchItems();
 
       toast({
         title: 'Başarılı!',
@@ -282,7 +333,7 @@ export default function QuoteDetailPage() {
     }
   };
 
-  const isLoading = isLoadingProposal || isLoadingItems;
+  const isLoading = isLoadingProposal || isLoadingItems || isLoadingInstallationTypes;
 
   if (isLoading) {
     return (
@@ -305,11 +356,10 @@ export default function QuoteDetailPage() {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSaveChanges)}>
         
-        {/* Sticky Header */}
-        <header className="sticky top-16 z-40 bg-background/80 backdrop-blur-md border-b border-slate-200 -mx-8 -mt-8 mb-8 px-8 py-4 flex justify-between items-center">
+        <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm -mx-8 -mt-8 mb-8 px-8 py-4 flex justify-between items-center">
             <div>
                 <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                    MechQuote <span className="text-slate-400 font-normal text-sm">| {proposal.quoteNumber} (v{proposal.version})</span>
+                    <Wrench className="w-6 h-6 text-primary" /> MechQuote <span className="text-slate-400 font-normal text-sm">| {proposal.quoteNumber} (v{proposal.version})</span>
                 </h1>
                 <p className="text-xs text-slate-500 mt-1">Müşteri: <span className="font-medium text-slate-700">{proposal.customerName}</span> • Proje: <span className="font-medium text-slate-700">{proposal.projectName}</span></p>
             </div>
@@ -334,14 +384,13 @@ export default function QuoteDetailPage() {
                 >
                     <FileDown className="mr-2 h-4 w-4" /> PDF
                 </Button>
-                <Button type="submit" disabled={isSaving} className="bg-primary text-primary-foreground hover:bg-primary/90 transition">
+                <Button type="submit" disabled={isSaving} className="bg-primary text-white hover:bg-primary/90 transition">
                     {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                     Değişiklikleri Kaydet
                 </Button>
             </div>
         </header>
 
-        {/* Main Content */}
         <div className="space-y-8 pb-24">
              {activeProductForAISuggestion && (
                 <AISuggestionBox 
@@ -351,114 +400,129 @@ export default function QuoteDetailPage() {
                 />
             )}
             
-            <section>
-                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div className="bg-slate-50/70 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
-                        <h2 className="font-bold text-slate-800">Teklif Kalemleri</h2>
-                        <Button variant="outline" size="sm" onClick={() => setIsProductSelectorOpen(true)}>
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Kalem Ekle
-                        </Button>
-                    </div>
+            {Object.entries(groupedItems).map(([groupName, itemsInGroup]) => (
+                 <section key={groupName} className="group relative">
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div className="bg-slate-50/70 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
+                                    {getGroupIcon(groupName)}
+                                </div>
+                                <div>
+                                    <h2 className="font-bold text-slate-800">{groupName}</h2>
+                                    <p className="text-xs text-slate-500">Grup Toplamı: <span className="font-mono font-bold text-slate-700">{formatCurrency(totals.groupTotals[groupName] || 0)}</span></p>
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsProductSelectorOpen(true)}>
+                                    <PlusCircle className="h-5 w-5" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <ChevronDown className="h-5 w-5" />
+                                </Button>
+                            </div>
+                        </div>
 
-                    <Table>
-                        <TableHeader className="bg-white text-xs uppercase text-slate-400 font-semibold tracking-wider border-b border-slate-100">
-                          <TableRow>
-                            <TableHead className="w-2/5">Malzeme / Poz</TableHead>
-                            <TableHead className="text-center">Miktar</TableHead>
-                            <TableHead className="text-center">Liste Fiyatı</TableHead>
-                            <TableHead className="text-center">İsk. (%)</TableHead>
-                            <TableHead className="text-center">Kâr (%)</TableHead>
-                            <TableHead className="text-right">Birim Fiyat</TableHead>
-                            <TableHead className="text-right">Toplam</TableHead>
-                            <TableHead className="w-10"></TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody className="text-sm divide-y divide-slate-100">
-                          {fields.map((field, index) => {
-                            const itemValues = form.watch(`items.${index}`);
-                            const exchangeRate =
-                              itemValues.currency === 'USD'
-                                ? proposal.exchangeRates?.USD || 1
-                                : itemValues.currency === 'EUR'
-                                ? proposal.exchangeRates?.EUR || 1
-                                : 1;
-
-                            const priceInfo = calculatePrice({
-                              listPrice: itemValues.listPrice,
-                              discountRate: itemValues.discountRate,
-                              profitMargin: itemValues.profitMargin,
-                              exchangeRate: exchangeRate,
-                            });
-
-                            return (
-                              <TableRow key={field.formId} className="hover:bg-slate-50 group">
-                                <TableCell>
-                                    <div className="font-medium text-slate-800">{itemValues.name}</div>
-                                    <div className="text-xs text-slate-500">{itemValues.brand} • {itemValues.unit}</div>
-                                </TableCell>
-                                <TableCell className="w-24">
-                                  <FormField
-                                    control={form.control}
-                                    name={`items.${index}.quantity`}
-                                    render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-center bg-transparent border-dashed" />}
-                                  />
-                                </TableCell>
-                                <TableCell className="w-40">
-                                    <div className="flex items-center gap-1">
-                                        <FormField
-                                            control={form.control}
-                                            name={`items.${index}.listPrice`}
-                                            render={({ field }) => <Input {...field} type="number" step="any" className="w-28 text-right bg-transparent border-dashed"/>}
-                                        />
-                                        <span className="text-slate-500 font-mono text-xs">{itemValues.currency}</span>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="w-28">
-                                   <FormField
-                                        control={form.control}
-                                        name={`items.${index}.discountRate`}
-                                        render={({ field }) => <Input {...field} type="number" step="0.01" className="w-24 text-center bg-transparent border-dashed" placeholder="0.15"/>}
-                                    />
-                                </TableCell>
-                                 <TableCell className="w-28">
-                                   <FormField
-                                        control={form.control}
-                                        name={`items.${index}.profitMargin`}
-                                        render={({ field }) => <Input {...field} type="number" step="0.01" className="w-24 text-center bg-transparent border-dashed" placeholder="0.20"/>}
-                                    />
-                                </TableCell>
-                                <TableCell className="text-right font-mono text-slate-600">
-                                    {formatCurrency(priceInfo.tlSellPrice)}
-                                </TableCell>
-                                 <TableCell className="text-right font-bold font-mono text-slate-800">
-                                    {formatCurrency(priceInfo.tlSellPrice * (itemValues.quantity || 0))}
-                                </TableCell>
-                                <TableCell className="px-2 text-center">
-                                  <Button variant="ghost" size="icon" onClick={() => remove(index)} className="h-8 w-8 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </TableCell>
+                        <Table>
+                            <TableHeader className="bg-white text-xs uppercase text-slate-400 font-semibold tracking-wider border-b border-slate-100">
+                              <TableRow>
+                                <TableHead className="w-2/5">Malzeme / Poz</TableHead>
+                                <TableHead className="text-center">Miktar</TableHead>
+                                <TableHead className="text-center">Liste Fiyatı</TableHead>
+                                <TableHead className="text-center">İsk. (%)</TableHead>
+                                <TableHead className="text-center">Kâr (%)</TableHead>
+                                <TableHead className="text-right">Birim Fiyat</TableHead>
+                                <TableHead className="text-right">Toplam</TableHead>
+                                <TableHead className="w-10"></TableHead>
                               </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                    </Table>
-                 </div>
-            </section>
+                            </TableHeader>
+                            <TableBody className="text-sm divide-y divide-slate-100">
+                              {itemsInGroup.map((item) => {
+                                const index = item.originalIndex;
+                                const itemValues = form.watch(`items.${index}`);
+                                const exchangeRate =
+                                  itemValues.currency === 'USD'
+                                    ? proposal.exchangeRates?.USD || 1
+                                    : itemValues.currency === 'EUR'
+                                    ? proposal.exchangeRates?.EUR || 1
+                                    : 1;
 
-             <Button type="button" className="w-full py-6 border-2 border-dashed border-slate-300 rounded-xl text-slate-400 font-medium bg-white hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all flex-col items-center gap-1 h-auto">
+                                const priceInfo = calculatePrice({
+                                  listPrice: itemValues.listPrice,
+                                  discountRate: itemValues.discountRate,
+                                  profitMargin: itemValues.profitMargin,
+                                  exchangeRate: exchangeRate,
+                                });
+
+                                return (
+                                  <TableRow key={item.id || item.productId} className="hover:bg-slate-50 group">
+                                    <TableCell>
+                                        <div className="font-medium text-slate-800">{itemValues.name}</div>
+                                        <div className="text-xs text-slate-500">{itemValues.brand} • {itemValues.unit}</div>
+                                    </TableCell>
+                                    <TableCell className="w-24">
+                                      <FormField
+                                        control={form.control}
+                                        name={`items.${index}.quantity`}
+                                        render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-center bg-transparent border-dashed" />}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="w-40">
+                                        <div className="flex items-center gap-1">
+                                            <FormField
+                                                control={form.control}
+                                                name={`items.${index}.listPrice`}
+                                                render={({ field }) => <Input {...field} type="number" step="any" className="w-28 text-right bg-transparent border-dashed"/>}
+                                            />
+                                            <span className="text-slate-500 font-mono text-xs">{itemValues.currency}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="w-28">
+                                       <FormField
+                                            control={form.control}
+                                            name={`items.${index}.discountRate`}
+                                            render={({ field }) => <Input {...field} type="number" step="0.01" className="w-24 text-center bg-transparent border-dashed" placeholder="0.15"/>}
+                                        />
+                                    </TableCell>
+                                     <TableCell className="w-28">
+                                       <FormField
+                                            control={form.control}
+                                            name={`items.${index}.profitMargin`}
+                                            render={({ field }) => <Input {...field} type="number" step="0.01" className="w-24 text-center bg-transparent border-dashed" placeholder="0.20"/>}
+                                        />
+                                    </TableCell>
+                                    <TableCell className="text-right font-mono text-slate-600">
+                                        {formatCurrency(priceInfo.tlSellPrice)}
+                                    </TableCell>
+                                     <TableCell className="text-right font-bold font-mono text-slate-800">
+                                        {formatCurrency(priceInfo.tlSellPrice * (itemValues.quantity || 0))}
+                                     </TableCell>
+                                    <TableCell className="px-2 text-center">
+                                      <Button variant="ghost" size="icon" onClick={() => remove(index)} className="h-8 w-8 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </section>
+            ))}
+
+            <Button type="button" className="w-full py-6 border-2 border-dashed border-slate-300 rounded-xl text-slate-400 font-medium bg-white hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all flex-col items-center gap-1 h-auto" onClick={() => alert('Yeni grup ekleme özelliği yakında eklenecektir.')}>
                 <PlusCircle className="h-6 w-6" />
                 <span>Yeni Mahal / Sistem Grubu Ekle (Yakında)</span>
             </Button>
         </div>
 
-         {/* Sticky Footer */}
-        <footer className="fixed bottom-0 w-full bg-white/95 backdrop-blur-sm border-t border-slate-200 shadow-[0_-5px_15px_rgba(0,0,0,0.05)] z-30">
-            <div className="mx-auto px-8">
+        <footer className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-slate-200 shadow-[0_-5px_15px_rgba(0,0,0,0.05)] z-30">
+            <div className="max-w-7xl mx-auto px-8">
                 <div className="flex justify-between items-center h-20">
                     <div className="text-xs text-slate-500 space-x-4">
                         <span>Toplam Kalem: <b className="font-mono">{fields.length}</b></span>
+                         <span>Toplam Grup: <b className="font-mono">{Object.keys(groupedItems).length}</b></span>
                     </div>
                     <div className="flex items-end gap-2">
                         <span className="text-sm text-slate-500 mb-1">Genel Toplam (KDV Dahil):</span>
