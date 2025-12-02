@@ -63,7 +63,7 @@ import {
   useCollection,
   useMemoFirebase,
 } from '@/firebase';
-import { calculateItemTotals } from '@/lib/pricing';
+import { calculatePrice } from '@/lib/pricing';
 import { ProductSelector } from '@/components/app/product-selector';
 import type { Product as ProductType } from '@/app/products/page';
 import { suggestMissingParts } from '@/ai/flows/suggest-missing-parts';
@@ -194,10 +194,9 @@ export default function QuoteDetailPage() {
     }
   }, [proposal, initialItems, form]);
   
-    // Automatically fetch rates once when data is loaded
   useEffect(() => {
     // Only run if we have the data and the form has been reset
-    if (proposal && initialItems && initialItems.length > 0) {
+    if (proposal && initialItems && form.formState.isSubmitSuccessful === false && form.formState.isDirty === false) {
       handleFetchRates();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -215,16 +214,29 @@ export default function QuoteDetailPage() {
     let grandTotalSell = 0;
     let grandTotalCost = 0;
 
+    const calculateItemTotals = (item: ProposalItem) => {
+        const exchangeRate = item.currency === 'USD' ? watchedRates.USD : item.currency === 'EUR' ? watchedRates.EUR : 1;
+        const priceInfo = calculatePrice({
+            listPrice: item.listPrice,
+            discountRate: item.discountRate,
+            profitMargin: item.profitMargin,
+            exchangeRate,
+        });
+
+        const totalTlCost = priceInfo.tlCost * item.quantity;
+        const totalTlSell = priceInfo.tlSellPrice * item.quantity;
+        const totalProfit = priceInfo.profitAmount * item.quantity;
+
+        return { ...priceInfo, totalTlCost, totalTlSell, totalProfit };
+    };
+
     const groupTotals = watchedItems.reduce((acc, item) => {
         const groupName = item.groupName || 'Diğer';
         if (!acc[groupName]) {
             acc[groupName] = { totalSell: 0, totalCost: 0, totalProfit: 0 };
         }
         
-        const totals = calculateItemTotals({
-            ...item,
-            exchangeRate: item.currency === 'USD' ? watchedRates.USD : item.currency === 'EUR' ? watchedRates.EUR : 1,
-        });
+        const totals = calculateItemTotals(item);
 
         acc[groupName].totalSell += totals.totalTlSell;
         acc[groupName].totalCost += totals.totalTlCost;
@@ -481,7 +493,7 @@ export default function QuoteDetailPage() {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSaveChanges)} className="h-full flex flex-col">
         
-        <header className="sticky top-[64px] z-40 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm px-8 py-4 flex justify-between items-center">
+        <header className="sticky top-[64px] z-40 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm px-8 py-4 flex justify-between items-center h-[88px]">
             <div>
                 <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
                     <Wrench className="w-6 h-6 text-primary" /> MechQuote <span className="text-slate-400 font-normal text-sm">| {proposal.quoteNumber} (v{proposal.version})</span>
@@ -577,27 +589,27 @@ export default function QuoteDetailPage() {
                             <div className="flex items-center gap-6 text-right">
                                <div>
                                    <p className="text-xs text-slate-500">Grup Kârı</p>
-                                   <p className="font-mono text-xl font-bold text-green-600">{formatCurrency(groupTotal.totalProfit)} <span className="text-sm font-medium">({formatPercent(groupProfitMargin)})</span></p>
+                                   <p className="font-mono text-2xl font-bold text-green-600">{formatCurrency(groupTotal.totalProfit)} <span className="text-sm font-medium">({formatPercent(groupProfitMargin)})</span></p>
                                </div>
                                <div>
                                    <p className="text-xs text-slate-500">Grup Toplamı</p>
-                                   <p className="font-mono text-xl font-bold text-slate-800">{formatCurrency(groupTotal.totalSell)}</p>
+                                   <p className="font-mono text-2xl font-bold text-slate-800">{formatCurrency(groupTotal.totalSell)}</p>
                                </div>
                             </div>
                         </div>
 
                         <div className="overflow-x-auto">
                             <Table>
-                                <TableHeader className="sticky top-0 z-10 bg-white text-xs uppercase text-slate-400 font-semibold tracking-wider border-b border-slate-100">
+                                <TableHeader className="sticky top-[152px] z-10 bg-white text-xs uppercase text-slate-400 font-semibold tracking-wider border-b border-slate-100">
                                   <TableRow>
                                     <TableHead className="w-2/6 py-2 pl-4">Malzeme / Poz</TableHead>
                                     <TableHead className="py-2">Marka</TableHead>
-                                    <TableHead className="text-center py-2">Miktar</TableHead>
+                                    <TableHead className="text-right py-2">Miktar</TableHead>
                                     <TableHead className="py-2">Birim</TableHead>
                                     <TableHead className="text-right py-2">Liste Fiyatı</TableHead>
                                     <TableHead className="text-right py-2">Alış Fiyatı (TL)</TableHead>
-                                    <TableHead className="text-center py-2">İskonto (%)</TableHead>
-                                    <TableHead className="text-center py-2">Kâr (%)</TableHead>
+                                    <TableHead className="text-right py-2">İskonto (%)</TableHead>
+                                    <TableHead className="text-right py-2">Kâr (%)</TableHead>
                                     <TableHead className="text-right py-2">Birim Fiyat</TableHead>
                                     <TableHead className="text-right py-2">Toplam</TableHead>
                                     <TableHead className="w-10 py-2 pr-4"></TableHead>
@@ -609,10 +621,7 @@ export default function QuoteDetailPage() {
                                     if (originalIndex === -1) return null;
                                     const itemValues = watchedItems[originalIndex];
                                     if (!itemValues) return null;
-                                    const itemTotals = calculateItemTotals({
-                                        ...itemValues,
-                                        exchangeRate: itemValues.currency === 'USD' ? watchedRates.USD : itemValues.currency === 'EUR' ? watchedRates.EUR : 1,
-                                    });
+                                    const itemTotals = calculateItemTotals(itemValues);
 
                                     return (
                                       <TableRow key={item.formId} className="hover:bg-slate-50 group/row">
@@ -621,12 +630,12 @@ export default function QuoteDetailPage() {
                                             <FormField control={form.control} name={`items.${originalIndex}.brand`} render={({ field }) => <Input {...field} className="w-32 h-8 bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary" />} />
                                         </TableCell>
                                         <TableCell className="w-24 py-1">
-                                          <FormField control={form.control} name={`items.${originalIndex}.quantity`} render={({ field }) => <Input {...field} type="number" step="any" className="w-20 text-center font-mono bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8" />} />
+                                          <FormField control={form.control} name={`items.${originalIndex}.quantity`} render={({ field }) => <Input {...field} type="number" step="any" className="w-20 font-mono text-right bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8" />} />
                                         </TableCell>
                                         <TableCell className="py-1 w-24">
                                             <FormField control={form.control} name={`items.${originalIndex}.unit`} render={({ field }) => <Input {...field} className="w-20 h-8 bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary" />} />
                                         </TableCell>
-                                        <TableCell className="w-40 py-1 text-right font-mono tabular-nums">
+                                        <TableCell className="w-40 py-1 font-mono text-right">
                                             <div className="flex items-center justify-end gap-1">
                                                 <FormField control={form.control} name={`items.${originalIndex}.listPrice`} render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-right font-mono bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8"/>} />
                                                 <span className="text-slate-500 font-mono text-xs">{itemValues.currency}</span>
@@ -634,7 +643,7 @@ export default function QuoteDetailPage() {
                                         </TableCell>
                                         <TableCell className="text-right font-mono tabular-nums text-slate-500 py-1 w-32">{formatNumber(itemTotals.tlCost)}</TableCell>
                                         <TableCell className="w-44 py-1">
-                                           <div className="flex items-center justify-center gap-1">
+                                           <div className="flex items-center justify-end gap-1">
                                                <Controller
                                                     control={form.control}
                                                     name={`items.${originalIndex}.discountRate`}
@@ -643,14 +652,14 @@ export default function QuoteDetailPage() {
                                                             type="number"
                                                             value={Math.round(field.value * 100)}
                                                             onChange={e => field.onChange(parseFloat(e.target.value) / 100)}
-                                                            className="w-16 text-center font-mono bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8" placeholder="15"/>
+                                                            className="w-16 text-right font-mono bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8" placeholder="15"/>
                                                     )}
                                                 />
-                                                <span className="text-slate-400 text-xs">%</span>
+                                                <span className="text-slate-400">%</span>
                                            </div>
                                         </TableCell>
                                         <TableCell className="w-48 py-1">
-                                           <div className="flex items-center justify-center gap-1">
+                                           <div className="flex items-center justify-end gap-1">
                                                 <Controller
                                                     control={form.control}
                                                     name={`items.${originalIndex}.profitMargin`}
@@ -659,15 +668,15 @@ export default function QuoteDetailPage() {
                                                             type="number"
                                                             value={Math.round(field.value * 100)}
                                                             onChange={e => field.onChange(parseFloat(e.target.value) / 100)}
-                                                            className="w-16 text-center font-mono bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8" placeholder="20"/>
+                                                            className="w-16 text-right font-mono bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8" placeholder="20"/>
                                                     )}
                                                 />
-                                                <span className="text-slate-400 text-xs">%</span>
-                                                <div className="text-xs text-green-600 font-mono tabular-nums">({formatNumber(itemTotals.profitAmount)} TL)</div>
+                                                <span className="text-slate-400">%</span>
+                                                <div className="text-xs text-green-600 font-mono tabular-nums">({formatNumber(itemTotals.profitAmount)})</div>
                                            </div>
                                         </TableCell>
-                                        <TableCell className="text-right font-mono tabular-nums font-semibold text-slate-600 py-1 w-32 text-base">{formatNumber(itemTotals.tlSellPrice)}</TableCell>
-                                        <TableCell className="text-right font-bold font-mono tabular-nums text-base text-slate-800 py-1 w-36">{formatCurrency(itemTotals.totalTlSell)}</TableCell>
+                                        <TableCell className="text-right font-mono tabular-nums font-semibold text-slate-600 py-1 w-32 text-lg">{formatNumber(itemTotals.tlSellPrice)}</TableCell>
+                                        <TableCell className="text-right font-bold font-mono tabular-nums text-lg text-slate-800 py-1 w-36">{formatCurrency(itemTotals.totalTlSell)}</TableCell>
                                         <TableCell className="px-2 text-center py-1">
                                           <Button variant="ghost" size="icon" onClick={() => remove(originalIndex)} className="h-8 w-8 text-slate-400 hover:text-red-500 opacity-0 group-hover/row:opacity-100 transition-opacity">
                                             <Trash2 className="h-4 w-4" />
@@ -705,14 +714,14 @@ export default function QuoteDetailPage() {
                     <div className="flex items-end gap-8">
                         <div className="text-right">
                            <span className="text-sm text-slate-500 mb-1">Toplam Kâr:</span>
-                           <span className="block text-2xl font-bold font-mono tabular-nums text-green-600">
+                           <span className="block text-3xl font-bold font-mono tabular-nums text-green-600">
                             {formatCurrency(calculatedTotals.grandTotalProfit)}
                             <span className="text-base font-medium ml-2">({formatPercent(calculatedTotals.grandTotalProfitMargin)})</span>
                            </span>
                         </div>
                          <div className="text-right">
                             <span className="text-sm text-slate-500 mb-1">Genel Toplam (KDV Dahil):</span>
-                            <span className="block text-4xl font-bold font-mono tabular-nums text-slate-900">{formatCurrency(calculatedTotals.grandTotalSell * 1.2)}</span>
+                            <span className="block text-5xl font-bold font-mono tabular-nums text-slate-900">{formatCurrency(calculatedTotals.grandTotalSell * 1.2)}</span>
                         </div>
                     </div>
                 </div>
