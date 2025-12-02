@@ -40,7 +40,8 @@ const fetchExchangeRatesFlow = ai.defineFlow(
       const data = await response.json();
       
       const usdRateStr = data['USD']?.alis;
-      const eurRateStr = data['EUR']?.alis;
+      // CORRECTED: The API uses 'AVRUPA' for EUR, not 'EUR'
+      const eurRateStr = data['AVRUPA']?.alis;
       
       if (!usdRateStr || !eurRateStr) {
         throw new Error('USD or EUR rate not found in the API response.');
