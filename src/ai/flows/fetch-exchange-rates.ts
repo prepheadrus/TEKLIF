@@ -34,24 +34,22 @@ const fetchExchangeRatesFlow = ai.defineFlow(
     try {
       // This API fetches and parses the official TCMB XML data into JSON format.
       // It's a reliable way to get TCMB data without needing an XML parser in the project.
-      const response = await fetch('https://hasaneke.com/api/tcmb', { cache: 'no-store' });
+      const response = await fetch('https://tcmb-exchange-rates.vercel.app/api/today.json', { cache: 'no-store' });
       if (!response.ok) {
         throw new Error(`Failed to fetch exchange rates: ${response.statusText}`);
       }
       const data = await response.json();
       
-      const usdRateStr = data['USD']?.alis;
-      // The API uses 'AVRUPA' for EUR, which corresponds to the Euro.
-      const eurRateStr = data['AVRUPA']?.alis;
+      const usdRateStr = data['USD']?.ForexBuying;
+      const eurRateStr = data['EUR']?.ForexBuying;
       
       if (!usdRateStr || !eurRateStr) {
         throw new Error('USD or EUR rate not found in the API response.');
       }
 
-      // The API returns strings with commas as decimal separators (e.g., "32,85").
-      // Replace the comma with a dot to parse it correctly as a float.
-      const usdRate = parseFloat(usdRateStr.replace(',', '.'));
-      const eurRate = parseFloat(eurRateStr.replace(',', '.'));
+      // The API returns strings which can be directly parsed.
+      const usdRate = parseFloat(usdRateStr);
+      const eurRate = parseFloat(eurRateStr);
 
       if (isNaN(usdRate) || isNaN(eurRate)) {
         throw new Error('Could not parse exchange rates to numbers.');
