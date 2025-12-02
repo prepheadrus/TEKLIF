@@ -170,13 +170,14 @@ export default function QuoteDetailPage() {
   
   const watchedItems = form.watch('items');
 
-  // --- Calculations with Memoization ---
-  const calculatedTotals = useMemo(() => {
-    const exchangeRates = proposal?.exchangeRates || { USD: 1, EUR: 1 };
+  // --- Calculations ---
+  // This is now calculated on every render, ensuring it's always up-to-date.
+  // We removed useMemo to fix the stale calculation issue.
+  const calculateAllTotals = (items: ProposalItem[], exchangeRates: { USD: number; EUR: number }) => {
     let grandTotalSell = 0;
     let grandTotalCost = 0;
 
-    const groupTotals = watchedItems.reduce((acc, item) => {
+    const groupTotals = items.reduce((acc, item) => {
         const groupName = item.groupName || 'Diğer';
         if (!acc[groupName]) {
             acc[groupName] = { totalSell: 0, totalCost: 0, totalProfit: 0 };
@@ -207,7 +208,10 @@ export default function QuoteDetailPage() {
         grandTotalProfit,
         grandTotalProfitMargin
     };
-  }, [watchedItems, proposal?.exchangeRates]);
+  };
+
+  const calculatedTotals = calculateAllTotals(watchedItems, proposal?.exchangeRates || { USD: 1, EUR: 1 });
+
 
   const allGroups = useMemo(() => {
     const itemGroups = fields.reduce((acc, field, index) => {
@@ -262,6 +266,7 @@ export default function QuoteDetailPage() {
     const currentItems = form.getValues('items');
 
     selectedProducts.forEach(product => {
+        // Use targetGroupForProductAdd to ensure we only check within the correct group
         const existingItemIndex = currentItems.findIndex(
             item => item.productId === product.id && item.groupName === (targetGroupForProductAdd || 'Diğer')
         );
@@ -274,6 +279,7 @@ export default function QuoteDetailPage() {
             });
         } else {
             let groupName = targetGroupForProductAdd || 'Diğer';
+             // If no specific group was targeted, try to find the product's default installation category
              if (!targetGroupForProductAdd && product.installationTypeId && installationTypes) {
                 let current = installationTypes.find(it => it.id === product.installationTypeId);
                 let parent = current;
@@ -306,11 +312,12 @@ export default function QuoteDetailPage() {
     });
 
     setIsProductSelectorOpen(false);
-
+    
+    // If a product was added to a previously empty group, remove that group from the emptyGroups state
     if (targetGroupForProductAdd) {
         setEmptyGroups(prev => prev.filter(g => g !== targetGroupForProductAdd));
     }
-    setTargetGroupForProductAdd(undefined);
+    setTargetGroupForProductAdd(undefined); // Reset the target group
     
     const firstNewProduct = selectedProducts.find(p => !currentItems.some(item => item.productId === p.id));
     if (firstNewProduct) {
@@ -321,6 +328,7 @@ export default function QuoteDetailPage() {
   const handleAddNewGroup = () => {
     const newGroupName = `Yeni Grup ${emptyGroups.length + allGroups.length + 1}`;
     setEmptyGroups(prev => [...prev, newGroupName]);
+    // Set a timeout to ensure the new input field is rendered before trying to focus it
     setTimeout(() => {
         setEditingGroupName(newGroupName);
     }, 100);
@@ -332,6 +340,7 @@ export default function QuoteDetailPage() {
         return;
     }
 
+    // Update items in the form state
     const currentItems = form.getValues('items');
     currentItems.forEach((item, index) => {
         if (item.groupName === oldName) {
@@ -339,6 +348,7 @@ export default function QuoteDetailPage() {
         }
     });
 
+    // Update the emptyGroups state if the renamed group was an empty one
     setEmptyGroups(prev => prev.map(g => g === oldName ? newName : g).filter(g => g !== oldName || !allGroups.some(([groupName]) => groupName === newName)));
     
     setEditingGroupName(null);
