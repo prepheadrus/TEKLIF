@@ -32,22 +32,21 @@ const fetchExchangeRatesFlow = ai.defineFlow(
   },
   async () => {
     try {
-      // This API fetches and parses the official TCMB XML data into JSON format.
-      // It's a reliable way to get TCMB data without needing an XML parser in the project.
-      const response = await fetch('https://tcmb-exchange-rates.vercel.app/api/today.json', { cache: 'no-store' });
+      // This API fetches and parses the official TCMB XML data into a reliable JSON format.
+      const response = await fetch('https://api.tbtr.dev/v1/today.json', { cache: 'no-store' });
       if (!response.ok) {
         throw new Error(`Failed to fetch exchange rates: ${response.statusText}`);
       }
       const data = await response.json();
       
-      const usdRateStr = data['USD']?.ForexBuying;
-      const eurRateStr = data['EUR']?.ForexBuying;
+      const usdRateStr = data.results.find((c: any) => c.code === 'USD')?.buying;
+      const eurRateStr = data.results.find((c: any) => c.code === 'EUR')?.buying;
       
       if (!usdRateStr || !eurRateStr) {
         throw new Error('USD or EUR rate not found in the API response.');
       }
 
-      // The API returns strings which can be directly parsed.
+      // The API returns strings, they need to be parsed to float.
       const usdRate = parseFloat(usdRateStr);
       const eurRate = parseFloat(eurRateStr);
 
