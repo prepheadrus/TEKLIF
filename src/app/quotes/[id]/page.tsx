@@ -178,70 +178,6 @@ export default function QuoteDetailPage() {
   const watchedItems = form.watch('items');
   const watchedRates = form.watch('exchangeRates');
 
-  const calculatedTotals = useMemo(() => {
-    let grandTotalSell = 0;
-    let grandTotalCost = 0;
-
-    const groupTotals = watchedItems.reduce((acc, item) => {
-        const groupName = item.groupName || 'Diğer';
-        if (!acc[groupName]) {
-            acc[groupName] = { totalSell: 0, totalCost: 0, totalProfit: 0 };
-        }
-        
-        const totals = calculateItemTotals({
-            ...item,
-            exchangeRate: item.currency === 'USD' ? watchedRates.USD : item.currency === 'EUR' ? watchedRates.EUR : 1,
-        });
-
-        acc[groupName].totalSell += totals.totalTlSell;
-        acc[groupName].totalCost += totals.totalTlCost;
-        acc[groupName].totalProfit += totals.totalProfit;
-
-        return acc;
-    }, {} as Record<string, { totalSell: number, totalCost: number, totalProfit: number }>);
-    
-    grandTotalSell = Object.values(groupTotals).reduce((sum, group) => sum + group.totalSell, 0);
-    grandTotalCost = Object.values(groupTotals).reduce((sum, group) => sum + group.totalCost, 0);
-    
-    const grandTotalProfit = grandTotalSell - grandTotalCost;
-    const grandTotalProfitMargin = grandTotalSell > 0 ? (grandTotalProfit / grandTotalSell) : 0;
-
-    return { 
-        groupTotals, 
-        grandTotalSell, 
-        grandTotalCost,
-        grandTotalProfit,
-        grandTotalProfitMargin
-    };
-  }, [watchedItems, watchedRates]);
-
-
-  const allGroups = useMemo(() => {
-    const itemGroups = watchedItems.reduce((acc, item, index) => {
-        const groupName = item.groupName || 'Diğer';
-        if (!acc[groupName]) {
-            acc[groupName] = [];
-        }
-        // Push the original field object from useFieldArray to preserve the key
-        acc[groupName].push({ ...item, ...fields[index] });
-        return acc;
-    }, {} as Record<string, (ProposalItem & {formId: string})[]>);
-
-
-    emptyGroups.forEach(groupName => {
-        if (!itemGroups[groupName]) {
-            itemGroups[groupName] = [];
-        }
-    });
-
-    return Object.entries(itemGroups).sort(([a], [b]) => {
-      if (a === 'Diğer') return 1;
-      if (b === 'Diğer') return -1;
-      return a.localeCompare(b);
-    });
-
-  }, [watchedItems, fields, emptyGroups]);
-  
   // --- Effects ---
   useEffect(() => {
     if (proposal && initialItems) {
@@ -274,7 +210,68 @@ export default function QuoteDetailPage() {
     }
   }, [editingGroupName]);
 
+  // --- Calculations (Run on every render) ---
+    let grandTotalSell = 0;
+    let grandTotalCost = 0;
 
+    const groupTotals = watchedItems.reduce((acc, item) => {
+        const groupName = item.groupName || 'Diğer';
+        if (!acc[groupName]) {
+            acc[groupName] = { totalSell: 0, totalCost: 0, totalProfit: 0 };
+        }
+        
+        const totals = calculateItemTotals({
+            ...item,
+            exchangeRate: item.currency === 'USD' ? watchedRates.USD : item.currency === 'EUR' ? watchedRates.EUR : 1,
+        });
+
+        acc[groupName].totalSell += totals.totalTlSell;
+        acc[groupName].totalCost += totals.totalTlCost;
+        acc[groupName].totalProfit += totals.totalProfit;
+
+        return acc;
+    }, {} as Record<string, { totalSell: number, totalCost: number, totalProfit: number }>);
+    
+    grandTotalSell = Object.values(groupTotals).reduce((sum, group) => sum + group.totalSell, 0);
+    grandTotalCost = Object.values(groupTotals).reduce((sum, group) => sum + group.totalCost, 0);
+    
+    const grandTotalProfit = grandTotalSell - grandTotalCost;
+    const grandTotalProfitMargin = grandTotalSell > 0 ? (grandTotalProfit / grandTotalSell) : 0;
+
+    const calculatedTotals = { 
+        groupTotals, 
+        grandTotalSell, 
+        grandTotalCost,
+        grandTotalProfit,
+        grandTotalProfitMargin
+    };
+
+  const allGroups = useMemo(() => {
+    const itemGroups = watchedItems.reduce((acc, item, index) => {
+        const groupName = item.groupName || 'Diğer';
+        if (!acc[groupName]) {
+            acc[groupName] = [];
+        }
+        // Push the original field object from useFieldArray to preserve the key
+        acc[groupName].push({ ...item, ...fields[index] });
+        return acc;
+    }, {} as Record<string, (ProposalItem & {formId: string})[]>);
+
+
+    emptyGroups.forEach(groupName => {
+        if (!itemGroups[groupName]) {
+            itemGroups[groupName] = [];
+        }
+    });
+
+    return Object.entries(itemGroups).sort(([a], [b]) => {
+      if (a === 'Diğer') return 1;
+      if (b === 'Diğer') return -1;
+      return a.localeCompare(b);
+    });
+
+  }, [watchedItems, fields, emptyGroups]);
+  
   // --- Event Handlers ---
    const handleProductsSelected = (selectedProducts: ProductType[]) => {
     const currentItems = form.getValues('items');
