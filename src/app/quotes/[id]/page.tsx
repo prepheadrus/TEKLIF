@@ -211,9 +211,6 @@ export default function QuoteDetailPage() {
   }, [editingGroupName]);
 
   // --- Calculations ---
-    let grandTotalSell = 0;
-    let grandTotalCost = 0;
-
     const calculateItemTotals = (item: ProposalItem) => {
         const exchangeRate = item.currency === 'USD' ? watchedRates.USD : item.currency === 'EUR' ? watchedRates.EUR : 1;
         const priceInfo = calculatePrice({
@@ -224,41 +221,46 @@ export default function QuoteDetailPage() {
             basePrice: item.basePrice || 0,
         });
 
-        const totalTlCost = priceInfo.tlCost * item.quantity;
+        const totalTlCost = (item.basePrice || 0) * (1 - item.discountRate) * exchangeRate * item.quantity;
         const totalTlSell = priceInfo.tlSellPrice * item.quantity;
-        const totalProfit = priceInfo.profitAmount * item.quantity;
+        const totalProfit = totalTlSell - totalTlCost;
 
         return { ...priceInfo, totalTlCost, totalTlSell, totalProfit };
     };
 
-    const groupTotals = watchedItems.reduce((acc, item) => {
-        const groupName = item.groupName || 'Diğer';
-        if (!acc[groupName]) {
-            acc[groupName] = { totalSell: 0, totalCost: 0, totalProfit: 0 };
-        }
+    const calculatedTotals = useMemo(() => {
+        let grandTotalSell = 0;
+        let grandTotalCost = 0;
+
+        const groupTotals = watchedItems.reduce((acc, item) => {
+            const groupName = item.groupName || 'Diğer';
+            if (!acc[groupName]) {
+                acc[groupName] = { totalSell: 0, totalCost: 0, totalProfit: 0 };
+            }
+            
+            const totals = calculateItemTotals(item);
+
+            acc[groupName].totalSell += totals.totalTlSell;
+            acc[groupName].totalCost += totals.totalTlCost;
+            acc[groupName].totalProfit += totals.totalProfit;
+
+            return acc;
+        }, {} as Record<string, { totalSell: number, totalCost: number, totalProfit: number }>);
         
-        const totals = calculateItemTotals(item);
+        grandTotalSell = Object.values(groupTotals).reduce((sum, group) => sum + group.totalSell, 0);
+        grandTotalCost = Object.values(groupTotals).reduce((sum, group) => sum + group.totalCost, 0);
+        
+        const grandTotalProfit = grandTotalSell - grandTotalCost;
+        const grandTotalProfitMargin = grandTotalSell > 0 ? (grandTotalProfit / grandTotalSell) : 0;
 
-        acc[groupName].totalSell += totals.totalTlSell;
-        acc[groupName].totalCost += totals.totalTlCost;
-        acc[groupName].totalProfit += totals.totalProfit;
-
-        return acc;
-    }, {} as Record<string, { totalSell: number, totalCost: number, totalProfit: number }>);
-    
-    grandTotalSell = Object.values(groupTotals).reduce((sum, group) => sum + group.totalSell, 0);
-    grandTotalCost = Object.values(groupTotals).reduce((sum, group) => sum + group.totalCost, 0);
-    
-    const grandTotalProfit = grandTotalSell - grandTotalCost;
-    const grandTotalProfitMargin = grandTotalSell > 0 ? (grandTotalProfit / grandTotalSell) : 0;
-
-    const calculatedTotals = { 
-        groupTotals, 
-        grandTotalSell, 
-        grandTotalCost,
-        grandTotalProfit,
-        grandTotalProfitMargin
-    };
+        return { 
+            groupTotals, 
+            grandTotalSell, 
+            grandTotalCost,
+            grandTotalProfit,
+            grandTotalProfitMargin
+        };
+    }, [watchedItems, watchedRates]);
 
   const allGroups = useMemo(() => {
     const itemGroups = watchedItems.reduce((acc, item, index) => {
@@ -413,7 +415,7 @@ export default function QuoteDetailPage() {
         const { ...dbItem } = item;
         const itemRef = item.id
           ? doc(itemsCollectionRef, item.id)
-          : doc(itemsCollectionRef);
+          : doc(collectionRef);
         batch.set(itemRef, dbItem, { merge: true });
       });
 
@@ -710,13 +712,21 @@ export default function QuoteDetailPage() {
         </main>
 
         <footer className="sticky bottom-0 z-30 bg-white/95 backdrop-blur-sm border-t border-slate-200 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
-            <div className="max-w-screen-xl mx-auto px-8">
+            <div className="mx-auto px-8">
                 <div className="flex justify-between items-center h-24">
-                    <div className="text-xs text-slate-500 space-x-4">
-                        <span>Toplam Kalem: <b className="font-mono">{fields.length}</b></span>
-                         <span>Toplam Grup: <b className="font-mono">{allGroups.length}</b></span>
+                    <div className="flex-1 flex items-center gap-4 overflow-x-auto">
+                        <span className="text-sm font-semibold text-slate-500 whitespace-nowrap">Grup Dağılımı:</span>
+                         <div className="flex items-center gap-4">
+                            {Object.entries(calculatedTotals.groupTotals).map(([groupName, totals]) => (
+                                <div key={groupName} className="text-center bg-slate-100 p-2 rounded-md">
+                                    <div className="text-xs text-slate-600 truncate max-w-24">{groupName}</div>
+                                    <div className="text-sm font-bold font-mono text-slate-800">{formatCurrency(totals.totalSell)}</div>
+                                    <div className="text-xs font-mono text-green-600">{formatCurrency(totals.totalProfit)}</div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                    <div className="flex items-end gap-8">
+                    <div className="flex items-end gap-8 pl-8">
                         <div className="text-right">
                            <span className="text-sm text-slate-500 mb-1">Toplam Kâr:</span>
                            <span className="block text-3xl font-bold font-mono tabular-nums text-green-600">

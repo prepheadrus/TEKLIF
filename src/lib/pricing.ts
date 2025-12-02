@@ -8,6 +8,7 @@ interface PriceCalculationInput {
   discountRate: number; // 0-1 aralığında, örn: 0.15
   profitMargin: number;  // 0-1 aralığında, örn: 0.20
   exchangeRate: number;  // Yabancı para birimi için, TL ise 1 olmalı
+  basePrice?: number;
 }
 
 interface PriceCalculationOutput {
@@ -31,9 +32,10 @@ export function calculatePrice({
   discountRate,
   profitMargin,
   exchangeRate,
+  basePrice = 0,
 }: PriceCalculationInput): PriceCalculationOutput {
-  // Maliyet (İskontolu Fiyat) = Liste Fiyatı * (1 - İskonto Oranı)
-  const cost = listPrice * (1 - discountRate);
+  // Maliyet (İskontolu Fiyat) = Ürün ana maliyeti (basePrice) veya liste fiyatı * (1 - İskonto Oranı)
+  const cost = (basePrice > 0 ? basePrice : listPrice) * (1 - discountRate);
 
   // Yeni Mantık: "Maliyet Artı Kâr" (Cost Plus)
   // Satış Fiyatı (Orijinal Para Birimi) = Maliyet * (1 + Kâr Oranı)
@@ -65,6 +67,7 @@ interface TotalPriceInput {
     discountRate: number;
     profitMargin: number;
     exchangeRate: number;
+    basePrice?: number;
 }
 
 /**
