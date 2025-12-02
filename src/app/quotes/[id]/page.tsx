@@ -136,6 +136,7 @@ export default function QuoteDetailPage() {
   const [activeProductForAISuggestion, setActiveProductForAISuggestion] = useState<string | null>(null);
   const [editingGroupName, setEditingGroupName] = useState<string | null>(null);
   const groupNameInputRef = useRef<HTMLInputElement>(null);
+  const [emptyGroups, setEmptyGroups] = useState<string[]>([]);
 
 
   // --- Data Fetching ---
@@ -171,30 +172,34 @@ export default function QuoteDetailPage() {
     keyName: 'formId',
   });
 
-  // This useMemo creates a stable, grouped representation of items for rendering.
-  const groupedItems = useMemo(() => {
-    // Watch for changes in 'items' to trigger recalculation
+  const allGroups = useMemo(() => {
     const currentItems = form.watch('items');
     
     // Group items by 'groupName'
-    const groups = currentItems.reduce((acc, item, index) => {
+    const itemGroups = currentItems.reduce((acc, item, index) => {
       const groupName = item.groupName || 'Diğer';
       if (!acc[groupName]) {
         acc[groupName] = [];
       }
-      // Push the item along with its original index in the flat array
       acc[groupName].push({ ...item, originalIndex: index });
       return acc;
     }, {} as Record<string, (ProposalItem & { originalIndex: number })[]>);
 
+    // Add empty groups to the map if they don't already exist
+    emptyGroups.forEach(groupName => {
+        if (!itemGroups[groupName]) {
+            itemGroups[groupName] = [];
+        }
+    });
+
     // Sort the groups by name, except for 'Diğer' which should be last
-    return Object.entries(groups).sort(([a], [b]) => {
+    return Object.entries(itemGroups).sort(([a], [b]) => {
       if (a === 'Diğer') return 1;
       if (b === 'Diğer') return -1;
       return a.localeCompare(b);
     });
 
-  }, [form.watch('items')]); // Dependency on watched items
+  }, [form.watch('items'), emptyGroups]);
   
   // --- Effects ---
   useEffect(() => {
@@ -225,7 +230,7 @@ export default function QuoteDetailPage() {
     
     let grandTotalTRY = 0;
 
-    const groupTotals = Object.fromEntries(groupedItems.map(([groupName, itemsInGroup]) => {
+    const groupTotals = Object.fromEntries(allGroups.map(([groupName, itemsInGroup]) => {
         const groupTotal = itemsInGroup.reduce((total, item) => {
             const exchangeRate =
                 item.currency === 'USD' ? exchangeRates.USD :
@@ -245,16 +250,18 @@ export default function QuoteDetailPage() {
     grandTotalTRY = Object.values(groupTotals).reduce((sum, total) => sum + total, 0);
 
     return { grandTotal: grandTotalTRY, groupTotals };
-  }, [form.watch('items'), proposal?.exchangeRates, groupedItems]);
+  }, [form.watch('items'), proposal?.exchangeRates, allGroups]);
 
 
   // --- Event Handlers ---
-   const handleProductsSelected = (selectedProducts: ProductType[]) => {
-    const installationTypeMap = new Map(installationTypes?.map(it => [it.id, it.name]));
-
+   const handleProductsSelected = (selectedProducts: ProductType[], targetGroupName?: string) => {
+    
     const newItems = selectedProducts.map(product => {
       let groupName = 'Diğer';
-      if (product.installationTypeId && installationTypes) {
+
+      if (targetGroupName) {
+        groupName = targetGroupName;
+      } else if (product.installationTypeId && installationTypes) {
          // Find the top-level parent
          let current = installationTypes.find(it => it.id === product.installationTypeId);
          let parent = current;
@@ -285,9 +292,22 @@ export default function QuoteDetailPage() {
     append(newItems);
     setIsProductSelectorOpen(false);
 
+    // If an empty group receives items, remove it from the emptyGroups state
+    if (targetGroupName) {
+        setEmptyGroups(prev => prev.filter(g => g !== targetGroupName));
+    }
+
     if (newItems.length > 0) {
       setActiveProductForAISuggestion(newItems[0].name);
     }
+  };
+
+  const handleAddNewGroup = () => {
+    const newGroupName = `Yeni Grup ${emptyGroups.length + allGroups.length + 1}`;
+    setEmptyGroups(prev => [...prev, newGroupName]);
+    setTimeout(() => {
+        setEditingGroupName(newGroupName);
+    }, 100);
   };
 
   const handleGroupNameChange = (oldName: string, newName: string) => {
@@ -295,11 +315,17 @@ export default function QuoteDetailPage() {
         setEditingGroupName(null);
         return;
     }
+
+    // Update items in the form
     const currentItems = form.getValues('items');
     const updatedItems = currentItems.map(item => 
         item.groupName === oldName ? { ...item, groupName: newName } : item
     );
     form.setValue('items', updatedItems, { shouldDirty: true });
+
+    // Update empty groups state if the renamed group was an empty one
+    setEmptyGroups(prev => prev.map(g => g === oldName ? newName : g));
+    
     setEditingGroupName(null);
   };
   
@@ -434,7 +460,7 @@ export default function QuoteDetailPage() {
                 />
             )}
             
-            {groupedItems.map(([groupName, itemsInGroup]) => (
+            {allGroups.map(([groupName, itemsInGroup]) => (
                  <section key={groupName} className="group/section relative">
                     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                         <div className="bg-slate-50/70 px-6 py-4 border-b border-slate-200 flex justify-between items-center group/header">
@@ -571,9 +597,9 @@ export default function QuoteDetailPage() {
                 </section>
             ))}
 
-            <Button type="button" className="w-full py-6 border-2 border-dashed border-slate-300 rounded-xl text-slate-400 font-medium bg-white hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all flex-col items-center gap-1 h-auto" onClick={() => alert('Yeni grup ekleme özelliği yakında eklenecektir.')}>
+            <Button type="button" className="w-full py-6 border-2 border-dashed border-slate-300 rounded-xl text-slate-400 font-medium bg-white hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all flex-col items-center gap-1 h-auto" onClick={handleAddNewGroup}>
                 <PlusCircle className="h-6 w-6" />
-                <span>Yeni Mahal / Sistem Grubu Ekle (Yakında)</span>
+                <span>Yeni Mahal / Sistem Grubu Ekle</span>
             </Button>
         </div>
 
@@ -582,7 +608,7 @@ export default function QuoteDetailPage() {
                 <div className="flex justify-between items-center h-20">
                     <div className="text-xs text-slate-500 space-x-4">
                         <span>Toplam Kalem: <b className="font-mono">{fields.length}</b></span>
-                         <span>Toplam Grup: <b className="font-mono">{groupedItems.length}</b></span>
+                         <span>Toplam Grup: <b className="font-mono">{allGroups.length}</b></span>
                     </div>
                     <div className="flex items-end gap-2">
                         <span className="text-sm text-slate-500 mb-1">Genel Toplam (KDV Dahil):</span>
@@ -671,3 +697,5 @@ function AISuggestionBox({ productName, existingItems, onClose }: { productName:
         </div>
     )
 }
+
+    
