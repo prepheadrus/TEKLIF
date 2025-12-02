@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Skeleton } from '@/components/ui/skeleton';
-import { DollarSign, Users, FileText, Package } from "lucide-react";
+import { DollarSign, Users, FileText, Package, TrendingUp } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
 
@@ -58,89 +58,83 @@ export default function DashboardPage() {
     return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(amount);
   };
 
+  const StatCard = ({ title, value, icon, description, isLoading }: { title: string, value: string, icon: React.ReactNode, description: string, isLoading: boolean }) => (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        {icon}
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <>
+            <Skeleton className="h-8 w-3/4" />
+            <Skeleton className="h-4 w-1/2 mt-1" />
+          </>
+        ) : (
+          <>
+            <div className="text-2xl font-bold">{value}</div>
+            <p className="text-xs text-muted-foreground">{description}</p>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Anasayfa</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Yönetim Paneli</h1>
         <p className="text-muted-foreground">Genel bakış ve son aktiviteler.</p>
       </div>
       <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Toplam Teklif Tutarı
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-8 w-3/4" />
-            ) : (
-              <div className="text-2xl font-bold">{formatCurrency(stats.totalProposalAmount)}</div>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Tüm zamanlar
-            </p>
-          </CardContent>
+        <StatCard
+            title="Toplam Teklif Tutarı"
+            value={formatCurrency(stats.totalProposalAmount)}
+            description="Onaylanmış tüm teklifler"
+            isLoading={isLoading}
+            icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
+        />
+         <StatCard
+            title="Onaylanan Teklifler"
+            value={`${stats.approvedQuotesCount}`}
+            description="Toplam onaylanan teklif sayısı"
+            isLoading={isLoading}
+            icon={<FileText className="h-4 w-4 text-muted-foreground" />}
+        />
+        <StatCard
+            title="Müşteriler"
+            value={`${stats.customerCount}`}
+            description="Toplam kayıtlı müşteri"
+            isLoading={isLoading}
+            icon={<Users className="h-4 w-4 text-muted-foreground" />}
+        />
+        <StatCard
+            title="Toplam Ürün"
+            value={`${stats.productCount}`}
+            description="Toplam kayıtlı ürün"
+            isLoading={isLoading}
+            icon={<Package className="h-4 w-4 text-muted-foreground" />}
+        />
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        <Card className="col-span-4">
+            <CardHeader>
+                <CardTitle>En Çok Tercih Edilen Ürünler (Top 5)</CardTitle>
+            </CardHeader>
+            <CardContent className="pl-2">
+                 <p className="p-4 text-sm text-muted-foreground">Yakında burada en çok satan ürünleriniz listelenecektir.</p>
+            </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Müşteriler</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-             {isLoading ? (
-              <Skeleton className="h-8 w-1/4" />
-            ) : (
-              <div className="text-2xl font-bold">{stats.customerCount}</div>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Toplam kayıtlı müşteri
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Onaylanan Teklifler</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-             {isLoading ? (
-              <Skeleton className="h-8 w-1/4" />
-            ) : (
-              <div className="text-2xl font-bold">{stats.approvedQuotesCount}</div>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Tüm zamanlar
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Toplam Ürün</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-             {isLoading ? (
-              <Skeleton className="h-8 w-1/4" />
-            ) : (
-              <div className="text-2xl font-bold">{stats.productCount}</div>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Toplam kayıtlı ürün
-            </p>
-          </CardContent>
+         <Card className="col-span-3">
+            <CardHeader>
+                <CardTitle>Aylık Hedef Durumu</CardTitle>
+                <CardDescription>Bu ayki ciro hedefinizin ne kadarını tamamladınız.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <p className="p-4 text-sm text-muted-foreground">Aylık hedef grafiğiniz yakında burada görüntülenecektir.</p>
+            </CardContent>
         </Card>
       </div>
-       <Card>
-        <CardHeader>
-            <CardTitle>Son Aktiviteler</CardTitle>
-            <CardDescription>Sistemdeki son hareketler.</CardDescription>
-        </CardHeader>
-        <CardContent>
-            <p>Yakında burada son aktiviteleriniz listelenecektir.</p>
-        </CardContent>
-       </Card>
     </div>
   );
 }
