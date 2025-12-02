@@ -258,6 +258,19 @@ export default function QuoteDetailPage() {
     }
   }, [proposal, initialItems, form]);
   
+  // Automatically fetch rates once when data is loaded
+  useEffect(() => {
+      if (proposal && initialItems) {
+        // Only run once when the data is first loaded
+        // We use a flag to prevent re-fetching on every render
+        if (!form.formState.isDirty) {
+            handleFetchRates();
+        }
+      }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proposal, initialItems]);
+
+
   useEffect(() => {
     if (editingGroupName && groupNameInputRef.current) {
         groupNameInputRef.current.focus();
@@ -428,8 +441,6 @@ export default function QuoteDetailPage() {
     toast({ title: 'Kurlar alınıyor...', description: 'TCMB verileri çekiliyor.' });
     try {
         const newRates = await fetchExchangeRates();
-        // DEBUG: Log the rates received on the client
-        console.error("DEBUG: Client received rates:", newRates);
         
         if (newRates && newRates.USD && newRates.EUR) {
             form.setValue('exchangeRates.USD', newRates.USD, { shouldValidate: true, shouldDirty: true });
