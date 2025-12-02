@@ -32,15 +32,15 @@ const fetchExchangeRatesFlow = ai.defineFlow(
   },
   async () => {
     try {
-      // Using a reliable JSON API that mirrors TCMB data
-      const response = await fetch('https://api.genelpara.com/embed/para-birimleri.json', { cache: 'no-store' });
+      // Using a more reliable JSON API that mirrors TCMB data
+      const response = await fetch('https://hasaneke.com/api/tcmb', { cache: 'no-store' });
       if (!response.ok) {
         throw new Error(`Failed to fetch exchange rates: ${response.statusText}`);
       }
       const data = await response.json();
       
-      const usdRate = data['USD']?.satis;
-      const eurRate = data['EUR']?.satis;
+      const usdRate = data['USD']?.alis;
+      const eurRate = data['EUR']?.alis;
       
       if (!usdRate || !eurRate) {
         throw new Error('USD or EUR rate not found in the API response.');
