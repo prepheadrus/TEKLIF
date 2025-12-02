@@ -199,7 +199,7 @@ export default function QuoteDetailPage() {
       handleFetchRates();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [proposal, initialItems, form.formState.isSubmitSuccessful]);
+  }, [proposal, initialItems]);
 
 
   useEffect(() => {
@@ -616,7 +616,7 @@ export default function QuoteDetailPage() {
                                     </TableHeader>
                                 </Table>
                         </div>
-                        <div className="max-h-[400px] overflow-y-auto">
+                        <div className="max-h-[400px] overflow-y-auto resize-y min-h-[150px]">
                             <Table>
                                 <TableBody className="text-sm divide-y divide-slate-100">
                                     {itemsInGroup.map((item) => {
