@@ -248,7 +248,7 @@ export default function QuoteDetailPage() {
   // --- Calculations ---
   const calculatedTotals = useMemo(() => {
     const totalsByCurrency = { TRY: 0, USD: 0, EUR: 0 };
-    let grandTotalSellInTRY = 0;
+    let grandTotalSellExVAT = 0;
     let grandTotalCostInTRY = 0;
 
     const groupTotals = watchedItems.reduce((acc, item) => {
@@ -257,7 +257,6 @@ export default function QuoteDetailPage() {
             acc[groupName] = { 
               totalSellInTRY: 0, 
               totalCostInTRY: 0, 
-              totalProfitInTRY: 0,
               totalsByCurrency: { TRY: 0, USD: 0, EUR: 0 }
             };
         }
@@ -267,38 +266,40 @@ export default function QuoteDetailPage() {
             exchangeRate: item.currency === 'USD' ? watchedRates.USD : item.currency === 'EUR' ? watchedRates.EUR : 1,
         });
 
-        const vatMultiplier = includeVAT ? 1 + VAT_RATE : 1;
         const itemOriginalTotal = totals.originalSellPrice * item.quantity;
         
-        acc[groupName].totalSellInTRY += totals.totalTlSell * vatMultiplier;
-        acc[groupName].totalCostInTRY += totals.totalTlCost; // Cost is always VAT exclusive
-        acc[groupName].totalProfitInTRY += totals.totalTlSell - totals.totalTlCost; // Profit is always calculated on VAT-exclusive price
+        acc[groupName].totalSellInTRY += totals.totalTlSell;
+        acc[groupName].totalCostInTRY += totals.totalTlCost; 
         acc[groupName].totalsByCurrency[item.currency] += itemOriginalTotal;
         
         totalsByCurrency[item.currency] += itemOriginalTotal;
-        grandTotalSellInTRY += totals.totalTlSell * vatMultiplier;
+        grandTotalSellExVAT += totals.totalTlSell;
         grandTotalCostInTRY += totals.totalTlCost;
 
         return acc;
     }, {} as Record<string, { 
         totalSellInTRY: number; 
         totalCostInTRY: number; 
-        totalProfitInTRY: number; 
         totalsByCurrency: { TRY: number; USD: number; EUR: number; };
     }>);
     
-    
-    const grandTotalProfit = grandTotalSellInTRY / (includeVAT ? 1 + VAT_RATE : 1) - grandTotalCostInTRY;
-    const grandTotalSellExVAT = grandTotalSellInTRY / (includeVAT ? 1 + VAT_RATE : 1);
+    const grandTotalSellWithVAT = grandTotalSellExVAT * (1 + VAT_RATE);
+    const grandTotalProfit = grandTotalSellExVAT - grandTotalCostInTRY;
     const grandTotalProfitMargin = grandTotalSellExVAT > 0 ? (grandTotalProfit / grandTotalSellExVAT) : 0;
+    const vatAmount = grandTotalSellExVAT * VAT_RATE;
+
+    const finalGrandTotal = includeVAT ? grandTotalSellWithVAT : grandTotalSellExVAT;
 
     return { 
         groupTotals, 
-        grandTotalSellInTRY,
+        grandTotalSellExVAT,
+        grandTotalSellWithVAT,
+        finalGrandTotal,
         grandTotalCostInTRY,
         grandTotalProfit,
         grandTotalProfitMargin,
-        totalsByCurrency
+        totalsByCurrency,
+        vatAmount
     };
 }, [watchedItems, watchedRates, includeVAT]);
 
@@ -430,7 +431,7 @@ export default function QuoteDetailPage() {
       const proposalDocRef = doc(firestore, 'proposals', proposalId);
       batch.update(proposalDocRef, {
         versionNote: data.versionNote,
-        totalAmount: calculatedTotals.grandTotalSellInTRY / (includeVAT ? 1 + VAT_RATE : 1),
+        totalAmount: calculatedTotals.grandTotalSellExVAT,
         exchangeRates: data.exchangeRates,
         updatedAt: serverTimestamp(),
       });
@@ -559,80 +560,79 @@ export default function QuoteDetailPage() {
                             <Button variant="ghost" className="p-3 h-auto">
                                 <div className="text-right">
                                     <span className="text-xs text-slate-500">Genel Toplam {vatLabel}</span>
-                                    <span className="block text-2xl font-bold font-mono tabular-nums text-slate-900">{formatCurrency(calculatedTotals.grandTotalSellInTRY)}</span>
+                                    <span className="block text-2xl font-bold font-mono tabular-nums text-slate-900">{formatCurrency(calculatedTotals.finalGrandTotal)}</span>
                                 </div>
                                 <ChevronsUpDown className="h-5 w-5 ml-3 text-slate-400" />
                             </Button>
                     </CollapsibleTrigger>
                     <CollapsibleContent className="absolute top-full right-0 z-20">
-                         <div className="p-6 mt-2 border bg-white rounded-lg shadow-xl w-[800px] grid grid-cols-3 gap-x-6">
+                          <div className="p-6 mt-2 border bg-white rounded-lg shadow-xl w-[800px] grid grid-cols-3 gap-x-6">
                             {/* --- Left Column: Group Summary --- */}
                             <div className="space-y-3 col-span-1 border-r pr-6">
                                 <h4 className="font-semibold text-base mb-2">Grup İcmali {vatLabel}</h4>
                                 <div className="space-y-2 text-sm max-h-60 overflow-y-auto pr-2">
-                                {Object.entries(calculatedTotals.groupTotals).sort(([a], [b]) => a.localeCompare(b)).map(([groupName, group]) => (
-                                    <div key={groupName} className="text-xs">
-                                        <p className="font-medium text-slate-700 truncate pr-4" title={groupName}>{groupName}</p>
-                                        <div className="pl-2 border-l-2 ml-1 mt-1 space-y-0.5">
-                                            {Object.entries(group.totalsByCurrency).map(([currency, total]) => {
-                                                const totalWithVat = total * (includeVAT ? 1 + VAT_RATE : 1);
-                                                return total > 0 && (
-                                                <div className="flex justify-between items-center" key={currency}>
-                                                    <span className="text-slate-500">{currency} Toplamı</span>
-                                                    <span className={cn("font-mono font-semibold",
-                                                        currency === 'USD' && 'text-green-600',
-                                                        currency === 'EUR' && 'text-blue-600',
-                                                        currency === 'TRY' && 'text-slate-700'
-                                                    )}>
-                                                        {formatCurrency(totalWithVat, currency as 'TRY' | 'USD' | 'EUR')}
-                                                    </span>
-                                                </div>
-                                            )})}
+                                {Object.entries(calculatedTotals.groupTotals).sort(([a], [b]) => a.localeCompare(b)).map(([groupName, group]) => {
+                                    const groupTotalWithVat = group.totalSellInTRY * (includeVAT ? 1 + VAT_RATE : 1);
+                                    return (
+                                        <div key={groupName} className="flex justify-between items-center text-xs">
+                                            <p className="text-slate-600 truncate pr-4" title={groupName}>{groupName}</p>
+                                            <p className="font-mono font-semibold text-slate-700">{formatCurrency(groupTotalWithVat)}</p>
                                         </div>
-                                    </div>
-                                ))}
+                                    )
+                                })}
                                 </div>
                             </div>
                             
                             {/* --- Middle Column: Overall Summary --- */}
                             <div className="space-y-4 col-span-1 border-r pr-6">
-                                <h4 className="font-semibold text-base mb-3">Teklif İcmali {vatLabel}</h4>
-                                <div className="space-y-2">
-                                    {Object.entries(calculatedTotals.totalsByCurrency).map(([currency, total]) => {
-                                        const totalWithVat = total * (includeVAT ? 1 + VAT_RATE : 1);
-                                        return total > 0 && (
-                                        <div className="flex justify-between items-baseline" key={currency}>
-                                            <span className="text-base text-slate-500">{currency} Toplamı</span>
-                                            <span className={cn("text-lg font-bold font-mono",
-                                                currency === 'USD' && 'text-green-600',
-                                                currency === 'EUR' && 'text-blue-600',
-                                                currency === 'TRY' && 'text-slate-800'
-                                            )}>
-                                                {formatCurrency(totalWithVat, currency as 'TRY' | 'USD' | 'EUR')}
-                                            </span>
+                                <h4 className="font-semibold text-base mb-3">Teklif İcmali</h4>
+                                {includeVAT ? (
+                                    <div className="space-y-1">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-slate-500">Matrah (Ara Toplam):</span>
+                                            <span className="font-mono font-semibold text-slate-700">{formatCurrency(calculatedTotals.grandTotalSellExVAT)}</span>
                                         </div>
-                                    )}
-                                    )}
-                                </div>
-                                <Separator className="my-4"/>
-                                <h4 className="font-semibold text-base mb-2">Genel Toplam {vatLabel}</h4>
-                                <div className="text-right">
-                                    <span className="block text-3xl font-bold font-mono tabular-nums text-primary">
-                                        {formatCurrency(calculatedTotals.grandTotalSellInTRY)}
-                                    </span>
-                                </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-slate-500">KDV Tutarı (%20):</span>
+                                            <span className="font-mono font-semibold text-slate-700">{formatCurrency(calculatedTotals.vatAmount)}</span>
+                                        </div>
+                                        <Separator className="my-2" />
+                                        <div className="flex justify-between text-base">
+                                            <span className="font-bold text-slate-800">Genel Toplam:</span>
+                                            <span className="font-mono font-bold text-blue-600">{formatCurrency(calculatedTotals.grandTotalSellWithVAT)}</span>
+                                        </div>
+                                    </div>
+                                ) : (
+                                     <div className="space-y-2">
+                                        {Object.entries(calculatedTotals.totalsByCurrency).map(([currency, total]) => (
+                                        total > 0 && (
+                                            <div className="flex justify-between items-baseline" key={currency}>
+                                                <span className="text-base text-slate-500">{currency} Toplamı (KDV Hariç)</span>
+                                                <span className={cn("text-lg font-bold font-mono",
+                                                    currency === 'USD' && 'text-green-600',
+                                                    currency === 'EUR' && 'text-blue-600',
+                                                    currency === 'TRY' && 'text-slate-800'
+                                                )}>
+                                                    {formatCurrency(total, currency as 'TRY' | 'USD' | 'EUR')}
+                                                </span>
+                                            </div>
+                                        )
+                                        ))}
+                                    </div>
+                                )}
                             </div>
 
                             {/* --- Right Column: Profit & Controls --- */}
                             <div className="space-y-4 col-span-1 flex flex-col justify-between">
                                 <div>
-                                    <h4 className="font-semibold text-base mb-2">Toplam Kâr (KDV Hariç)</h4>
+                                    <h4 className="font-semibold text-base mb-2">Toplam Kâr {vatLabel}</h4>
                                     <div className="flex justify-between items-baseline">
                                         <span className="block text-3xl font-bold font-mono tabular-nums text-green-600">
                                             {formatCurrency(calculatedTotals.grandTotalProfit)}
                                         </span>
                                         <span className="text-lg font-medium text-green-600">({formatPercent(calculatedTotals.grandTotalProfitMargin)})</span>
                                     </div>
+                                    <p className="text-xs text-muted-foreground mt-1">Kâr her zaman KDV hariç tutarlar üzerinden hesaplanır.</p>
                                 </div>
                                 <div className="space-y-4">
                                      <Separator />
@@ -674,13 +674,11 @@ export default function QuoteDetailPage() {
                 )}
                 
                 {allGroups.map(([groupName, itemsInGroup]) => {
-                    const groupTotal = calculatedTotals.groupTotals[groupName] || { 
-                        totalSellInTRY: 0, 
-                        totalCostInTRY: 0, 
-                        totalProfitInTRY: 0,
-                        totalsByCurrency: { TRY: 0, USD: 0, EUR: 0 }
-                    };
-                    const groupProfitMargin = (groupTotal.totalSellInTRY / (includeVAT ? 1 + VAT_RATE : 1) - groupTotal.totalCostInTRY) / (groupTotal.totalSellInTRY / (includeVAT ? 1 + VAT_RATE : 1)) || 0;
+                    const groupTotalExVAT = calculatedTotals.groupTotals[groupName]?.totalSellInTRY || 0;
+                    const groupTotal = includeVAT ? groupTotalExVAT * (1 + VAT_RATE) : groupTotalExVAT;
+                    const groupCost = calculatedTotals.groupTotals[groupName]?.totalCostInTRY || 0;
+                    const groupProfit = groupTotalExVAT - groupCost;
+                    const groupProfitMargin = groupTotalExVAT > 0 ? groupProfit / groupTotalExVAT : 0;
                     
                     return (
                     <section key={groupName} className="group/section relative bg-white rounded-xl shadow-sm border border-slate-200">
@@ -723,13 +721,13 @@ export default function QuoteDetailPage() {
                                     <div className="flex items-center gap-6 text-right">
                                         <div>
                                             <p className="text-xs text-slate-500">Grup Kârı (KDV Hariç)</p>
-                                            <p className="font-mono text-xl font-bold text-green-600">{formatCurrency(groupTotal.totalProfitInTRY)} <span className="text-sm font-medium">({formatPercent(groupProfitMargin)})</span></p>
+                                            <p className="font-mono text-xl font-bold text-green-600">{formatCurrency(groupProfit)} <span className="text-sm font-medium">({formatPercent(groupProfitMargin)})</span></p>
                                         </div>
                                         <div>
                                             <p className="text-xs text-slate-500">Grup Toplamı {vatLabel}</p>
                                             <div className="flex gap-x-3 justify-end">
                                                 <p className="font-mono text-lg font-bold text-slate-700">
-                                                    {formatCurrency(groupTotal.totalSellInTRY)}
+                                                    {formatCurrency(groupTotal)}
                                                 </p>
                                             </div>
                                         </div>
