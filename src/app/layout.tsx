@@ -60,7 +60,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
             </div>
         </div>
       </header>
-       <main className="flex-1 flex flex-col overflow-hidden">
+       <main className="flex-1 p-8">
             {children}
         </main>
     </div>
@@ -137,7 +137,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="font-body antialiased h-screen overflow-hidden">
+      <body className="font-body antialiased">
         <FirebaseClientProvider>
           <AppInitializer>{children}</AppInitializer>
         </FirebaseClientProvider>

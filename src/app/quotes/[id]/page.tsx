@@ -507,13 +507,13 @@ export default function QuoteDetailPage() {
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div>
         {portalContainer && createPortal(
           <ExchangeRateDisplay form={form} onRefresh={handleFetchRates} isFetching={isFetchingRates} />,
           portalContainer
         )}
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSaveChanges)} className="flex-1 flex flex-col overflow-hidden">
+            <form onSubmit={form.handleSubmit(handleSaveChanges)}>
                 <header className="flex-shrink-0 px-8 py-4 flex justify-between items-center bg-white border-b border-slate-200">
                     <div>
                         <p className="text-sm text-slate-500 mt-1">
@@ -540,7 +540,7 @@ export default function QuoteDetailPage() {
                     </div>
                 </header>
 
-                <main className="flex-1 overflow-y-auto px-8 py-8 space-y-8 bg-slate-50">
+                <main className="px-8 py-8 space-y-8 bg-slate-50">
                     {activeProductForAISuggestion && (
                         <AISuggestionBox 
                             productName={activeProductForAISuggestion}
@@ -620,7 +620,7 @@ export default function QuoteDetailPage() {
                                         </TableHeader>
                                     </Table>
                                 </div>
-                                <div className="h-[400px] overflow-y-auto resize-y min-h-[150px]">
+                                <div className="overflow-y-auto resize-y min-h-[150px] h-[400px]">
                                     <Table>
                                         <TableBody className="text-sm divide-y divide-slate-100">
                                             {itemsInGroup.map((item) => {
