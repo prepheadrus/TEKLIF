@@ -278,7 +278,7 @@ export default function QuoteDetailPage() {
         return acc;
     }, {} as Record<string, { 
         totalSellInTRY: number; 
-        totalCostInTRY: number; 
+        totalCostInTRY: number; _index
         totalProfitInTRY: number; 
         totalsByCurrency: { TRY: number; USD: number; EUR: number; };
     }>);
@@ -518,12 +518,17 @@ export default function QuoteDetailPage() {
     const parts = (['TRY', 'USD', 'EUR'] as const)
         .map(curr => {
             const total = totals[curr];
-            return total > 0 ? formatCurrency(total, curr) : null;
+            return total > 0 ? (
+                <div key={curr} className="flex justify-between items-baseline">
+                    <span className="text-sm text-slate-500">{curr} Toplamı</span>
+                    <span className={cn("font-mono font-semibold text-slate-700", className)}>{formatCurrency(total, curr)}</span>
+                </div>
+            ) : null;
         })
         .filter(Boolean);
 
-    if (parts.length === 0) return formatCurrency(0, 'TRY');
-    return <span className={cn("font-mono font-bold", className)}>{parts.join(' + ')}</span>;
+    if (parts.length === 0) return <div className="text-right">{formatCurrency(0, 'TRY')}</div>;
+    return <div className="space-y-1">{parts}</div>;
   };
 
   if (isLoading) {
@@ -574,7 +579,7 @@ export default function QuoteDetailPage() {
                         <CollapsibleContent className="absolute top-full right-0 z-20">
                             <div className="p-4 mt-2 border bg-white rounded-lg shadow-xl w-[550px] grid grid-cols-2 gap-x-6">
                                 {/* Left Column */}
-                                <div className="space-y-3">
+                                <div className="space-y-2">
                                     <div>
                                         <h4 className="font-semibold text-sm mb-2">Grup İcmali (KDV Hariç)</h4>
                                         <div className="space-y-1 text-xs text-slate-600">
@@ -591,8 +596,8 @@ export default function QuoteDetailPage() {
                                         </div>
                                     </div>
                                     <Separator />
-                                     <div className="text-right space-y-1">
-                                        <span className="text-xs text-slate-500">Teklif İcmali (KDV Hariç)</span>
+                                     <div>
+                                        <h4 className="font-semibold text-sm mb-2">Teklif İcmali (KDV Hariç)</h4>
                                         {renderMultiCurrencyTotal(calculatedTotals.totalsByCurrency, 'text-base')}
                                     </div>
                                 </div>
@@ -613,9 +618,9 @@ export default function QuoteDetailPage() {
                                     <Separator />
                                     <div className="text-right space-y-1">
                                         <span className="text-xs text-slate-500">Toplam Kâr</span>
-                                        <span className="block text-lg font-bold font-mono tabular-nums text-green-600">
+                                        <span className="block text-xl font-bold font-mono tabular-nums text-green-600">
                                             {formatCurrency(calculatedTotals.grandTotalProfit)}
-                                            <span className="text-sm font-medium ml-2">({formatPercent(calculatedTotals.grandTotalProfitMargin)})</span>
+                                            <span className="text-base font-medium ml-2">({formatPercent(calculatedTotals.grandTotalProfitMargin)})</span>
                                         </span>
                                     </div>
                                 </div>
@@ -884,7 +889,7 @@ function AISuggestionBox({ productName, existingItems, onClose }: { productName:
          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex justify-between items-start mb-2">
                 <div className="flex items-start gap-3">
-                    <Bot size={20} className="text-primary mt-0.5" />
+                    <Bot size={20} className="text-primary" />
                     <div>
                         <h4 className="font-semibold text-primary">AI Önerisi: '{productName}'</h4>
                         <p className="text-sm text-blue-800/80">Bu ürünle birlikte aşağıdaki parçaları da eklemek isteyebilirsiniz:</p>
@@ -906,3 +911,6 @@ function AISuggestionBox({ productName, existingItems, onClose }: { productName:
         </div>
     )
 }
+
+
+    
