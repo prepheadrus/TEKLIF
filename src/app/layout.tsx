@@ -36,7 +36,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-slate-200 shadow-sm flex-shrink-0">
+      <header className="sticky top-0 z-30 flex-shrink-0 bg-white/95 backdrop-blur-sm border-b border-slate-200 shadow-sm">
         <div className="mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
                 <div className="flex items-center gap-8">
@@ -51,7 +51,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
                     </nav>
                 </div>
                 <div className="flex items-center gap-4">
-                     {/* Portal target for exchange rates */}
+                     {/* Portal target for exchange rates. It's placed here in the main layout. */}
                      <div id="exchange-rate-portal"></div>
                     <div className="md:hidden">
                         <MobileNav />
@@ -59,10 +59,10 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
                 </div>
             </div>
         </div>
-        {/* Portal target for the secondary, sticky header in quote detail page */}
+        {/* This is the portal target for the secondary, sticky header in the quote detail page. */}
         <div id="sub-header-portal"></div>
       </header>
-       <main className="flex-1 p-8">
+       <main className="flex-1 flex flex-col">
             {children}
         </main>
     </div>
