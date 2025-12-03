@@ -247,7 +247,6 @@ export default function QuoteDetailPage() {
 
   // --- Calculations ---
   const calculatedTotals = useMemo(() => {
-    const totalsByCurrency = { TRY: 0, USD: 0, EUR: 0 };
     let grandTotalSellExVAT = 0;
     let grandTotalCostInTRY = 0;
 
@@ -272,7 +271,6 @@ export default function QuoteDetailPage() {
         acc[groupName].totalCostInTRY += totals.totalTlCost; 
         acc[groupName].totalsByCurrency[item.currency] += itemOriginalTotal;
         
-        totalsByCurrency[item.currency] += itemOriginalTotal;
         grandTotalSellExVAT += totals.totalTlSell;
         grandTotalCostInTRY += totals.totalTlCost;
 
@@ -282,6 +280,13 @@ export default function QuoteDetailPage() {
         totalCostInTRY: number; 
         totalsByCurrency: { TRY: number; USD: number; EUR: number; };
     }>);
+
+    const totalsByCurrency = Object.values(groupTotals).reduce((acc, group) => {
+        acc.TRY += group.totalsByCurrency.TRY;
+        acc.USD += group.totalsByCurrency.USD;
+        acc.EUR += group.totalsByCurrency.EUR;
+        return acc;
+    }, { TRY: 0, USD: 0, EUR: 0 });
     
     const grandTotalSellWithVAT = grandTotalSellExVAT * (1 + VAT_RATE);
     const grandTotalProfit = grandTotalSellExVAT - grandTotalCostInTRY;
@@ -542,7 +547,7 @@ export default function QuoteDetailPage() {
           exchangeRatePortal
       )}
       {subHeaderPortal && proposal && createPortal(
-          <div className="bg-white/95 backdrop-blur-sm px-8 py-3 flex justify-between items-center w-full border-b">
+          <div className="relative bg-white/95 backdrop-blur-sm px-8 py-3 flex justify-between items-center w-full border-b">
               <div className="flex-1 min-w-0">
                   <h1 className="text-xl font-bold text-slate-800 truncate" title={proposal.projectName}>
                       {proposal.projectName}
@@ -557,33 +562,41 @@ export default function QuoteDetailPage() {
               <div className="relative">
                  <Collapsible>
                     <CollapsibleTrigger asChild>
-                            <Button variant="ghost" className="p-3 h-auto">
-                                <div className="text-right">
-                                    <span className="text-xs text-slate-500">Genel Toplam {vatLabel}</span>
-                                    <span className="block text-2xl font-bold font-mono tabular-nums text-slate-900">{formatCurrency(calculatedTotals.finalGrandTotal)}</span>
-                                </div>
-                                <ChevronsUpDown className="h-5 w-5 ml-3 text-slate-400" />
-                            </Button>
+                        <Button variant="ghost" className="p-3 h-auto">
+                            <div className="text-right">
+                                <span className="text-xs text-slate-500">Genel Toplam {vatLabel}</span>
+                                <span className="block text-2xl font-bold font-mono tabular-nums text-slate-900">{formatCurrency(calculatedTotals.finalGrandTotal)}</span>
+                            </div>
+                            <ChevronsUpDown className="h-5 w-5 ml-3 text-slate-400" />
+                        </Button>
                     </CollapsibleTrigger>
                     <CollapsibleContent className="absolute top-full right-0 z-20">
                           <div className="p-6 mt-2 border bg-white rounded-lg shadow-xl w-[800px] grid grid-cols-3 gap-x-6">
-                            {/* --- Left Column: Group Summary --- */}
+                            
                             <div className="space-y-3 col-span-1 border-r pr-6">
                                 <h4 className="font-semibold text-base mb-2">Grup İcmali {vatLabel}</h4>
-                                <div className="space-y-2 text-sm max-h-60 overflow-y-auto pr-2">
+                                <div className="space-y-1 text-sm max-h-60 overflow-y-auto pr-2">
                                 {Object.entries(calculatedTotals.groupTotals).sort(([a], [b]) => a.localeCompare(b)).map(([groupName, group]) => {
                                     const groupTotalWithVat = group.totalSellInTRY * (includeVAT ? 1 + VAT_RATE : 1);
                                     return (
                                         <div key={groupName} className="flex justify-between items-center text-xs">
                                             <p className="text-slate-600 truncate pr-4" title={groupName}>{groupName}</p>
-                                            <p className="font-mono font-semibold text-slate-700">{formatCurrency(groupTotalWithVat)}</p>
+                                            <div className="flex items-center gap-x-2 font-mono font-semibold text-slate-700">
+                                                {Object.entries(group.totalsByCurrency).map(([currency, total]) => total > 0 && (
+                                                    <span key={currency} className={cn(
+                                                        currency === 'USD' && 'text-green-600',
+                                                        currency === 'EUR' && 'text-blue-600'
+                                                    )}>
+                                                        {formatCurrency(total * (includeVAT ? 1 + VAT_RATE : 1), currency as 'TRY' | 'USD' | 'EUR')}
+                                                    </span>
+                                                ))}
+                                            </div>
                                         </div>
                                     )
                                 })}
                                 </div>
                             </div>
                             
-                            {/* --- Middle Column: Overall Summary --- */}
                             <div className="space-y-4 col-span-1 border-r pr-6">
                                 <h4 className="font-semibold text-base mb-3">Teklif İcmali</h4>
                                 {includeVAT ? (
@@ -622,17 +635,16 @@ export default function QuoteDetailPage() {
                                 )}
                             </div>
 
-                            {/* --- Right Column: Profit & Controls --- */}
                             <div className="space-y-4 col-span-1 flex flex-col justify-between">
                                 <div>
                                     <h4 className="font-semibold text-base mb-2">Toplam Kâr {vatLabel}</h4>
                                     <div className="flex justify-between items-baseline">
                                         <span className="block text-3xl font-bold font-mono tabular-nums text-green-600">
-                                            {formatCurrency(calculatedTotals.grandTotalProfit)}
+                                            {formatCurrency(calculatedTotals.grandTotalProfit * (includeVAT ? (1 + VAT_RATE) : 1))}
                                         </span>
                                         <span className="text-lg font-medium text-green-600">({formatPercent(calculatedTotals.grandTotalProfitMargin)})</span>
                                     </div>
-                                    <p className="text-xs text-muted-foreground mt-1">Kâr her zaman KDV hariç tutarlar üzerinden hesaplanır.</p>
+                                    <p className="text-xs text-muted-foreground mt-1">Kâr marjı her zaman KDV hariç tutarlar üzerinden hesaplanır.</p>
                                 </div>
                                 <div className="space-y-4">
                                      <Separator />
@@ -674,9 +686,12 @@ export default function QuoteDetailPage() {
                 )}
                 
                 {allGroups.map(([groupName, itemsInGroup]) => {
-                    const groupTotalExVAT = calculatedTotals.groupTotals[groupName]?.totalSellInTRY || 0;
+                    const groupTotals = calculatedTotals.groupTotals[groupName];
+                    if (!groupTotals) return null;
+
+                    const groupTotalExVAT = groupTotals.totalSellInTRY || 0;
                     const groupTotal = includeVAT ? groupTotalExVAT * (1 + VAT_RATE) : groupTotalExVAT;
-                    const groupCost = calculatedTotals.groupTotals[groupName]?.totalCostInTRY || 0;
+                    const groupCost = groupTotals.totalCostInTRY || 0;
                     const groupProfit = groupTotalExVAT - groupCost;
                     const groupProfitMargin = groupTotalExVAT > 0 ? groupProfit / groupTotalExVAT : 0;
                     
@@ -725,10 +740,16 @@ export default function QuoteDetailPage() {
                                         </div>
                                         <div>
                                             <p className="text-xs text-slate-500">Grup Toplamı {vatLabel}</p>
-                                            <div className="flex gap-x-3 justify-end">
-                                                <p className="font-mono text-lg font-bold text-slate-700">
-                                                    {formatCurrency(groupTotal)}
-                                                </p>
+                                            <div className="flex gap-x-3 justify-end font-mono text-lg font-bold">
+                                                {Object.entries(groupTotals.totalsByCurrency).map(([currency, total]) => total > 0 && (
+                                                    <p key={currency} className={cn(
+                                                        currency === 'USD' && 'text-green-600',
+                                                        currency === 'EUR' && 'text-blue-600',
+                                                        currency === 'TRY' && 'text-slate-800'
+                                                    )}>
+                                                        {formatCurrency(total * (includeVAT ? 1 + VAT_RATE : 1), currency as 'TRY' | 'USD' | 'EUR')}
+                                                    </p>
+                                                ))}
                                             </div>
                                         </div>
                                     </div>
