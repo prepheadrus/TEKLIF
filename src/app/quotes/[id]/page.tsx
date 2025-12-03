@@ -156,7 +156,8 @@ export default function QuoteDetailPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
+  const [exchangeRatePortal, setExchangeRatePortal] = useState<HTMLElement | null>(null);
+  const [subHeaderPortal, setSubHeaderPortal] = useState<HTMLElement | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isProductSelectorOpen, setIsProductSelectorOpen] = useState(false);
   const [activeProductForAISuggestion, setActiveProductForAISuggestion] = useState<string | null>(null);
@@ -206,9 +207,9 @@ export default function QuoteDetailPage() {
 
   // --- Effects ---
    useEffect(() => {
-    // Portal is needed to render the exchange rates in the main layout's header
-    const container = document.getElementById('exchange-rate-portal');
-    setPortalContainer(container);
+    // Portal is needed to render elements into the main layout's header
+    setExchangeRatePortal(document.getElementById('exchange-rate-portal'));
+    setSubHeaderPortal(document.getElementById('sub-header-portal'));
   }, []);
 
   useEffect(() => {
@@ -507,40 +508,43 @@ export default function QuoteDetailPage() {
   }
 
   return (
-    <div className='bg-slate-50'>
-        {portalContainer && createPortal(
+    <>
+        {exchangeRatePortal && createPortal(
           <ExchangeRateDisplay form={form} onRefresh={handleFetchRates} isFetching={isFetchingRates} />,
-          portalContainer
+          exchangeRatePortal
+        )}
+        {subHeaderPortal && createPortal(
+            <div className="bg-white/95 backdrop-blur-sm px-8 py-4 flex justify-between items-center border-b border-slate-200 w-full">
+                <div>
+                    <p className="text-sm text-slate-500 mt-1">
+                    Müşteri: <span className="font-bold text-xl text-blue-700">{proposal.customerName}</span> • Proje: <span className="font-bold text-xl text-blue-700">{proposal.projectName}</span>
+                    </p>
+                    <h1 className="text-sm text-slate-400 font-normal mt-1">
+                        {proposal.quoteNumber} (v{proposal.version})
+                    </h1>
+                </div>
+                
+                <div className="flex items-center gap-4">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => router.push(`/quotes/${proposalId}/print?customerId=${proposal.customerId}`)}
+                        className="hidden sm:flex"
+                    >
+                        <FileDown className="mr-2 h-4 w-4" /> PDF
+                    </Button>
+                    <Button onClick={form.handleSubmit(handleSaveChanges)} disabled={isSaving} className="bg-primary text-white hover:bg-primary/90 transition">
+                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                        Değişiklikleri Kaydet
+                    </Button>
+                </div>
+            </div>,
+            subHeaderPortal
         )}
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSaveChanges)}>
-                <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm flex-shrink-0 px-8 py-4 flex justify-between items-center border-b border-slate-200">
-                    <div>
-                        <p className="text-sm text-slate-500 mt-1">
-                        Müşteri: <span className="font-bold text-xl text-blue-700">{proposal.customerName}</span> • Proje: <span className="font-bold text-xl text-blue-700">{proposal.projectName}</span>
-                        </p>
-                        <h1 className="text-sm text-slate-400 font-normal mt-1">
-                            {proposal.quoteNumber} (v{proposal.version})
-                        </h1>
-                    </div>
-                    
-                    <div className="flex items-center gap-4">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => router.push(`/quotes/${proposalId}/print?customerId=${proposal.customerId}`)}
-                            className="hidden sm:flex"
-                        >
-                            <FileDown className="mr-2 h-4 w-4" /> PDF
-                        </Button>
-                        <Button type="submit" disabled={isSaving} className="bg-primary text-white hover:bg-primary/90 transition">
-                            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                            Değişiklikleri Kaydet
-                        </Button>
-                    </div>
-                </header>
-
-                <main className="px-8 py-8 space-y-8">
+            <form onSubmit={form.handleSubmit(handleSaveChanges)} className='h-full flex flex-col'>
+                
+                <main className="flex-1 overflow-y-auto px-8 py-8 space-y-8">
                     {activeProductForAISuggestion && (
                         <AISuggestionBox 
                             productName={activeProductForAISuggestion}
@@ -620,7 +624,7 @@ export default function QuoteDetailPage() {
                                         </TableHeader>
                                     </Table>
                                 </div>
-                                <div className="overflow-y-auto resize-y min-h-[150px] h-[400px]">
+                                <div className="h-[400px] min-h-[150px] overflow-y-auto resize-y">
                                     <Table>
                                         <TableBody className="text-sm divide-y divide-slate-100">
                                             {itemsInGroup.map((item) => {
@@ -753,7 +757,7 @@ export default function QuoteDetailPage() {
           onProductsSelected={handleProductsSelected}
           targetGroupName={targetGroupForProductAdd}
       />
-    </div>
+    </>
   );
 }
 
