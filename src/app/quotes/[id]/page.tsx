@@ -72,6 +72,8 @@ import type { InstallationType } from '@/app/installation-types/page';
 import { fetchExchangeRates } from '@/ai/flows/fetch-exchange-rates';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
 
 const proposalItemSchema = z.object({
@@ -167,7 +169,7 @@ export default function QuoteDetailPage() {
   const [emptyGroups, setEmptyGroups] = useState<string[]>([]);
   const [targetGroupForProductAdd, setTargetGroupForProductAdd] = useState<string | undefined>(undefined);
   const [isFetchingRates, setIsFetchingRates] = useState(false);
-  const [totalDisplayMode, setTotalDisplayMode] = useState<'TRY' | 'MULTI'>('TRY');
+  const [includeVAT, setIncludeVAT] = useState(false);
 
 
   // --- Data Fetching ---
@@ -206,6 +208,7 @@ export default function QuoteDetailPage() {
   
   const watchedItems = form.watch('items');
   const watchedRates = form.watch('exchangeRates');
+  const VAT_RATE = 0.20;
 
   // --- Effects ---
    useEffect(() => {
@@ -264,15 +267,16 @@ export default function QuoteDetailPage() {
             exchangeRate: item.currency === 'USD' ? watchedRates.USD : item.currency === 'EUR' ? watchedRates.EUR : 1,
         });
 
+        const vatMultiplier = includeVAT ? 1 + VAT_RATE : 1;
         const itemOriginalTotal = totals.originalSellPrice * item.quantity;
         
-        acc[groupName].totalSellInTRY += totals.totalTlSell;
-        acc[groupName].totalCostInTRY += totals.totalTlCost;
-        acc[groupName].totalProfitInTRY += totals.totalProfit;
-        acc[groupName].totalsByCurrency[item.currency] += itemOriginalTotal;
+        acc[groupName].totalSellInTRY += totals.totalTlSell * vatMultiplier;
+        acc[groupName].totalCostInTRY += totals.totalTlCost; // Cost is always VAT exclusive
+        acc[groupName].totalProfitInTRY += totals.totalTlSell - totals.totalTlCost; // Profit is always calculated on VAT-exclusive price
+        acc[groupName].totalsByCurrency[item.currency] += itemOriginalTotal * vatMultiplier;
         
         totalsByCurrency[item.currency] += itemOriginalTotal;
-        grandTotalSellInTRY += totals.totalTlSell;
+        grandTotalSellInTRY += totals.totalTlSell * vatMultiplier;
         grandTotalCostInTRY += totals.totalTlCost;
 
         return acc;
@@ -284,8 +288,9 @@ export default function QuoteDetailPage() {
     }>);
     
     
-    const grandTotalProfit = grandTotalSellInTRY - grandTotalCostInTRY;
-    const grandTotalProfitMargin = grandTotalSellInTRY > 0 ? (grandTotalProfit / grandTotalSellInTRY) : 0;
+    const grandTotalProfit = grandTotalSellInTRY / (includeVAT ? 1 + VAT_RATE : 1) - grandTotalCostInTRY;
+    const grandTotalSellExVAT = grandTotalSellInTRY / (includeVAT ? 1 + VAT_RATE : 1);
+    const grandTotalProfitMargin = grandTotalSellExVAT > 0 ? (grandTotalProfit / grandTotalSellExVAT) : 0;
 
     return { 
         groupTotals, 
@@ -295,7 +300,7 @@ export default function QuoteDetailPage() {
         grandTotalProfitMargin,
         totalsByCurrency
     };
-}, [watchedItems, watchedRates]);
+}, [watchedItems, watchedRates, includeVAT]);
 
 
   const allGroups = useMemo(() => {
@@ -425,7 +430,7 @@ export default function QuoteDetailPage() {
       const proposalDocRef = doc(firestore, 'proposals', proposalId);
       batch.update(proposalDocRef, {
         versionNote: data.versionNote,
-        totalAmount: calculatedTotals.grandTotalSellInTRY,
+        totalAmount: calculatedTotals.grandTotalSellInTRY / (includeVAT ? 1 + VAT_RATE : 1),
         exchangeRates: data.exchangeRates,
         updatedAt: serverTimestamp(),
       });
@@ -514,34 +519,10 @@ export default function QuoteDetailPage() {
     return new Intl.NumberFormat('tr-TR', { style: 'percent', minimumFractionDigits: 2 }).format(amount);
   }
 
-  const renderMultiCurrencyTotal = (totals: { TRY: number, USD: number, EUR: number }, className?: string) => {
-    const parts = (['TRY', 'USD', 'EUR'] as const)
-        .map(curr => {
-            const total = totals[curr];
-            return total > 0 ? (
-                <div key={curr} className="flex justify-between items-baseline">
-                    <span className="text-sm text-slate-500">{curr} Toplamı</span>
-                    <span className={cn(
-                        "font-mono font-semibold",
-                        curr === 'USD' && 'text-green-600',
-                        curr === 'EUR' && 'text-blue-600',
-                        curr === 'TRY' && 'text-slate-700',
-                        className
-                    )}>
-                        {formatCurrency(total, curr)}
-                    </span>
-                </div>
-            ) : null;
-        })
-        .filter(Boolean);
-
-    if (parts.length === 0) return <div className="text-right">{formatCurrency(0, 'TRY')}</div>;
-    return <div className="space-y-1">{parts}</div>;
-  };
   
   if (isLoading) {
     return (
-      <div className="flex h-full w-full items-center justify-center">
+      <div className="h-full w-full flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
@@ -551,6 +532,8 @@ export default function QuoteDetailPage() {
     return <div>Teklif bulunamadı.</div>;
   }
 
+  const vatLabel = includeVAT ? '(KDV Dahil)' : '(KDV Hariç)';
+
   return (
     <div className="h-full flex flex-col">
        {exchangeRatePortal && createPortal(
@@ -559,7 +542,6 @@ export default function QuoteDetailPage() {
       )}
       {subHeaderPortal && proposal && createPortal(
           <div className="bg-white/95 backdrop-blur-sm px-8 py-3 flex justify-between items-center w-full border-b">
-              {/* Left Section: Project Info */}
               <div className="flex-1 min-w-0">
                   <h1 className="text-xl font-bold text-slate-800 truncate" title={proposal.projectName}>
                       {proposal.projectName}
@@ -570,100 +552,110 @@ export default function QuoteDetailPage() {
                     {proposal.quoteNumber} (v{proposal.version})
                   </p>
               </div>
-
-              {/* Right Section: Financials & Actions */}
-              <div className="flex items-center gap-4">
-                 <div className="relative">
-                     <Collapsible>
-                        <CollapsibleTrigger asChild>
-                                <Button variant="ghost" className="p-3 h-auto">
-                                    <div className="text-right">
-                                        <span className="text-xs text-slate-500">Genel Toplam (KDV Dahil)</span>
-                                        <span className="block text-2xl font-bold font-mono tabular-nums text-slate-900">{formatCurrency(calculatedTotals.grandTotalSellInTRY * 1.2)}</span>
-                                    </div>
-                                    <ChevronsUpDown className="h-5 w-5 ml-3 text-slate-400" />
-                                </Button>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="absolute top-full right-0 z-20">
-                             <div className="p-6 mt-2 border bg-white rounded-lg shadow-xl w-[800px] grid grid-cols-3 gap-x-6">
-                                {/* Left Column: Group Summary */}
-                                <div className="space-y-3 col-span-1 border-r pr-6">
-                                    <h4 className="font-semibold text-base mb-2">Grup İcmali (KDV Hariç)</h4>
-                                    <div className="space-y-4 text-sm text-slate-600">
-                                    {Object.entries(calculatedTotals.groupTotals).sort(([a], [b]) => a.localeCompare(b)).map(([groupName, group]) => (
-                                        <div key={groupName}>
-                                            <p className="font-medium text-slate-800 truncate pr-4" title={groupName}>{groupName}</p>
-                                            <div className="pl-2 border-l-2 ml-1">
-                                                {totalDisplayMode === 'TRY' ? (
-                                                    <div className="flex justify-between items-center text-slate-800">
-                                                        <span>Toplam:</span>
-                                                        <span className="font-mono font-semibold">{formatCurrency(group.totalSellInTRY)}</span>
-                                                    </div>
-                                                ) : (
-                                                    renderMultiCurrencyTotal(group.totalsByCurrency, 'text-base')
-                                                )}
-                                            </div>
+               
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                 <Collapsible>
+                    <CollapsibleTrigger asChild>
+                            <Button variant="ghost" className="p-3 h-auto">
+                                <div className="text-right">
+                                    <span className="text-xs text-slate-500">Genel Toplam {vatLabel}</span>
+                                    <span className="block text-2xl font-bold font-mono tabular-nums text-slate-900">{formatCurrency(calculatedTotals.grandTotalSellInTRY)}</span>
+                                </div>
+                                <ChevronsUpDown className="h-5 w-5 ml-3 text-slate-400" />
+                            </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="absolute top-full right-0 z-20">
+                         <div className="p-6 mt-2 border bg-white rounded-lg shadow-xl w-[800px] grid grid-cols-3 gap-x-6">
+                            {/* --- Left Column: Group Summary --- */}
+                            <div className="space-y-3 col-span-1 border-r pr-6">
+                                <h4 className="font-semibold text-base mb-2">Grup İcmali {vatLabel}</h4>
+                                <div className="space-y-2 text-sm max-h-60 overflow-y-auto pr-2">
+                                {Object.entries(calculatedTotals.groupTotals).sort(([a], [b]) => a.localeCompare(b)).map(([groupName, group]) => (
+                                    <div key={groupName} className="text-xs">
+                                        <p className="font-medium text-slate-700 truncate pr-4" title={groupName}>{groupName}</p>
+                                        <div className="pl-2 border-l-2 ml-1 mt-1 space-y-0.5">
+                                            {Object.entries(group.totalsByCurrency).map(([currency, total]) => total > 0 && (
+                                                <div className="flex justify-between items-center" key={currency}>
+                                                    <span className="text-slate-500">{currency} Toplamı</span>
+                                                    <span className={cn("font-mono font-semibold",
+                                                        currency === 'USD' && 'text-green-600',
+                                                        currency === 'EUR' && 'text-blue-600',
+                                                        currency === 'TRY' && 'text-slate-700'
+                                                    )}>
+                                                        {formatCurrency(total, currency as 'TRY' | 'USD' | 'EUR')}
+                                                    </span>
+                                                </div>
+                                            ))}
                                         </div>
-                                    ))}
                                     </div>
+                                ))}
                                 </div>
-                                {/* Middle Column: Overall Summary */}
-                                <div className="space-y-4 col-span-1 border-r pr-6">
-                                    <div>
-                                        <h4 className="font-semibold text-base mb-3">Teklif İcmali (KDV Hariç)</h4>
-                                        {renderMultiCurrencyTotal(calculatedTotals.totalsByCurrency, 'text-xl')}
-                                    </div>
-                                    <Separator />
-                                    <div>
-                                         <h4 className="font-semibold text-base mb-2">Genel Toplam (KDV Dahil)</h4>
-                                          <div className="text-right">
-                                                <span className="block text-3xl font-bold font-mono tabular-nums text-primary">
-                                                    {formatCurrency(calculatedTotals.grandTotalSellInTRY * 1.20)}
-                                                </span>
-                                            </div>
-                                    </div>
+                            </div>
+                            
+                            {/* --- Middle Column: Overall Summary --- */}
+                            <div className="space-y-4 col-span-1 border-r pr-6">
+                                <h4 className="font-semibold text-base mb-3">Teklif İcmali {vatLabel}</h4>
+                                <div className="space-y-2">
+                                    {Object.entries(calculatedTotals.totalsByCurrency).map(([currency, total]) => {
+                                        const totalWithVat = total * (includeVAT ? 1 + VAT_RATE : 1);
+                                        return total > 0 && (
+                                        <div className="flex justify-between items-baseline" key={currency}>
+                                            <span className="text-base text-slate-500">{currency} Toplamı</span>
+                                            <span className={cn("text-lg font-bold font-mono",
+                                                currency === 'USD' && 'text-green-600',
+                                                currency === 'EUR' && 'text-blue-600',
+                                                currency === 'TRY' && 'text-slate-800'
+                                            )}>
+                                                {formatCurrency(totalWithVat, currency as 'TRY' | 'USD' | 'EUR')}
+                                            </span>
+                                        </div>
+                                    )}
+                                    )}
                                 </div>
-                                {/* Right Column: Profit & Controls */}
-                                <div className="space-y-4 col-span-1">
-                                    <div>
-                                        <h4 className="font-semibold text-base mb-2">Toplam Kâr</h4>
-                                        <span className="block text-3xl font-bold font-mono tabular-nums text-green-600">
-                                            {formatCurrency(calculatedTotals.grandTotalProfit)}
-                                        </span>
-                                        <span className="block text-right text-lg font-medium text-green-600">({formatPercent(calculatedTotals.grandTotalProfitMargin)})</span>
-                                    </div>
-                                    <Separator/>
+                                <Separator className="my-4"/>
+                                <h4 className="font-semibold text-base mb-2">Genel Toplam {vatLabel}</h4>
+                                <div className="text-right">
+                                    <span className="block text-3xl font-bold font-mono tabular-nums text-primary">
+                                        {formatCurrency(calculatedTotals.grandTotalSellInTRY)}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* --- Right Column: Profit & Controls --- */}
+                            <div className="space-y-4 col-span-1 flex flex-col justify-between">
+                                <div>
+                                    <h4 className="font-semibold text-base mb-2">Toplam Kâr (KDV Hariç)</h4>
+                                    <span className="block text-3xl font-bold font-mono tabular-nums text-green-600">
+                                        {formatCurrency(calculatedTotals.grandTotalProfit)}
+                                    </span>
+                                    <span className="block text-right text-lg font-medium text-green-600">({formatPercent(calculatedTotals.grandTotalProfitMargin)})</span>
+                                </div>
+                                <div className="space-y-4">
+                                     <Separator />
                                      <div className="space-y-2">
-                                        <span className="text-base font-medium text-slate-600">Para Birimi Gösterimi</span>
-                                        <Select value={totalDisplayMode} onValueChange={(value: 'TRY' | 'MULTI') => setTotalDisplayMode(value)}>
-                                            <SelectTrigger className="w-full">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="TRY">Genel Toplam (TL)</SelectItem>
-                                                <SelectItem value="MULTI">Para Birimine Göre İcmal</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                                        <div className="flex items-center justify-between">
+                                            <Label htmlFor="vat-toggle" className="text-sm font-medium">Fiyatları KDV Dahil Göster</Label>
+                                            <Switch id="vat-toggle" checked={includeVAT} onCheckedChange={setIncludeVAT}/>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </CollapsibleContent>
-                     </Collapsible>
-                 </div>
-                 
-                  <div className="flex items-center gap-2">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => router.push(`/quotes/${proposalId}/print?customerId=${proposal.customerId}`)}
-                    >
-                        <FileDown className="mr-2 h-4 w-4" /> PDF
-                    </Button>
-                    <Button onClick={form.handleSubmit(handleSaveChanges)} disabled={isSaving}>
-                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                        Değişiklikleri Kaydet
-                    </Button>
+                        </div>
+                    </CollapsibleContent>
+                 </Collapsible>
                 </div>
+                <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => router.push(`/quotes/${proposalId}/print?customerId=${proposal.customerId}`)}
+                >
+                    <FileDown className="mr-2 h-4 w-4" /> PDF
+                </Button>
+                <Button onClick={form.handleSubmit(handleSaveChanges)} disabled={isSaving}>
+                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                    Değişiklikleri Kaydet
+                </Button>
               </div>
           </div>,
           subHeaderPortal
@@ -686,7 +678,7 @@ export default function QuoteDetailPage() {
                         totalProfitInTRY: 0,
                         totalsByCurrency: { TRY: 0, USD: 0, EUR: 0 }
                     };
-                    const groupProfitMargin = groupTotal.totalSellInTRY > 0 ? (groupTotal.totalProfitInTRY / groupTotal.totalSellInTRY) : 0;
+                    const groupProfitMargin = (groupTotal.totalSellInTRY / (includeVAT ? 1 + VAT_RATE : 1) - groupTotal.totalCostInTRY) / (groupTotal.totalSellInTRY / (includeVAT ? 1 + VAT_RATE : 1)) || 0;
                     
                     return (
                     <section key={groupName} className="group/section relative bg-white rounded-xl shadow-sm border border-slate-200">
@@ -728,16 +720,22 @@ export default function QuoteDetailPage() {
                                     </div>
                                     <div className="flex items-center gap-6 text-right">
                                         <div>
-                                            <p className="text-xs text-slate-500">Grup Kârı</p>
+                                            <p className="text-xs text-slate-500">Grup Kârı (KDV Hariç)</p>
                                             <p className="font-mono text-xl font-bold text-green-600">{formatCurrency(groupTotal.totalProfitInTRY)} <span className="text-sm font-medium">({formatPercent(groupProfitMargin)})</span></p>
                                         </div>
                                         <div>
-                                            <p className="text-xs text-slate-500">Grup Toplamı</p>
-                                            {totalDisplayMode === 'TRY' ? (
-                                                    <p className="font-mono text-xl font-bold text-slate-800">{formatCurrency(groupTotal.totalSellInTRY)}</p>
-                                            ) : (
-                                                    renderMultiCurrencyTotal(groupTotal.totalsByCurrency, 'text-lg')
-                                            )}
+                                            <p className="text-xs text-slate-500">Grup Toplamı {vatLabel}</p>
+                                            <div className="flex gap-x-3 justify-end">
+                                                {Object.entries(groupTotal.totalsByCurrency).map(([currency, total]) => total > 0 && (
+                                                    <p key={currency} className={cn("font-mono text-lg font-bold",
+                                                        currency === 'USD' && 'text-green-600',
+                                                        currency === 'EUR' && 'text-blue-600',
+                                                        currency === 'TRY' && 'text-slate-700'
+                                                    )}>
+                                                        {formatCurrency(total, currency as 'TRY' | 'USD' | 'EUR')}
+                                                    </p>
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -752,8 +750,8 @@ export default function QuoteDetailPage() {
                                         <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Alış Fiyatı (TL)</TableHead>
                                         <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider w-32">İskonto (%)</TableHead>
                                         <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider w-32">Kâr (%)</TableHead>
-                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Birim Fiyat</TableHead>
-                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Toplam</TableHead>
+                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Birim Fiyat {vatLabel}</TableHead>
+                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-400 font-semibold tracking-wider">Toplam {vatLabel}</TableHead>
                                         <TableHead className="w-10 py-2 pr-4"></TableHead>
                                     </TableRow>
                                     </TableHeader>
@@ -772,6 +770,11 @@ export default function QuoteDetailPage() {
                                             ...itemValues,
                                             exchangeRate: itemValues.currency === 'USD' ? watchedRates.USD : itemValues.currency === 'EUR' ? watchedRates.EUR : 1,
                                         });
+                                        
+                                        const vatMultiplier = includeVAT ? 1 + VAT_RATE : 1;
+                                        const finalSellPrice = itemTotals.tlSellPrice * vatMultiplier;
+                                        const finalTotalSell = itemTotals.totalTlSell * vatMultiplier;
+
 
                                         return (
                                             <TableRow key={item.formId} className="hover:bg-slate-50 group/row">
@@ -830,8 +833,8 @@ export default function QuoteDetailPage() {
                                                     <span className="text-slate-400">%</span>
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="text-right font-mono tabular-nums font-semibold text-slate-600 py-1 w-32 text-lg">{formatNumber(itemTotals.tlSellPrice)}</TableCell>
-                                            <TableCell className="text-right font-bold font-mono tabular-nums text-lg text-slate-800 py-1 w-36">{formatCurrency(itemTotals.totalTlSell)}</TableCell>
+                                            <TableCell className="text-right font-mono tabular-nums font-semibold text-slate-600 py-1 w-32 text-lg">{formatNumber(finalSellPrice)}</TableCell>
+                                            <TableCell className="text-right font-bold font-mono tabular-nums text-lg text-slate-800 py-1 w-36">{formatCurrency(finalTotalSell)}</TableCell>
                                             <TableCell className="px-2 text-center py-1">
                                                 <Button variant="ghost" size="icon" onClick={() => remove(originalIndex)} className="h-8 w-8 text-slate-400 hover:text-red-500 opacity-0 group-hover/row:opacity-100 transition-opacity">
                                                 <Trash2 className="h-4 w-4" />
