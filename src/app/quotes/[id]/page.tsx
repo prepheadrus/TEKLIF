@@ -577,18 +577,19 @@ export default function QuoteDetailPage() {
                                 <h4 className="font-semibold text-base mb-2">Grup İcmali {vatLabel}</h4>
                                 <div className="space-y-2 text-sm max-h-60 overflow-y-auto pr-2">
                                 {Object.entries(calculatedTotals.groupTotals).sort(([a], [b]) => a.localeCompare(b)).map(([groupName, group]) => {
+                                    const vatMultiplier = includeVAT ? 1 + VAT_RATE : 1;
                                     return (
                                         <div key={groupName} className="flex justify-between items-center text-sm">
                                             <p className="text-slate-600 truncate pr-4" title={groupName}>{groupName}</p>
-                                            <div className="flex items-center gap-x-2 font-mono font-semibold text-slate-700">
+                                            <div className="flex items-center gap-x-3 font-mono font-semibold">
                                                 {group.totalsByCurrency.TRY > 0 && (
-                                                    <span>{formatCurrency(group.totalsByCurrency.TRY * (includeVAT ? 1 + VAT_RATE : 1), 'TRY')}</span>
+                                                    <span className="text-slate-700">{formatCurrency(group.totalsByCurrency.TRY * vatMultiplier, 'TRY')}</span>
                                                 )}
                                                 {group.totalsByCurrency.USD > 0 && (
-                                                    <span className="text-green-600">{formatCurrency(group.totalsByCurrency.USD * (includeVAT ? 1 + VAT_RATE : 1), 'USD')}</span>
+                                                    <span className="text-green-600">{formatCurrency(group.totalsByCurrency.USD * vatMultiplier, 'USD')}</span>
                                                 )}
                                                  {group.totalsByCurrency.EUR > 0 && (
-                                                    <span className="text-blue-600">{formatCurrency(group.totalsByCurrency.EUR * (includeVAT ? 1 + VAT_RATE : 1), 'EUR')}</span>
+                                                    <span className="text-blue-600">{formatCurrency(group.totalsByCurrency.EUR * vatMultiplier, 'EUR')}</span>
                                                 )}
                                             </div>
                                         </div>
@@ -598,7 +599,7 @@ export default function QuoteDetailPage() {
                             </div>
                             
                             <div className="space-y-4 col-span-1 border-r pr-6">
-                                <h4 className="font-semibold text-base mb-3">Teklif İcmali</h4>
+                                <h4 className="font-semibold text-base mb-3">Teklif İcmali {vatLabel}</h4>
                                 {includeVAT ? (
                                     <div className="space-y-1">
                                         <div className="flex justify-between text-sm">
@@ -619,7 +620,7 @@ export default function QuoteDetailPage() {
                                      <div className="space-y-2">
                                         {calculatedTotals.totalsByCurrency.TRY > 0 && (
                                             <div className="flex justify-between items-baseline">
-                                                <span className="text-sm text-slate-500">TRY Toplamı {vatLabel}</span>
+                                                <span className="text-sm text-slate-500">TRY Toplamı:</span>
                                                 <span className="text-lg font-bold font-mono text-slate-800">
                                                     {formatCurrency(calculatedTotals.totalsByCurrency.TRY, 'TRY')}
                                                 </span>
@@ -627,7 +628,7 @@ export default function QuoteDetailPage() {
                                         )}
                                         {calculatedTotals.totalsByCurrency.USD > 0 && (
                                             <div className="flex justify-between items-baseline">
-                                                <span className="text-sm text-slate-500">USD Toplamı {vatLabel}</span>
+                                                <span className="text-sm text-slate-500">USD Toplamı:</span>
                                                 <span className="text-lg font-bold font-mono text-green-600">
                                                     {formatCurrency(calculatedTotals.totalsByCurrency.USD, 'USD')}
                                                 </span>
@@ -635,7 +636,7 @@ export default function QuoteDetailPage() {
                                         )}
                                         {calculatedTotals.totalsByCurrency.EUR > 0 && (
                                             <div className="flex justify-between items-baseline">
-                                                <span className="text-sm text-slate-500">EUR Toplamı {vatLabel}</span>
+                                                <span className="text-sm text-slate-500">EUR Toplamı:</span>
                                                 <span className="text-lg font-bold font-mono text-blue-600">
                                                     {formatCurrency(calculatedTotals.totalsByCurrency.EUR, 'EUR')}
                                                 </span>
@@ -650,7 +651,7 @@ export default function QuoteDetailPage() {
                                     <h4 className="font-semibold text-base mb-2">Toplam Kâr {vatLabel}</h4>
                                     <div className="flex justify-between items-baseline">
                                         <span className="block text-3xl font-bold font-mono tabular-nums text-green-600">
-                                            {formatCurrency(calculatedTotals.grandTotalProfit * (includeVAT ? (1 + VAT_RATE) : 1))}
+                                            {formatCurrency(calculatedTotals.grandTotalProfit)}
                                         </span>
                                         <span className="text-lg font-medium text-green-600">({formatPercent(calculatedTotals.grandTotalProfitMargin)})</span>
                                     </div>
@@ -744,7 +745,7 @@ export default function QuoteDetailPage() {
                                     </div>
                                     <div className="flex items-center gap-6 text-right">
                                         <div>
-                                            <p className="text-xs text-slate-500">Grup Kârı (KDV Hariç)</p>
+                                            <p className="text-xs text-slate-500">Grup Kârı {vatLabel}</p>
                                             <p className="font-mono text-xl font-bold text-green-600">{formatCurrency(groupProfit)} <span className="text-sm font-medium">({formatPercent(groupProfitMargin)})</span></p>
                                         </div>
                                         <div>
