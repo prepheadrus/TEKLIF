@@ -543,6 +543,7 @@ export default function QuoteDetailPage() {
     <div className="h-full flex flex-col">
       {subHeaderPortal && proposal && createPortal(
           <div className="bg-white/95 backdrop-blur-sm px-8 py-3 flex justify-between items-center w-full border-b">
+              {/* Left Section: Project Info */}
               <div className="flex-1 min-w-0">
                   <h1 className="text-xl font-bold text-slate-800 truncate" title={proposal.projectName}>
                       {proposal.projectName}
@@ -554,16 +555,17 @@ export default function QuoteDetailPage() {
                   </p>
               </div>
               
-              <div className="flex items-center gap-4 pl-8">
-                   <ExchangeRateDisplay form={form} onRefresh={handleFetchRates} isFetching={isFetchingRates} />
-                  <div className="text-right">
-                    <span className="text-xs text-slate-500">Toplam Kâr</span>
-                    <span className="block text-xl font-bold font-mono tabular-nums text-green-600">
-                      {formatCurrency(calculatedTotals.grandTotalProfit)}
-                      <span className="text-sm font-medium ml-2">({formatPercent(calculatedTotals.grandTotalProfitMargin)})</span>
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
+              {/* Center Section: Financials */}
+              <div className="flex items-center gap-6">
+                  <ExchangeRateDisplay form={form} onRefresh={handleFetchRates} isFetching={isFetchingRates} />
+                   <div className="text-right">
+                      <span className="text-xs text-slate-500">Toplam Kâr</span>
+                      <span className="block text-xl font-bold font-mono tabular-nums text-green-600">
+                        {formatCurrency(calculatedTotals.grandTotalProfit)}
+                        <span className="text-sm font-medium ml-2">({formatPercent(calculatedTotals.grandTotalProfitMargin)})</span>
+                      </span>
+                   </div>
+                   <div className="flex items-center gap-2">
                         <Select value={totalDisplayMode} onValueChange={(value: 'TRY' | 'MULTI') => setTotalDisplayMode(value)}>
                             <SelectTrigger className="w-[180px]">
                                 <SelectValue />
@@ -582,12 +584,15 @@ export default function QuoteDetailPage() {
                             ) : (
                                 <>
                                       <span className="text-xs text-slate-500">Teklif Toplamları (KDV Hariç)</span>
-                                      {renderMultiCurrencyTotal(calculatedTotals.totalsByCurrency, 'text-lg')}
+                                      {renderMultiCurrencyTotal(calculatedTotals.totalsByCurrency, 'text-xl')}
                                 </>
                             )}
                         </div>
                     </div>
+              </div>
 
+              {/* Right Section: Actions */}
+              <div className="flex items-center gap-2 pl-8">
                   <Button
                       type="button"
                       variant="outline"
