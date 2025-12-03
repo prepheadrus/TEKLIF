@@ -507,14 +507,14 @@ export default function QuoteDetailPage() {
   }
 
   return (
-    <div>
+    <div className='bg-slate-50'>
         {portalContainer && createPortal(
           <ExchangeRateDisplay form={form} onRefresh={handleFetchRates} isFetching={isFetchingRates} />,
           portalContainer
         )}
         <Form {...form}>
             <form onSubmit={form.handleSubmit(handleSaveChanges)}>
-                <header className="flex-shrink-0 px-8 py-4 flex justify-between items-center bg-white border-b border-slate-200">
+                <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm flex-shrink-0 px-8 py-4 flex justify-between items-center border-b border-slate-200">
                     <div>
                         <p className="text-sm text-slate-500 mt-1">
                         Müşteri: <span className="font-bold text-xl text-blue-700">{proposal.customerName}</span> • Proje: <span className="font-bold text-xl text-blue-700">{proposal.projectName}</span>
@@ -540,7 +540,7 @@ export default function QuoteDetailPage() {
                     </div>
                 </header>
 
-                <main className="px-8 py-8 space-y-8 bg-slate-50">
+                <main className="px-8 py-8 space-y-8">
                     {activeProductForAISuggestion && (
                         <AISuggestionBox 
                             productName={activeProductForAISuggestion}
@@ -713,7 +713,7 @@ export default function QuoteDetailPage() {
                     </Button>
                 </main>
 
-                <footer className="flex-shrink-0 bg-white/95 backdrop-blur-sm border-t border-slate-200 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
+                <footer className="sticky bottom-0 z-20 flex-shrink-0 bg-white/95 backdrop-blur-sm border-t border-slate-200 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
                     <div className="mx-auto px-8">
                         <div className="flex justify-between items-center h-24">
                             <div className="flex-1 flex items-center gap-4 overflow-x-auto">
