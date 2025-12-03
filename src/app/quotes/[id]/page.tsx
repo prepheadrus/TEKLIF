@@ -825,6 +825,12 @@ export default function QuoteDetailPage() {
             </form>
         </Form>
       </div>
+      <ProductSelector
+        isOpen={isProductSelectorOpen}
+        onOpenChange={setIsProductSelectorOpen}
+        onProductsSelected={handleProductsSelected}
+        targetGroupName={targetGroupForProductAdd}
+      />
     </div>
   );
 }
