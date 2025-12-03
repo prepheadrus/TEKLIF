@@ -273,7 +273,7 @@ export default function QuoteDetailPage() {
         acc[groupName].totalSellInTRY += totals.totalTlSell * vatMultiplier;
         acc[groupName].totalCostInTRY += totals.totalTlCost; // Cost is always VAT exclusive
         acc[groupName].totalProfitInTRY += totals.totalTlSell - totals.totalTlCost; // Profit is always calculated on VAT-exclusive price
-        acc[groupName].totalsByCurrency[item.currency] += itemOriginalTotal * vatMultiplier;
+        acc[groupName].totalsByCurrency[item.currency] += itemOriginalTotal;
         
         totalsByCurrency[item.currency] += itemOriginalTotal;
         grandTotalSellInTRY += totals.totalTlSell * vatMultiplier;
@@ -553,8 +553,7 @@ export default function QuoteDetailPage() {
                   </p>
               </div>
                
-              <div className="flex items-center gap-2">
-                <div className="relative">
+              <div className="relative">
                  <Collapsible>
                     <CollapsibleTrigger asChild>
                             <Button variant="ghost" className="p-3 h-auto">
@@ -575,7 +574,9 @@ export default function QuoteDetailPage() {
                                     <div key={groupName} className="text-xs">
                                         <p className="font-medium text-slate-700 truncate pr-4" title={groupName}>{groupName}</p>
                                         <div className="pl-2 border-l-2 ml-1 mt-1 space-y-0.5">
-                                            {Object.entries(group.totalsByCurrency).map(([currency, total]) => total > 0 && (
+                                            {Object.entries(group.totalsByCurrency).map(([currency, total]) => {
+                                                const totalWithVat = total * (includeVAT ? 1 + VAT_RATE : 1);
+                                                return total > 0 && (
                                                 <div className="flex justify-between items-center" key={currency}>
                                                     <span className="text-slate-500">{currency} Toplamı</span>
                                                     <span className={cn("font-mono font-semibold",
@@ -583,10 +584,10 @@ export default function QuoteDetailPage() {
                                                         currency === 'EUR' && 'text-blue-600',
                                                         currency === 'TRY' && 'text-slate-700'
                                                     )}>
-                                                        {formatCurrency(total, currency as 'TRY' | 'USD' | 'EUR')}
+                                                        {formatCurrency(totalWithVat, currency as 'TRY' | 'USD' | 'EUR')}
                                                     </span>
                                                 </div>
-                                            ))}
+                                            )})}
                                         </div>
                                     </div>
                                 ))}
@@ -626,10 +627,12 @@ export default function QuoteDetailPage() {
                             <div className="space-y-4 col-span-1 flex flex-col justify-between">
                                 <div>
                                     <h4 className="font-semibold text-base mb-2">Toplam Kâr (KDV Hariç)</h4>
-                                    <span className="block text-3xl font-bold font-mono tabular-nums text-green-600">
-                                        {formatCurrency(calculatedTotals.grandTotalProfit)}
-                                    </span>
-                                    <span className="block text-right text-lg font-medium text-green-600">({formatPercent(calculatedTotals.grandTotalProfitMargin)})</span>
+                                    <div className="flex justify-between items-baseline">
+                                        <span className="block text-3xl font-bold font-mono tabular-nums text-green-600">
+                                            {formatCurrency(calculatedTotals.grandTotalProfit)}
+                                        </span>
+                                        <span className="text-lg font-medium text-green-600">({formatPercent(calculatedTotals.grandTotalProfitMargin)})</span>
+                                    </div>
                                 </div>
                                 <div className="space-y-4">
                                      <Separator />
@@ -644,8 +647,7 @@ export default function QuoteDetailPage() {
                         </div>
                     </CollapsibleContent>
                  </Collapsible>
-                </div>
-                <Button
+                 <Button
                     type="button"
                     variant="outline"
                     onClick={() => router.push(`/quotes/${proposalId}/print?customerId=${proposal.customerId}`)}
@@ -726,15 +728,9 @@ export default function QuoteDetailPage() {
                                         <div>
                                             <p className="text-xs text-slate-500">Grup Toplamı {vatLabel}</p>
                                             <div className="flex gap-x-3 justify-end">
-                                                {Object.entries(groupTotal.totalsByCurrency).map(([currency, total]) => total > 0 && (
-                                                    <p key={currency} className={cn("font-mono text-lg font-bold",
-                                                        currency === 'USD' && 'text-green-600',
-                                                        currency === 'EUR' && 'text-blue-600',
-                                                        currency === 'TRY' && 'text-slate-700'
-                                                    )}>
-                                                        {formatCurrency(total, currency as 'TRY' | 'USD' | 'EUR')}
-                                                    </p>
-                                                ))}
+                                                <p className="font-mono text-lg font-bold text-slate-700">
+                                                    {formatCurrency(groupTotal.totalSellInTRY)}
+                                                </p>
                                             </div>
                                         </div>
                                     </div>
