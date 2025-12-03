@@ -98,7 +98,7 @@ export default function PrintQuotePage() {
     }
     
     const groupedAndCalculatedItems = useMemo(() => {
-        if (!items || !proposal) return { groups: [], totals: { subtotal: 0, vat: 0, grandTotal: 0 } };
+        if (!items || !proposal) return { groups: [], totals: {} };
 
         const calculatedItems: CalculatedItem[] = items.map(item => {
             const totals = calculateItemTotals({
@@ -130,18 +130,45 @@ export default function PrintQuotePage() {
             return a.localeCompare(b);
         });
         
-        const grandTotal = sortedGroups.flatMap(([, groupItems]) => groupItems).reduce((sum, item) => sum + item.total, 0);
-        const subTotalBeforeVat = grandTotal; 
-        const vatAmount = subTotalBeforeVat * 0.20;
-        const finalTotal = subTotalBeforeVat + vatAmount;
-        
-        const totals = {
-            subtotal: subTotalBeforeVat,
-            vat: vatAmount,
-            grandTotal: finalTotal,
-        };
+        const totalsByCurrency = items.reduce((acc, item) => {
+            const itemTotals = calculateItemTotals({
+                 ...item,
+                 exchangeRate: 1, // Calculate in original currency
+            });
+            const originalTotal = itemTotals.originalSellPrice * item.quantity;
 
-        return { groups: sortedGroups, totals };
+            if (!acc[item.currency]) {
+                acc[item.currency] = { subtotal: 0, vat: 0, grandTotal: 0 };
+            }
+
+            acc[item.currency].subtotal += originalTotal;
+            acc[item.currency].vat += originalTotal * 0.20;
+            acc[item.currency].grandTotal += originalTotal * 1.20;
+            
+            return acc;
+
+        }, {} as Record<'TRY' | 'USD' | 'EUR', { subtotal: number, vat: number, grandTotal: number }>);
+        
+        const grandTotalInTRY = Object.entries(totalsByCurrency).reduce((sum, [currency, totals]) => {
+            const rate = currency === 'USD' ? proposal.exchangeRates.USD : currency === 'EUR' ? proposal.exchangeRates.EUR : 1;
+            return sum + (totals.subtotal * rate);
+        }, 0);
+
+        const vatInTRY = grandTotalInTRY * 0.20;
+        const finalTotalInTRY = grandTotalInTRY + vatInTRY;
+
+
+        return { 
+            groups: sortedGroups, 
+            totals: {
+                byCurrency: totalsByCurrency,
+                grandTotalInTRY: {
+                    subtotal: grandTotalInTRY,
+                    vat: vatInTRY,
+                    grandTotal: finalTotalInTRY
+                }
+            } 
+        };
 
     }, [items, proposal]);
 
@@ -157,7 +184,7 @@ export default function PrintQuotePage() {
                 </div>
             )}
             
-            {allDataLoaded ? (
+            {allDataLoaded && totals.grandTotalInTRY ? (
                 <>
                 <div className="fixed top-4 right-4 print:hidden z-50">
                     <Button onClick={() => window.print()}>
@@ -231,7 +258,7 @@ export default function PrintQuotePage() {
                                     </tbody>
                                      <tfoot>
                                         <tr className="bg-gray-100 font-bold">
-                                            <td colSpan={6} className="p-2 text-right">Grup Toplamı:</td>
+                                            <td colSpan={6} className="p-2 text-right">Grup Toplamı (TL):</td>
                                             <td className="p-2 text-right">
                                                 {formatCurrency(groupItems.reduce((sum, item) => sum + item.total, 0), 'TRY')}
                                             </td>
@@ -243,20 +270,38 @@ export default function PrintQuotePage() {
                     </section>
 
                     <section className="flex justify-end mb-6">
-                        <div className="w-full sm:w-1/2 lg:w-2/5 space-y-1">
-                            <div className="flex justify-between">
-                                <span className="font-semibold">Ara Toplam:</span>
-                                <span>{formatCurrency(totals.subtotal, 'TRY')}</span>
+                        <div className="w-full sm:w-2/3 lg:w-1/2 space-y-4">
+                            
+                            {/* --- Total in TRY --- */}
+                            <div className="border-b pb-2">
+                                <div className="flex justify-between">
+                                    <span className="font-semibold">Ara Toplam (TL):</span>
+                                    <span>{formatCurrency(totals.grandTotalInTRY.subtotal, 'TRY')}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="font-semibold">KDV (%20) (TL):</span>
+                                    <span>{formatCurrency(totals.grandTotalInTRY.vat, 'TRY')}</span>
+                                </div>
+                                <Separator className="my-1"/>
+                                <div className="flex justify-between text-base font-bold text-blue-700">
+                                    <span>Genel Toplam (TL):</span>
+                                    <span>{formatCurrency(totals.grandTotalInTRY.grandTotal, 'TRY')}</span>
+                                </div>
                             </div>
-                            <div className="flex justify-between">
-                                <span className="font-semibold">KDV (%20):</span>
-                                <span>{formatCurrency(totals.vat, 'TRY')}</span>
-                            </div>
-                            <Separator />
-                            <div className="flex justify-between text-base font-bold text-blue-700">
-                                <span>Genel Toplam:</span>
-                                <span>{formatCurrency(totals.grandTotal, 'TRY')}</span>
-                            </div>
+                            
+                             {/* --- Totals by Currency --- */}
+                            {(Object.keys(totals.byCurrency).length > 1) && (
+                                <div className="pt-2">
+                                <h4 className="font-semibold text-sm mb-1">Para Birimi Bazında Özet (KDV Dahil)</h4>
+                                {Object.entries(totals.byCurrency).map(([currency, currencyTotals]) => (
+                                     <div className="flex justify-between text-sm" key={currency}>
+                                        <span>Toplam ({currency}):</span>
+                                        <span className="font-mono">{formatCurrency(currencyTotals.grandTotal, currency)}</span>
+                                     </div>
+                                ))}
+                                </div>
+                            )}
+
                         </div>
                     </section>
 
@@ -265,6 +310,11 @@ export default function PrintQuotePage() {
                             <p>
                                 Teklifin geçerlilik süresi 15 gündür. Fiyatlarımıza KDV dahildir.
                             </p>
+                             {proposal.exchangeRates && (
+                                <p className="text-xs mt-1">
+                                    Hesaplamada kullanılan kurlar: 1 EUR = {proposal.exchangeRates.EUR.toFixed(4)} TL, 1 USD = {proposal.exchangeRates.USD.toFixed(4)} TL
+                                </p>
+                            )}
                             <p className="mt-2 font-semibold">İMS Mühendislik | Teşekkür Ederiz!</p>
                         </div>
                     </footer>
