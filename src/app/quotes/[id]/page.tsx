@@ -209,7 +209,10 @@ export default function QuoteDetailPage() {
   // --- Effects ---
    useEffect(() => {
     // This logic correctly finds the portal target in the main layout.
-    setSubHeaderPortal(document.getElementById('sub-header-portal'));
+    const portalElement = document.getElementById('sub-header-portal');
+    if (portalElement) {
+        setSubHeaderPortal(portalElement);
+    }
   }, []);
 
   useEffect(() => {
@@ -231,7 +234,7 @@ export default function QuoteDetailPage() {
     }
     return () => { isMounted = false; }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [proposal, initialItems]);
+  }, [proposal, initialItems, form.reset]);
 
 
   useEffect(() => {
@@ -541,8 +544,8 @@ export default function QuoteDetailPage() {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      {subHeaderPortal && createPortal(
+    <div className="h-full flex flex-col">
+      {subHeaderPortal && proposal && createPortal(
           <div className="bg-white/95 backdrop-blur-sm px-8 py-4 flex justify-between items-center w-full border-b">
               <div>
                   <p className="text-sm text-slate-500 mt-1">
@@ -572,7 +575,7 @@ export default function QuoteDetailPage() {
           subHeaderPortal
       )}
       <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSaveChanges)} className="flex-1 flex flex-col overflow-hidden">
+          <form className='flex-1 flex flex-col overflow-hidden'>
               <main className="flex-1 overflow-y-auto px-8 py-8 space-y-8">
                   {activeProductForAISuggestion && (
                       <AISuggestionBox 
@@ -757,7 +760,7 @@ export default function QuoteDetailPage() {
                   </Button>
               </main>
 
-              <footer className="sticky bottom-0 z-20 flex-shrink-0 bg-white/95 backdrop-blur-sm border-t border-slate-200 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
+              <footer className="flex-shrink-0 bg-white/95 backdrop-blur-sm border-t border-slate-200 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
                   <div className="mx-auto px-8">
                       <div className="flex justify-between items-center h-24">
                           <div className="flex-1 flex items-center gap-4 overflow-x-auto">
