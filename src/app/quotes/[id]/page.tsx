@@ -13,16 +13,14 @@ import {
   query,
   serverTimestamp,
 } from 'firebase/firestore';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
   Table,
@@ -56,6 +54,7 @@ import {
   Wrench,
   Edit,
   RefreshCw,
+  ChevronsUpDown
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -72,6 +71,7 @@ import { cn } from '@/lib/utils';
 import type { InstallationType } from '@/app/installation-types/page';
 import { fetchExchangeRates } from '@/ai/flows/fetch-exchange-rates';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 
 
 const proposalItemSchema = z.object({
@@ -158,6 +158,7 @@ export default function QuoteDetailPage() {
   const { toast } = useToast();
 
   const [subHeaderPortal, setSubHeaderPortal] = useState<HTMLElement | null>(null);
+  const [exchangeRatePortal, setExchangeRatePortal] = useState<HTMLElement | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isProductSelectorOpen, setIsProductSelectorOpen] = useState(false);
   const [activeProductForAISuggestion, setActiveProductForAISuggestion] = useState<string | null>(null);
@@ -208,10 +209,8 @@ export default function QuoteDetailPage() {
 
   // --- Effects ---
    useEffect(() => {
-    const portalElement = document.getElementById('sub-header-portal');
-    if (portalElement) {
-        setSubHeaderPortal(portalElement);
-    }
+    setSubHeaderPortal(document.getElementById('sub-header-portal'));
+    setExchangeRatePortal(document.getElementById('exchange-rate-portal'));
   }, []);
 
   useEffect(() => {
@@ -541,6 +540,10 @@ export default function QuoteDetailPage() {
 
   return (
     <div className="h-full flex flex-col">
+       {exchangeRatePortal && createPortal(
+          <ExchangeRateDisplay form={form} onRefresh={handleFetchRates} isFetching={isFetchingRates} />,
+          exchangeRatePortal
+      )}
       {subHeaderPortal && proposal && createPortal(
           <div className="bg-white/95 backdrop-blur-sm px-8 py-3 flex justify-between items-center w-full border-b">
               {/* Left Section: Project Info */}
@@ -554,56 +557,65 @@ export default function QuoteDetailPage() {
                     {proposal.quoteNumber} (v{proposal.version})
                   </p>
               </div>
-              
-              {/* Center Section: Financials */}
-              <div className="flex items-center gap-6">
-                  <ExchangeRateDisplay form={form} onRefresh={handleFetchRates} isFetching={isFetchingRates} />
-                   <div className="text-right">
-                      <span className="text-xs text-slate-500">Toplam Kâr</span>
-                      <span className="block text-xl font-bold font-mono tabular-nums text-green-600">
-                        {formatCurrency(calculatedTotals.grandTotalProfit)}
-                        <span className="text-sm font-medium ml-2">({formatPercent(calculatedTotals.grandTotalProfitMargin)})</span>
-                      </span>
-                   </div>
-                   <div className="flex items-center gap-2">
-                        <Select value={totalDisplayMode} onValueChange={(value: 'TRY' | 'MULTI') => setTotalDisplayMode(value)}>
-                            <SelectTrigger className="w-[180px]">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="TRY">Genel Toplam (TL)</SelectItem>
-                                <SelectItem value="MULTI">Para Birimine Göre İcmal</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <div className="text-right">
-                           {totalDisplayMode === 'TRY' ? (
-                                <>
-                                    <span className="text-xs text-slate-500">Genel Toplam (KDV Dahil)</span>
-                                    <span className="block text-3xl font-bold font-mono tabular-nums text-slate-900">{formatCurrency(calculatedTotals.grandTotalSellInTRY * 1.2)}</span>
-                                </>
-                            ) : (
-                                <>
-                                      <span className="text-xs text-slate-500">Teklif Toplamları (KDV Hariç)</span>
-                                      {renderMultiCurrencyTotal(calculatedTotals.totalsByCurrency, 'text-xl')}
-                                </>
-                            )}
-                        </div>
-                    </div>
-              </div>
 
-              {/* Right Section: Actions */}
-              <div className="flex items-center gap-2 pl-8">
-                  <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => router.push(`/quotes/${proposalId}/print?customerId=${proposal.customerId}`)}
-                  >
-                      <FileDown className="mr-2 h-4 w-4" /> PDF
-                  </Button>
-                  <Button onClick={form.handleSubmit(handleSaveChanges)} disabled={isSaving}>
-                      {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                      Değişiklikleri Kaydet
-                  </Button>
+              {/* Right Section: Financials & Actions */}
+              <div className="flex items-center gap-4">
+                 <Collapsible className="bg-white border rounded-lg shadow-sm">
+                    <div className="flex items-center justify-end">
+                       <CollapsibleTrigger asChild>
+                            <Button variant="ghost" className="p-3 h-auto">
+                                <div className="text-right">
+                                    <span className="text-xs text-slate-500">Genel Toplam (KDV Dahil)</span>
+                                    <span className="block text-2xl font-bold font-mono tabular-nums text-slate-900">{formatCurrency(calculatedTotals.grandTotalSellInTRY * 1.2)}</span>
+                                </div>
+                                <ChevronsUpDown className="h-5 w-5 ml-3 text-slate-400" />
+                            </Button>
+                        </CollapsibleTrigger>
+                    </div>
+                    <CollapsibleContent>
+                       <div className="p-4 border-t space-y-3">
+                            <div className="flex items-center justify-between gap-6">
+                                <span className="text-sm font-medium text-slate-600">Para Birimi Gösterimi</span>
+                                 <Select value={totalDisplayMode} onValueChange={(value: 'TRY' | 'MULTI') => setTotalDisplayMode(value)}>
+                                    <SelectTrigger className="w-[180px]">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="TRY">Genel Toplam (TL)</SelectItem>
+                                        <SelectItem value="MULTI">Para Birimine Göre İcmal</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <Separator />
+                             <div className="text-right space-y-1">
+                                <span className="text-xs text-slate-500">Teklif İcmali (KDV Hariç)</span>
+                                {renderMultiCurrencyTotal(calculatedTotals.totalsByCurrency, 'text-lg')}
+                             </div>
+                             <Separator />
+                              <div className="text-right space-y-1">
+                                <span className="text-xs text-slate-500">Toplam Kâr</span>
+                                <span className="block text-lg font-bold font-mono tabular-nums text-green-600">
+                                    {formatCurrency(calculatedTotals.grandTotalProfit)}
+                                    <span className="text-sm font-medium ml-2">({formatPercent(calculatedTotals.grandTotalProfitMargin)})</span>
+                                </span>
+                             </div>
+                       </div>
+                    </CollapsibleContent>
+                 </Collapsible>
+                 
+                  <div className="flex items-center gap-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => router.push(`/quotes/${proposalId}/print?customerId=${proposal.customerId}`)}
+                    >
+                        <FileDown className="mr-2 h-4 w-4" /> PDF
+                    </Button>
+                    <Button onClick={form.handleSubmit(handleSaveChanges)} disabled={isSaving}>
+                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                        Değişiklikleri Kaydet
+                    </Button>
+                </div>
               </div>
           </div>,
           subHeaderPortal
