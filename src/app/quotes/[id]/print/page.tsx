@@ -9,6 +9,7 @@ import { Loader2, Printer } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { calculateItemTotals } from '@/lib/pricing';
+import { cn } from '@/lib/utils';
 
 
 type Proposal = {
@@ -290,13 +291,17 @@ export default function PrintQuotePage() {
                             </div>
                             
                              {/* --- Totals by Currency --- */}
-                            {(Object.keys(totals.byCurrency).length > 1) && (
+                            {(Object.keys(totals.byCurrency).length > 0) && (
                                 <div className="pt-2">
                                 <h4 className="font-semibold text-sm mb-1">Para Birimi Bazında Özet (KDV Dahil)</h4>
                                 {Object.entries(totals.byCurrency).map(([currency, currencyTotals]) => (
-                                     <div className="flex justify-between text-sm" key={currency}>
+                                     <div className={cn(
+                                        "flex justify-between text-sm",
+                                        currency === 'USD' && 'text-green-600',
+                                        currency === 'EUR' && 'text-blue-600'
+                                     )} key={currency}>
                                         <span>Toplam ({currency}):</span>
-                                        <span className="font-mono">{formatCurrency(currencyTotals.grandTotal, currency)}</span>
+                                        <span className="font-mono font-semibold">{formatCurrency(currencyTotals.grandTotal, currency)}</span>
                                      </div>
                                 ))}
                                 </div>

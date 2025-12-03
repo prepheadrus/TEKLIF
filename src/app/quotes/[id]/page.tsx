@@ -278,7 +278,7 @@ export default function QuoteDetailPage() {
         return acc;
     }, {} as Record<string, { 
         totalSellInTRY: number; 
-        totalCostInTRY: number; _index
+        totalCostInTRY: number; 
         totalProfitInTRY: number; 
         totalsByCurrency: { TRY: number; USD: number; EUR: number; };
     }>);
@@ -521,7 +521,15 @@ export default function QuoteDetailPage() {
             return total > 0 ? (
                 <div key={curr} className="flex justify-between items-baseline">
                     <span className="text-sm text-slate-500">{curr} Toplamı</span>
-                    <span className={cn("font-mono font-semibold text-slate-700", className)}>{formatCurrency(total, curr)}</span>
+                    <span className={cn(
+                        "font-mono font-semibold",
+                        curr === 'USD' && 'text-green-600',
+                        curr === 'EUR' && 'text-blue-600',
+                        curr === 'TRY' && 'text-slate-700',
+                        className
+                    )}>
+                        {formatCurrency(total, curr)}
+                    </span>
                 </div>
             ) : null;
         })
@@ -530,7 +538,7 @@ export default function QuoteDetailPage() {
     if (parts.length === 0) return <div className="text-right">{formatCurrency(0, 'TRY')}</div>;
     return <div className="space-y-1">{parts}</div>;
   };
-
+  
   if (isLoading) {
     return (
       <div className="flex h-full w-full items-center justify-center">
@@ -577,36 +585,58 @@ export default function QuoteDetailPage() {
                                 </Button>
                         </CollapsibleTrigger>
                         <CollapsibleContent className="absolute top-full right-0 z-20">
-                            <div className="p-4 mt-2 border bg-white rounded-lg shadow-xl w-[550px] grid grid-cols-2 gap-x-6">
-                                {/* Left Column */}
-                                <div className="space-y-2">
-                                    <div>
-                                        <h4 className="font-semibold text-sm mb-2">Grup İcmali (KDV Hariç)</h4>
-                                        <div className="space-y-1 text-xs text-slate-600">
-                                        {Object.entries(calculatedTotals.groupTotals).sort(([a], [b]) => a.localeCompare(b)).map(([groupName, group]) => (
-                                            <div key={groupName} className="flex justify-between items-center">
-                                                <span className="truncate pr-4" title={groupName}>{groupName}</span>
+                             <div className="p-6 mt-2 border bg-white rounded-lg shadow-xl w-[800px] grid grid-cols-3 gap-x-6">
+                                {/* Left Column: Group Summary */}
+                                <div className="space-y-3 col-span-1 border-r pr-6">
+                                    <h4 className="font-semibold text-base mb-2">Grup İcmali (KDV Hariç)</h4>
+                                    <div className="space-y-4 text-sm text-slate-600">
+                                    {Object.entries(calculatedTotals.groupTotals).sort(([a], [b]) => a.localeCompare(b)).map(([groupName, group]) => (
+                                        <div key={groupName}>
+                                            <p className="font-medium text-slate-800 truncate pr-4" title={groupName}>{groupName}</p>
+                                            <div className="pl-2 border-l-2 ml-1">
                                                 {totalDisplayMode === 'TRY' ? (
-                                                    <span className="font-mono font-semibold">{formatCurrency(group.totalSellInTRY)}</span>
+                                                    <div className="flex justify-between items-center text-slate-800">
+                                                        <span>Toplam:</span>
+                                                        <span className="font-mono font-semibold">{formatCurrency(group.totalSellInTRY)}</span>
+                                                    </div>
                                                 ) : (
-                                                    renderMultiCurrencyTotal(group.totalsByCurrency, 'text-xs')
+                                                    renderMultiCurrencyTotal(group.totalsByCurrency, 'text-base')
                                                 )}
                                             </div>
-                                        ))}
                                         </div>
-                                    </div>
-                                    <Separator />
-                                     <div>
-                                        <h4 className="font-semibold text-sm mb-2">Teklif İcmali (KDV Hariç)</h4>
-                                        {renderMultiCurrencyTotal(calculatedTotals.totalsByCurrency, 'text-base')}
+                                    ))}
                                     </div>
                                 </div>
-                                {/* Right Column */}
-                                <div className="space-y-3 border-l pl-6">
-                                    <div className="flex items-center justify-between gap-6">
-                                        <span className="text-sm font-medium text-slate-600">Para Birimi Gösterimi</span>
+                                {/* Middle Column: Overall Summary */}
+                                <div className="space-y-4 col-span-1 border-r pr-6">
+                                    <div>
+                                        <h4 className="font-semibold text-base mb-3">Teklif İcmali (KDV Hariç)</h4>
+                                        {renderMultiCurrencyTotal(calculatedTotals.totalsByCurrency, 'text-xl')}
+                                    </div>
+                                    <Separator />
+                                    <div>
+                                         <h4 className="font-semibold text-base mb-2">Genel Toplam (KDV Dahil)</h4>
+                                          <div className="text-right">
+                                                <span className="block text-3xl font-bold font-mono tabular-nums text-primary">
+                                                    {formatCurrency(calculatedTotals.grandTotalSellInTRY * 1.20)}
+                                                </span>
+                                            </div>
+                                    </div>
+                                </div>
+                                {/* Right Column: Profit & Controls */}
+                                <div className="space-y-4 col-span-1">
+                                    <div>
+                                        <h4 className="font-semibold text-base mb-2">Toplam Kâr</h4>
+                                        <span className="block text-3xl font-bold font-mono tabular-nums text-green-600">
+                                            {formatCurrency(calculatedTotals.grandTotalProfit)}
+                                        </span>
+                                        <span className="block text-right text-lg font-medium text-green-600">({formatPercent(calculatedTotals.grandTotalProfitMargin)})</span>
+                                    </div>
+                                    <Separator/>
+                                     <div className="space-y-2">
+                                        <span className="text-base font-medium text-slate-600">Para Birimi Gösterimi</span>
                                         <Select value={totalDisplayMode} onValueChange={(value: 'TRY' | 'MULTI') => setTotalDisplayMode(value)}>
-                                            <SelectTrigger className="w-[180px]">
+                                            <SelectTrigger className="w-full">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -614,14 +644,6 @@ export default function QuoteDetailPage() {
                                                 <SelectItem value="MULTI">Para Birimine Göre İcmal</SelectItem>
                                             </SelectContent>
                                         </Select>
-                                    </div>
-                                    <Separator />
-                                    <div className="text-right space-y-1">
-                                        <span className="text-xs text-slate-500">Toplam Kâr</span>
-                                        <span className="block text-xl font-bold font-mono tabular-nums text-green-600">
-                                            {formatCurrency(calculatedTotals.grandTotalProfit)}
-                                            <span className="text-base font-medium ml-2">({formatPercent(calculatedTotals.grandTotalProfitMargin)})</span>
-                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -768,7 +790,11 @@ export default function QuoteDetailPage() {
                                             <TableCell className="w-40 py-1 font-mono text-right">
                                                 <div className="flex items-center justify-end gap-1">
                                                     <FormField control={form.control} name={`items.${originalIndex}.listPrice`} render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-right font-mono bg-transparent border-0 border-b border-dashed rounded-none focus-visible:ring-0 focus:border-solid focus:border-primary h-8"/>} />
-                                                    <span className="text-slate-500 font-mono text-xs">{itemValues.currency}</span>
+                                                    <span className={cn(
+                                                      "font-mono text-xs",
+                                                      itemValues.currency === 'USD' && 'text-green-600',
+                                                      itemValues.currency === 'EUR' && 'text-blue-600',
+                                                    )}>{itemValues.currency}</span>
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-right font-mono tabular-nums text-slate-500 py-1 w-32">{formatNumber(itemTotals.tlCost)}</TableCell>
@@ -911,6 +937,3 @@ function AISuggestionBox({ productName, existingItems, onClose }: { productName:
         </div>
     )
 }
-
-
-    
