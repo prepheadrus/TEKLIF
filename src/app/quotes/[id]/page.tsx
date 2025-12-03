@@ -560,64 +560,64 @@ export default function QuoteDetailPage() {
 
               {/* Right Section: Financials & Actions */}
               <div className="flex items-center gap-4">
-                 <Collapsible className="bg-white border rounded-lg shadow-sm">
-                    <div className="flex items-center justify-end">
-                       <CollapsibleTrigger asChild>
-                            <Button variant="ghost" className="p-3 h-auto">
-                                <div className="text-right">
-                                    <span className="text-xs text-slate-500">Genel Toplam (KDV Dahil)</span>
-                                    <span className="block text-2xl font-bold font-mono tabular-nums text-slate-900">{formatCurrency(calculatedTotals.grandTotalSellInTRY * 1.2)}</span>
-                                </div>
-                                <ChevronsUpDown className="h-5 w-5 ml-3 text-slate-400" />
-                            </Button>
-                        </CollapsibleTrigger>
-                    </div>
-                    <CollapsibleContent>
-                       <div className="p-4 border-t w-[450px] space-y-3">
-                            <div className="flex items-center justify-between gap-6">
-                                <span className="text-sm font-medium text-slate-600">Para Birimi Gösterimi</span>
-                                 <Select value={totalDisplayMode} onValueChange={(value: 'TRY' | 'MULTI') => setTotalDisplayMode(value)}>
-                                    <SelectTrigger className="w-[180px]">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="TRY">Genel Toplam (TL)</SelectItem>
-                                        <SelectItem value="MULTI">Para Birimine Göre İcmal</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <Separator />
-                            <div>
-                                <h4 className="font-semibold text-sm mb-2">Grup İcmali (KDV Hariç)</h4>
-                                <div className="space-y-1 text-sm text-slate-600">
-                                {Object.entries(calculatedTotals.groupTotals).sort(([a], [b]) => a.localeCompare(b)).map(([groupName, group]) => (
-                                    <div key={groupName} className="flex justify-between items-center">
-                                        <span className="truncate pr-4" title={groupName}>{groupName}</span>
-                                        {totalDisplayMode === 'TRY' ? (
-                                            <span className="font-mono font-semibold">{formatCurrency(group.totalSellInTRY)}</span>
-                                        ) : (
-                                            renderMultiCurrencyTotal(group.totalsByCurrency, 'text-xs')
-                                        )}
+                 <div className="relative">
+                     <Collapsible>
+                        <CollapsibleTrigger asChild>
+                                <Button variant="ghost" className="p-3 h-auto">
+                                    <div className="text-right">
+                                        <span className="text-xs text-slate-500">Genel Toplam (KDV Dahil)</span>
+                                        <span className="block text-2xl font-bold font-mono tabular-nums text-slate-900">{formatCurrency(calculatedTotals.grandTotalSellInTRY * 1.2)}</span>
                                     </div>
-                                ))}
+                                    <ChevronsUpDown className="h-5 w-5 ml-3 text-slate-400" />
+                                </Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="absolute top-full right-0 z-20">
+                            <div className="p-4 mt-2 border bg-white rounded-lg shadow-xl w-[450px] space-y-3">
+                                <div className="flex items-center justify-between gap-6">
+                                    <span className="text-sm font-medium text-slate-600">Para Birimi Gösterimi</span>
+                                    <Select value={totalDisplayMode} onValueChange={(value: 'TRY' | 'MULTI') => setTotalDisplayMode(value)}>
+                                        <SelectTrigger className="w-[180px]">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="TRY">Genel Toplam (TL)</SelectItem>
+                                            <SelectItem value="MULTI">Para Birimine Göre İcmal</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <Separator />
+                                <div>
+                                    <h4 className="font-semibold text-sm mb-2">Grup İcmali (KDV Hariç)</h4>
+                                    <div className="space-y-1 text-sm text-slate-600">
+                                    {Object.entries(calculatedTotals.groupTotals).sort(([a], [b]) => a.localeCompare(b)).map(([groupName, group]) => (
+                                        <div key={groupName} className="flex justify-between items-center">
+                                            <span className="truncate pr-4" title={groupName}>{groupName}</span>
+                                            {totalDisplayMode === 'TRY' ? (
+                                                <span className="font-mono font-semibold">{formatCurrency(group.totalSellInTRY)}</span>
+                                            ) : (
+                                                renderMultiCurrencyTotal(group.totalsByCurrency, 'text-xs')
+                                            )}
+                                        </div>
+                                    ))}
+                                    </div>
+                                </div>
+                                <Separator />
+                                <div className="text-right space-y-1">
+                                    <span className="text-xs text-slate-500">Teklif İcmali (KDV Hariç)</span>
+                                    {renderMultiCurrencyTotal(calculatedTotals.totalsByCurrency, 'text-lg')}
+                                </div>
+                                <Separator />
+                                <div className="text-right space-y-1">
+                                    <span className="text-xs text-slate-500">Toplam Kâr</span>
+                                    <span className="block text-lg font-bold font-mono tabular-nums text-green-600">
+                                        {formatCurrency(calculatedTotals.grandTotalProfit)}
+                                        <span className="text-sm font-medium ml-2">({formatPercent(calculatedTotals.grandTotalProfitMargin)})</span>
+                                    </span>
                                 </div>
                             </div>
-                            <Separator />
-                             <div className="text-right space-y-1">
-                                <span className="text-xs text-slate-500">Teklif İcmali (KDV Hariç)</span>
-                                {renderMultiCurrencyTotal(calculatedTotals.totalsByCurrency, 'text-lg')}
-                             </div>
-                             <Separator />
-                              <div className="text-right space-y-1">
-                                <span className="text-xs text-slate-500">Toplam Kâr</span>
-                                <span className="block text-lg font-bold font-mono tabular-nums text-green-600">
-                                    {formatCurrency(calculatedTotals.grandTotalProfit)}
-                                    <span className="text-sm font-medium ml-2">({formatPercent(calculatedTotals.grandTotalProfitMargin)})</span>
-                                </span>
-                             </div>
-                       </div>
-                    </CollapsibleContent>
-                 </Collapsible>
+                        </CollapsibleContent>
+                     </Collapsible>
+                 </div>
                  
                   <div className="flex items-center gap-2">
                     <Button
@@ -636,7 +636,7 @@ export default function QuoteDetailPage() {
           </div>,
           subHeaderPortal
       )}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col overflow-hidden">
         <Form {...form}>
             <form className="flex-1 flex flex-col overflow-hidden">
                 <main className="flex-1 overflow-y-auto px-8 py-8 space-y-8">
