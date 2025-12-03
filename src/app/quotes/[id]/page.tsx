@@ -208,7 +208,6 @@ export default function QuoteDetailPage() {
 
   // --- Effects ---
    useEffect(() => {
-    // This logic correctly finds the portal target in the main layout.
     const portalElement = document.getElementById('sub-header-portal');
     if (portalElement) {
         setSubHeaderPortal(portalElement);
@@ -266,16 +265,13 @@ export default function QuoteDetailPage() {
             exchangeRate: item.currency === 'USD' ? watchedRates.USD : item.currency === 'EUR' ? watchedRates.EUR : 1,
         });
 
-        // Add to group's TL totals
+        const itemOriginalTotal = totals.originalSellPrice * item.quantity;
+        
         acc[groupName].totalSellInTRY += totals.totalTlSell;
         acc[groupName].totalCostInTRY += totals.totalTlCost;
         acc[groupName].totalProfitInTRY += totals.totalProfit;
-
-        // Add to group's currency-specific totals
-        const itemOriginalTotal = totals.originalSellPrice * item.quantity;
         acc[groupName].totalsByCurrency[item.currency] += itemOriginalTotal;
         
-        // Add to grand totals
         totalsByCurrency[item.currency] += itemOriginalTotal;
         grandTotalSellInTRY += totals.totalTlSell;
         grandTotalCostInTRY += totals.totalTlCost;
@@ -509,18 +505,6 @@ export default function QuoteDetailPage() {
 
   const isLoading = isLoadingProposal || isLoadingItems || isLoadingInstallationTypes;
 
-  if (isLoading) {
-    return (
-      <div className="flex h-full w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-
-  if (!proposal) {
-    return <div>Teklif bulunamadı.</div>;
-  }
-  
   const formatCurrency = (amount: number, currency: 'TRY' | 'USD' | 'EUR' = 'TRY') => {
       return new Intl.NumberFormat('tr-TR', { style: 'currency', currency, minimumFractionDigits: 2 }).format(amount)
   }
@@ -543,30 +527,75 @@ export default function QuoteDetailPage() {
     return <span className={cn("font-mono font-bold", className)}>{parts.join(' + ')}</span>;
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!proposal) {
+    return <div>Teklif bulunamadı.</div>;
+  }
+
   return (
     <div className="h-full flex flex-col">
       {subHeaderPortal && proposal && createPortal(
-          <div className="bg-white/95 backdrop-blur-sm px-8 py-4 flex justify-between items-center w-full border-b">
-              <div>
-                  <p className="text-sm text-slate-500 mt-1">
-                  Müşteri: <span className="font-bold text-xl text-blue-700">{proposal.customerName}</span> • Proje: <span className="font-bold text-xl text-blue-700">{proposal.projectName}</span>
-                  </p>
-                  <h1 className="text-sm text-slate-400 font-normal mt-1">
-                      {proposal.quoteNumber} (v{proposal.version})
+          <div className="bg-white/95 backdrop-blur-sm px-8 py-3 flex justify-between items-center w-full border-b">
+              <div className="flex-1 min-w-0">
+                  <h1 className="text-xl font-bold text-slate-800 truncate" title={proposal.projectName}>
+                      {proposal.projectName}
                   </h1>
+                  <p className="text-sm text-slate-500 mt-1">
+                    <span className="font-medium text-slate-600">{proposal.customerName}</span>
+                    <span className="mx-2 text-slate-300">|</span>
+                    {proposal.quoteNumber} (v{proposal.version})
+                  </p>
               </div>
               
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 pl-8">
                    <ExchangeRateDisplay form={form} onRefresh={handleFetchRates} isFetching={isFetchingRates} />
+                  <div className="text-right">
+                    <span className="text-xs text-slate-500">Toplam Kâr</span>
+                    <span className="block text-xl font-bold font-mono tabular-nums text-green-600">
+                      {formatCurrency(calculatedTotals.grandTotalProfit)}
+                      <span className="text-sm font-medium ml-2">({formatPercent(calculatedTotals.grandTotalProfitMargin)})</span>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                        <Select value={totalDisplayMode} onValueChange={(value: 'TRY' | 'MULTI') => setTotalDisplayMode(value)}>
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="TRY">Genel Toplam (TL)</SelectItem>
+                                <SelectItem value="MULTI">Para Birimine Göre İcmal</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <div className="text-right">
+                           {totalDisplayMode === 'TRY' ? (
+                                <>
+                                    <span className="text-xs text-slate-500">Genel Toplam (KDV Dahil)</span>
+                                    <span className="block text-3xl font-bold font-mono tabular-nums text-slate-900">{formatCurrency(calculatedTotals.grandTotalSellInTRY * 1.2)}</span>
+                                </>
+                            ) : (
+                                <>
+                                      <span className="text-xs text-slate-500">Teklif Toplamları (KDV Hariç)</span>
+                                      {renderMultiCurrencyTotal(calculatedTotals.totalsByCurrency, 'text-lg')}
+                                </>
+                            )}
+                        </div>
+                    </div>
+
                   <Button
                       type="button"
                       variant="outline"
                       onClick={() => router.push(`/quotes/${proposalId}/print?customerId=${proposal.customerId}`)}
-                      className="hidden sm:flex"
                   >
                       <FileDown className="mr-2 h-4 w-4" /> PDF
                   </Button>
-                  <Button onClick={form.handleSubmit(handleSaveChanges)} disabled={isSaving} className="bg-primary text-white hover:bg-primary/90 transition">
+                  <Button onClick={form.handleSubmit(handleSaveChanges)} disabled={isSaving}>
                       {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                       Değişiklikleri Kaydet
                   </Button>
@@ -575,8 +604,8 @@ export default function QuoteDetailPage() {
           subHeaderPortal
       )}
       <Form {...form}>
-          <form className='flex-1 flex flex-col overflow-hidden'>
-              <main className="flex-1 overflow-y-auto px-8 py-8 space-y-8">
+          <form className="flex-1 overflow-y-auto">
+              <main className="px-8 py-8 space-y-8">
                   {activeProductForAISuggestion && (
                       <AISuggestionBox 
                           productName={activeProductForAISuggestion}
@@ -759,58 +788,6 @@ export default function QuoteDetailPage() {
                       <span>Yeni Mahal / Sistem Grubu Ekle</span>
                   </Button>
               </main>
-
-              <footer className="flex-shrink-0 bg-white/95 backdrop-blur-sm border-t border-slate-200 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
-                  <div className="mx-auto px-8">
-                      <div className="flex justify-between items-center h-24">
-                          <div className="flex-1 flex items-center gap-4 overflow-x-auto">
-                              <span className="text-sm font-semibold text-slate-500 whitespace-nowrap">Grup Dağılımı:</span>
-                              <div className="flex items-center gap-4">
-                                  {Object.entries(calculatedTotals.groupTotals).map(([groupName, totals]) => (
-                                      <div key={groupName} className="text-center bg-slate-100 p-2 rounded-md">
-                                          <div className="text-xs text-slate-600 truncate max-w-24">{groupName}</div>
-                                          <div className="text-sm font-bold font-mono text-slate-800">{formatCurrency(totals.totalSellInTRY)}</div>
-                                          <div className="text-xs font-mono text-green-600">{formatCurrency(totals.totalProfitInTRY)}</div>
-                                      </div>
-                                  ))}
-                              </div>
-                          </div>
-                          <div className="flex items-end gap-8 pl-8">
-                              <div className="text-right">
-                              <span className="text-sm text-slate-500 mb-1">Toplam Kâr:</span>
-                              <span className="block text-3xl font-bold font-mono tabular-nums text-green-600">
-                              {formatCurrency(calculatedTotals.grandTotalProfit)}
-                              <span className="text-base font-medium ml-2">({formatPercent(calculatedTotals.grandTotalProfitMargin)})</span>
-                              </span>
-                              </div>
-                              <div className="flex items-center gap-4">
-                                   <Select value={totalDisplayMode} onValueChange={(value: 'TRY' | 'MULTI') => setTotalDisplayMode(value)}>
-                                      <SelectTrigger className="w-[180px]">
-                                          <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                          <SelectItem value="TRY">Genel Toplam (TL)</SelectItem>
-                                          <SelectItem value="MULTI">Para Birimine Göre İcmal</SelectItem>
-                                      </SelectContent>
-                                  </Select>
-                                  <div className="text-right">
-                                      {totalDisplayMode === 'TRY' ? (
-                                           <>
-                                              <span className="text-sm text-slate-500 mb-1">Genel Toplam (KDV Dahil):</span>
-                                              <span className="block text-5xl font-bold font-mono tabular-nums text-slate-900">{formatCurrency(calculatedTotals.grandTotalSellInTRY * 1.2)}</span>
-                                           </>
-                                      ) : (
-                                          <>
-                                               <span className="text-sm text-slate-500 mb-1">Teklif Toplamları (KDV Hariç):</span>
-                                              {renderMultiCurrencyTotal(calculatedTotals.totalsByCurrency, 'text-2xl')}
-                                          </>
-                                      )}
-                                  </div>
-                              </div>
-                          </div>
-                      </div>
-                  </div>
-              </footer>
           </form>
       </Form>
     </div>
