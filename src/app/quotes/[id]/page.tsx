@@ -300,7 +300,7 @@ export default function QuoteDetailPage() {
       exchangeRates: proposal.exchangeRates || { USD: 32.5, EUR: 35.0 }
     });
     
-     if (proposal.exchangeRates) {
+     if (!initialFetchDone.current && proposal.exchangeRates) {
         handleFetchRates();
         initialFetchDone.current = true;
     }
@@ -757,7 +757,7 @@ export default function QuoteDetailPage() {
                                                               render={({ field }) => (
                                                                   <Input 
                                                                       type="number"
-                                                                      value={field.value !== undefined ? ((field.value || 0) * 100) : ''}
+                                                                      value={(field.value || 0) * 100}
                                                                       onChange={(e) => {
                                                                           const numValue = parseFloat(e.target.value);
                                                                           field.onChange(isNaN(numValue) ? 0 : numValue / 100);
@@ -790,7 +790,7 @@ export default function QuoteDetailPage() {
                                                                   render={({ field }) => (
                                                                       <Input
                                                                           type="number"
-                                                                          value={field.value !== undefined ? ((field.value || 0) * 100) : ''}
+                                                                          value={(field.value || 0) * 100}
                                                                           onChange={(e) => {
                                                                               const numValue = parseFloat(e.target.value);
                                                                               field.onChange(isNaN(numValue) ? 0 : numValue / 100);
@@ -937,6 +937,12 @@ export default function QuoteDetailPage() {
             </div>
         </div>
       </div>
+       <ProductSelector
+        isOpen={isProductSelectorOpen}
+        onOpenChange={setIsProductSelectorOpen}
+        onProductsSelected={handleProductsSelected}
+        targetGroupName={targetGroupForProductAdd}
+      />
     </Form>
   );
 }
