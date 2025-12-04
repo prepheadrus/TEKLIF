@@ -104,6 +104,15 @@ const formatDate = (timestamp: { seconds: number } | null) => {
 };
 
 
+const filterOptions: { label: string; value: Proposal['status'] | 'All' }[] = [
+    { label: 'Tümü', value: 'All' },
+    { label: 'Taslak', value: 'Draft' },
+    { label: 'Gönderildi', value: 'Sent' },
+    { label: 'Onaylandı', value: 'Approved' },
+    { label: 'Reddedildi', value: 'Rejected' },
+];
+
+
 export default function QuotesPage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -113,6 +122,8 @@ export default function QuotesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isRevising, setIsRevising] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<Proposal['status'] | 'All'>('All');
+
 
   const form = useForm<NewQuoteFormValues>({
     resolver: zodResolver(newQuoteSchema),
@@ -307,12 +318,21 @@ export default function QuotesPage() {
   
   const filteredProposalGroups = useMemo(() => {
       if (!groupedProposals) return [];
-      return groupedProposals.filter(g => 
+      
+      return groupedProposals.filter(g => {
+        // Status filter
+        const statusMatch = statusFilter === 'All' || g.latestProposal.status === statusFilter;
+        if (!statusMatch) return false;
+
+        // Search term filter
+        const searchMatch = 
             g.latestProposal.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
             g.latestProposal.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            g.latestProposal.quoteNumber.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-  }, [groupedProposals, searchTerm]);
+            g.latestProposal.quoteNumber.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        return searchMatch;
+      });
+  }, [groupedProposals, searchTerm, statusFilter]);
 
   return (
     <>
@@ -397,15 +417,29 @@ export default function QuotesPage() {
         <CardHeader>
           <CardTitle>Teklifler</CardTitle>
           <CardDescription>Tüm tekliflerinizin listesi.</CardDescription>
-           <div className="relative pt-2">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                    placeholder="Müşteri, proje veya teklif no ara..." 
-                    className="pl-8"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
-            </div>
+           <div className="pt-4 space-y-4">
+                <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                        placeholder="Müşteri, proje veya teklif no ara..." 
+                        className="pl-8"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+                 <div className="flex items-center gap-2">
+                    {filterOptions.map(option => (
+                        <Button 
+                            key={option.value}
+                            variant={statusFilter === option.value ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setStatusFilter(option.value)}
+                        >
+                            {option.label}
+                        </Button>
+                    ))}
+                 </div>
+           </div>
         </CardHeader>
         <CardContent className="p-0">
             <div className="space-y-2">
@@ -549,3 +583,5 @@ export default function QuotesPage() {
     </>
   );
 }
+
+    
