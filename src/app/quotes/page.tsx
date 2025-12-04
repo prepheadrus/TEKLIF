@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { addDoc, collection, doc, serverTimestamp, getDocs, query, orderBy, where, writeBatch, setDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, serverTimestamp, getDocs, query, orderBy, where, writeBatch, setDoc, updateDoc } from 'firebase/firestore';
 
 import {
   Card,
@@ -106,6 +106,13 @@ const formatDate = (timestamp: { seconds: number } | null) => {
 
 const filterOptions: { label: string; value: Proposal['status'] | 'All' }[] = [
     { label: 'Tümü', value: 'All' },
+    { label: 'Taslak', value: 'Draft' },
+    { label: 'Gönderildi', value: 'Sent' },
+    { label: 'Onaylandı', value: 'Approved' },
+    { label: 'Reddedildi', value: 'Rejected' },
+];
+
+const statusOptions: { label: string; value: Proposal['status'] }[] = [
     { label: 'Taslak', value: 'Draft' },
     { label: 'Gönderildi', value: 'Sent' },
     { label: 'Onaylandı', value: 'Approved' },
@@ -313,6 +320,19 @@ export default function QuotesPage() {
     } catch (error: any) {
         console.error("Teklif silme hatası:", error);
         toast({ variant: "destructive", title: "Hata", description: `Teklif silinemedi: ${error.message}` });
+    }
+  };
+
+  const handleStatusChange = async (proposalId: string, newStatus: Proposal['status']) => {
+    if (!firestore) return;
+    const docRef = doc(firestore, 'proposals', proposalId);
+    try {
+        await updateDoc(docRef, { status: newStatus });
+        toast({ title: "Başarılı", description: "Teklif durumu güncellendi." });
+        refetchProposals();
+    } catch (error: any) {
+        console.error("Durum güncelleme hatası:", error);
+        toast({ variant: "destructive", title: "Hata", description: `Durum güncellenemedi: ${error.message}` });
     }
   };
   
@@ -530,7 +550,24 @@ export default function QuotesPage() {
                                                     <TableRow key={v.id} className={cn("h-auto", v.id === group.latestProposal.id && "bg-blue-50/50")}>
                                                         <TableCell className="py-1.5"><Badge variant={v.id === group.latestProposal.id ? "default" : "secondary"}>v{v.version}</Badge></TableCell>
                                                         <TableCell className="py-1.5">{formatCurrency(v.totalAmount)}</TableCell>
-                                                        <TableCell className="py-1.5">{getStatusBadge(v.status)}</TableCell>
+                                                        <TableCell className="py-1.5">
+                                                            <Select onValueChange={(newStatus: Proposal['status']) => handleStatusChange(v.id, newStatus)} defaultValue={v.status}>
+                                                                <SelectTrigger className={cn("h-auto w-[120px] border-0 bg-transparent focus:ring-0", 
+                                                                    v.status === 'Approved' && 'text-green-700',
+                                                                    v.status === 'Rejected' && 'text-red-700',
+                                                                    v.status === 'Sent' && 'text-blue-700',
+                                                                    )}>
+                                                                    <SelectValue />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {statusOptions.map(opt => (
+                                                                        <SelectItem key={opt.value} value={opt.value}>
+                                                                            {opt.label}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </TableCell>
                                                         <TableCell className="py-1.5">{formatDate(v.createdAt)}</TableCell>
                                                         <TableCell className="text-muted-foreground text-xs py-1.5">{v.versionNote}</TableCell>
                                                         <TableCell className="text-right py-1.5">
@@ -583,5 +620,3 @@ export default function QuotesPage() {
     </>
   );
 }
-
-    
