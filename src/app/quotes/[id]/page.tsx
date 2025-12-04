@@ -199,6 +199,7 @@ export default function QuoteDetailPage() {
     keyName: "formId"
   });
   
+  // This is the crucial part: watch the entire 'items' array for changes.
   const watchedItems = form.watch('items');
   const watchedRates = form.watch('exchangeRates');
   const VAT_RATE = 0.20;
@@ -300,7 +301,11 @@ export default function QuoteDetailPage() {
         if (!acc[groupName]) {
             acc[groupName] = [];
         }
-        acc[groupName].push({ ...item, ...fields[index] });
+        // Use the index to find the correct field from useFieldArray's `fields`
+        const fieldItem = fields[index];
+        if (fieldItem) {
+            acc[groupName].push({ ...item, formId: fieldItem.formId });
+        }
         return acc;
     }, {} as Record<string, (ProposalItem & {formId: string})[]>);
 
