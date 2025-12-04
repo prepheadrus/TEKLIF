@@ -272,7 +272,6 @@ export default function QuoteDetailPage() {
   const watchedRates = form.watch('exchangeRates');
 
   // --- Calculations ---
-  // HESAPLAMALAR ARTIK BURADA, HER RENDER'DA ÇALIŞIR
   const calculatedTotals = calculateAllTotals(watchedItems, watchedRates);
   const VAT_RATE = 0.20;
 
@@ -533,6 +532,12 @@ export default function QuoteDetailPage() {
     return <div>Teklif bulunamadı.</div>;
   }
 
+  const currencyCycle: Record<'TRY' | 'USD' | 'EUR', 'TRY' | 'USD' | 'EUR'> = {
+    'TRY': 'USD',
+    'USD': 'EUR',
+    'EUR': 'TRY'
+  };
+
   return (
     <div className="h-full flex flex-col">
        {exchangeRatePortal && createPortal(
@@ -621,9 +626,9 @@ export default function QuoteDetailPage() {
                                         <TableHead className="py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider w-[15%]">Marka</TableHead>
                                         <TableHead className="py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Miktar</TableHead>
                                         <TableHead className="py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Liste Fiyatı</TableHead>
-                                        <TableHead className="text-right py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">İskonto</TableHead>
-                                        <TableHead className="text-right py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Maliyet</TableHead>
-                                        <TableHead className="text-right py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Kâr (% / Tutar)</TableHead>
+                                        <TableHead className="py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">İskonto</TableHead>
+                                        <TableHead className="py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Maliyet</TableHead>
+                                        <TableHead className="py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Kâr (% / Tutar)</TableHead>
                                         <TableHead className="text-right py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Birim Fiyat (TL)</TableHead>
                                         <TableHead className="text-right py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Toplam (TL)</TableHead>
                                         <TableHead className="w-10 py-1 pr-4"></TableHead>
@@ -656,26 +661,25 @@ export default function QuoteDetailPage() {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="py-1 font-mono">
-                                                    <div className="flex items-center justify-start gap-1">
-                                                        <FormField control={form.control} name={`items.${index}.currency`} render={({ field }) => (
-                                                            <Select onValueChange={field.onChange} value={field.value}>
-                                                                <FormControl>
-                                                                    <SelectTrigger className="w-20 h-7 text-xs bg-transparent border-0 border-b-2 border-transparent focus:ring-0 focus:border-primary">
-                                                                        <SelectValue/>
-                                                                    </SelectTrigger>
-                                                                </FormControl>
-                                                                <SelectContent>
-                                                                    <SelectItem value="TRY">TRY</SelectItem>
-                                                                    <SelectItem value="USD">USD</SelectItem>
-                                                                    <SelectItem value="EUR">EUR</SelectItem>
-                                                                </SelectContent>
-                                                            </Select>
+                                                    <div className="flex items-center justify-start gap-2">
+                                                      <FormField control={form.control} name={`items.${index}.listPrice`} render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7"/>} />
+                                                        <FormField control={form.control} name={`items.${index}.currency`} render={({ field: { onChange, value } }) => (
+                                                            <Badge
+                                                                onClick={() => onChange(currencyCycle[value])}
+                                                                variant={value === 'USD' ? 'secondary' : value === 'EUR' ? 'default' : 'outline'}
+                                                                className={cn(
+                                                                    "cursor-pointer font-bold w-12 justify-center",
+                                                                    value === 'USD' && "bg-green-100 text-green-800 border-green-200",
+                                                                    value === 'EUR' && "bg-blue-100 text-blue-800 border-blue-200"
+                                                                )}
+                                                            >
+                                                                {value}
+                                                            </Badge>
                                                         )} />
-                                                        <FormField control={form.control} name={`items.${index}.listPrice`} render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7"/>} />
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="py-1">
-                                                    <div className="flex items-center justify-end gap-1">
+                                                    <div className="flex items-center justify-start gap-1">
                                                         <Controller
                                                             control={form.control}
                                                             name={`items.${index}.discountRate`}
@@ -690,7 +694,17 @@ export default function QuoteDetailPage() {
                                                         <span className="text-slate-400">%</span>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="text-right font-mono tabular-nums py-1">{formatNumber(itemTotals.cost)} {currentItem.currency}</TableCell>
+                                                <TableCell className="text-right font-mono tabular-nums py-1">
+                                                  <div className="flex items-center justify-end gap-2">
+                                                    <span>{formatNumber(itemTotals.cost)}</span>
+                                                    <span className={cn(
+                                                      "font-semibold text-xs",
+                                                      currentItem.currency === 'USD' && "text-green-600",
+                                                      currentItem.currency === 'EUR' && "text-blue-600",
+                                                      currentItem.currency === 'TRY' && "text-slate-500",
+                                                    )}>{currentItem.currency}</span>
+                                                  </div>
+                                                </TableCell>
                                                 <TableCell className="py-1 text-right">
                                                     <div className="flex items-center justify-end gap-2">
                                                         <div className="flex items-center gap-1">
