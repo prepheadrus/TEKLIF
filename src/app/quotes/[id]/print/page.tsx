@@ -1,12 +1,10 @@
-
 'use client';
 
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useEffect, useCallback } from 'react';
 import { useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
-import { Loader2, Printer } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 import { calculateItemTotals } from '@/lib/pricing';
 import { cn } from '@/lib/utils';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -60,7 +58,6 @@ const formatCurrency = (amount: number, currency: string = 'TRY') => {
 }
 
 
-// This component no longer renders a page, but triggers the print window logic
 export default function PrintQuotePage() {
     const params = useParams();
     const searchParams = useSearchParams();
@@ -161,9 +158,9 @@ export default function PrintQuotePage() {
             <div className="print-layout bg-white text-black min-h-screen text-xs p-8 font-body">
                  <header className="flex justify-between items-start mb-6 pb-4 border-b">
                     <div className="flex items-start gap-4">
-                        <img src="/logo.png" alt="Firma Logosu" style={{width: '100px', height: '100px', objectFit: 'contain'}} />
+                        <img src="/logo.png" alt="Firma Logosu" style={{width: '100px', height: 'auto', objectFit: 'contain'}} />
                         <div>
-                            <h2 className="text-xl font-bold text-blue-700">İMS Mühendislik</h2>
+                            <h2 className="text-xl font-bold text-slate-800">İMS Mühendislik</h2>
                             <p className="text-xs font-semibold text-gray-600">Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
                             <p className="text-xs max-w-xs mt-2">
                                 Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA
@@ -182,16 +179,17 @@ export default function PrintQuotePage() {
                     </div>
                 </header>
 
-                <section className="mb-6">
+                <section className="mb-6 grid grid-cols-2 gap-4">
                     <div className="border p-3 rounded-md bg-gray-50">
                         <h3 className="text-base font-semibold mb-1">Müşteri Bilgileri</h3>
-                        <p className="font-bold text-base">{customer.name}</p>
+                        <p className="font-bold text-sm">{customer.name}</p>
                         <p>{customer.address || 'Adres belirtilmemiş'}</p>
                         <p>{customer.email} | {customer.phone || 'Telefon belirtilmemiş'}</p>
-                        {customer.taxNumber && <p>Vergi No: {customer.taxNumber}</p>}
+                        {customer.taxNumber && <p>Vergi No/TCKN: {customer.taxNumber}</p>}
                     </div>
-                    <div className="mt-3">
-                        <span className="font-semibold">Proje:</span> {proposal.projectName}
+                     <div className="border p-3 rounded-md bg-gray-50">
+                         <h3 className="text-base font-semibold mb-1">Proje Bilgisi</h3>
+                        <p className="font-bold text-sm">{proposal.projectName}</p>
                     </div>
                 </section>
                 
@@ -207,8 +205,8 @@ export default function PrintQuotePage() {
                                         <th className="p-2 font-semibold">Marka</th>
                                         <th className="p-2 text-center font-semibold">Miktar</th>
                                         <th className="p-2 font-semibold">Birim</th>
-                                        <th className="p-2 text-right font-semibold">Birim Fiyat (TL)</th>
-                                        <th className="p-2 text-right font-semibold">Toplam Tutar (TL)</th>
+                                        <th className="p-2 text-right font-semibold">Birim Fiyat</th>
+                                        <th className="p-2 text-right font-semibold">Toplam Tutar</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -226,7 +224,7 @@ export default function PrintQuotePage() {
                                 </tbody>
                                  <tfoot>
                                     <tr className="bg-gray-100 font-bold">
-                                        <td colSpan={6} className="p-2 text-right">Grup Toplamı (TL):</td>
+                                        <td colSpan={6} className="p-2 text-right">Grup Toplamı (KDV Hariç):</td>
                                         <td className="p-2 text-right">
                                             {formatCurrency(groupItems.reduce((sum, item) => sum + item.total, 0), 'TRY')}
                                         </td>
@@ -275,16 +273,16 @@ export default function PrintQuotePage() {
                 </section>
                 
                 <div className="flex justify-between items-end mt-16 pt-4 border-t">
-                    <footer className="text-xs text-gray-500">
-                        <p>Teklifin geçerlilik süresi 15 gündür. Fiyatlarımıza KDV dahildir.</p>
-                         {proposal.exchangeRates && (
-                            <p className="text-xs mt-1">
-                                Hesaplamada kullanılan kurlar: 1 EUR = {proposal.exchangeRates.EUR.toFixed(4)} TL, 1 USD = {proposal.exchangeRates.USD.toFixed(4)} TL
-                            </p>
-                        )}
+                    <footer className="text-xs text-gray-500 space-y-2">
+                        <p className='font-semibold'>Teklif Koşulları:</p>
+                        <ul className="list-disc list-inside">
+                            <li>Teklifin geçerlilik süresi 15 gündür.</li>
+                            <li>Fiyatlarımıza KDV dahildir.</li>
+                            <li>Hesaplamada kullanılan kurlar: 1 EUR = {proposal.exchangeRates.EUR.toFixed(4)} TL, 1 USD = {proposal.exchangeRates.USD.toFixed(4)} TL</li>
+                        </ul>
                         <p className="mt-4 font-semibold text-sm">İMS Mühendislik | Teşekkür Ederiz!</p>
                     </footer>
-                    <div style={{ position: 'relative', width: '12rem', height: '12rem' }}>
+                    <div style={{ position: 'relative', width: '12rem', height: 'auto' }}>
                        <img src="/kase.png" alt="Firma Kaşesi" style={{ objectFit: 'contain', width: '100%', height: '100%' }} />
                     </div>
                 </div>
@@ -298,13 +296,13 @@ export default function PrintQuotePage() {
 
     useEffect(() => {
         if (isProposalLoading || areItemsLoading || isCustomerLoading) {
-            return; // Wait for all data
+            return;
         }
 
         if (!proposal || !items || !customer) {
-            // Data loading finished but something is missing
             console.error("Print data is incomplete.");
-            // Optionally close the window or show an error
+            window.alert("Yazdırma için gerekli veriler eksik. Lütfen tekrar deneyin.");
+            router.back();
             return;
         }
         
@@ -323,8 +321,19 @@ export default function PrintQuotePage() {
                     <link rel="stylesheet" href="/globals.css">
                     <style>
                         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-                        body { font-family: 'Inter', sans-serif; }
-                        @page { size: A4; margin: 0; }
+                        body { 
+                          font-family: 'Inter', sans-serif;
+                          -webkit-print-color-adjust: exact;
+                          print-color-adjust: exact;
+                        }
+                        @page { 
+                          size: A4;
+                          margin: 0; 
+                        }
+                        .print-layout {
+                          margin: 0;
+                          padding: 0;
+                        }
                     </style>
                 </head>
                 <body>
@@ -334,22 +343,37 @@ export default function PrintQuotePage() {
             `);
             printWindow.document.close();
             
-            const timer = setTimeout(() => {
+            // Wait for content to be fully rendered, including images and styles
+            printWindow.onload = () => {
+                const timer = setTimeout(() => {
+                    printWindow.print();
+                    printWindow.close();
+                    // router.back() can be problematic, better to let user close the tab.
+                }, 500); // A small delay can help ensure rendering is complete.
+            };
+            
+            // Fallback if onload doesn't fire as expected for document.write
+            const initialTimer = setTimeout(() => {
                 printWindow.print();
                 printWindow.close();
-                router.back();
-            }, 1000); 
+            }, 1000);
+
+            printWindow.onafterprint = () => {
+                 clearTimeout(initialTimer);
+                 printWindow.close();
+            };
             
-            return () => clearTimeout(timer);
         } else {
              alert('Lütfen bu site için açılır pencerelere izin verin.');
              router.back();
         }
+        
+        // Go back to the previous page immediately in the main window
+        router.back();
 
     }, [isProposalLoading, areItemsLoading, isCustomerLoading, proposal, items, customer, generatePrintHTML, router]);
     
 
-    // This component now shows a loading state in the main window while the print window is being prepared.
     return (
         <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center gap-4 z-50">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -358,4 +382,3 @@ export default function PrintQuotePage() {
         </div>
     );
 }
-
