@@ -557,37 +557,35 @@ export default function QuoteDetailPage() {
                      <Collapsible key={groupName} defaultOpen={true} asChild>
                       <section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                         <div className="flex justify-between items-center w-full group">
-                           <CollapsibleTrigger asChild>
-                                <div className="px-6 py-4 border-b border-slate-200 flex-1 flex items-center cursor-pointer">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
-                                            {getGroupIcon(groupName)}
-                                        </div>
-                                        <div>
-                                        <div className="flex items-center">
-                                            {editingGroupName === groupName ? (
-                                                <Input
-                                                    ref={groupNameInputRef}
-                                                    defaultValue={groupName}
-                                                    onBlur={(e) => handleGroupNameChange(groupName, e.target.value)}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            e.preventDefault();
-                                                            handleGroupNameChange(groupName, e.currentTarget.value);
-                                                        }
-                                                        if (e.key === 'Escape') setEditingGroupName(null);
-                                                    }}
-                                                    className="h-8 text-lg font-bold"
-                                                    onClick={(e) => e.stopPropagation()}
-                                                />
-                                            ) : (
-                                                <h2 className="font-bold text-slate-800 text-lg">{groupName}</h2>
-                                            )}
-                                        </div>
-                                        </div>
-                                        <ChevronDown className="h-5 w-5 text-slate-400 transition-transform duration-300 group-data-[state=open]:-rotate-180" />
+                           <CollapsibleTrigger className="px-6 py-4 border-b border-slate-200 flex-1 flex items-center cursor-pointer">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
+                                        {getGroupIcon(groupName)}
                                     </div>
-                               </div>
+                                    <div>
+                                    <div className="flex items-center">
+                                        {editingGroupName === groupName ? (
+                                            <Input
+                                                ref={groupNameInputRef}
+                                                defaultValue={groupName}
+                                                onBlur={(e) => handleGroupNameChange(groupName, e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        handleGroupNameChange(groupName, e.currentTarget.value);
+                                                    }
+                                                    if (e.key === 'Escape') setEditingGroupName(null);
+                                                }}
+                                                className="h-8 text-lg font-bold"
+                                                onClick={(e) => e.stopPropagation()}
+                                            />
+                                        ) : (
+                                            <h2 className="font-bold text-slate-800 text-lg">{groupName}</h2>
+                                        )}
+                                    </div>
+                                    </div>
+                                    <ChevronDown className="h-5 w-5 text-slate-400 transition-transform duration-300 group-data-[state=open]:-rotate-180" />
+                                </div>
                             </CollapsibleTrigger>
                             <div className="flex items-center gap-4 px-6">
                                 <Button 
