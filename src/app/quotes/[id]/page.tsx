@@ -539,6 +539,11 @@ export default function QuoteDetailPage() {
     }
   }
 
+  const handlePrint = () => {
+    if (!proposal) return;
+    const url = `/quotes/${proposalId}/print?customerId=${proposal.customerId}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
 
   const isLoading = isLoadingProposal || isLoadingItems || isLoadingInstallationTypes;
 
@@ -925,7 +930,7 @@ export default function QuoteDetailPage() {
                               type="button"
                               variant="outline"
                               className="w-full"
-                              onClick={() => router.push(`/quotes/${proposalId}/print?customerId=${proposal.customerId}`)}
+                              onClick={handlePrint}
                           >
                               <FileDown className="mr-2 h-4 w-4" /> PDF
                           </Button>
