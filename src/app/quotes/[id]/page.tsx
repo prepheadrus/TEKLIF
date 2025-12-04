@@ -36,7 +36,6 @@ import {
   PlusCircle,
   Loader2,
   Send,
-  Bot,
   X,
   FileDown,
   Flame,
@@ -61,7 +60,6 @@ import {
 import { calculateItemTotals } from '@/lib/pricing';
 import { ProductSelector } from '@/components/app/product-selector';
 import type { Product as ProductType } from '@/app/products/page';
-import { suggestMissingParts } from '@/ai/flows/suggest-missing-parts';
 import { cn } from '@/lib/utils';
 import type { InstallationType } from '@/app/installation-types/page';
 import { fetchExchangeRates } from '@/ai/flows/fetch-exchange-rates';
@@ -159,7 +157,6 @@ export default function QuoteDetailPage() {
   const [exchangeRatePortal, setExchangeRatePortal] = useState<HTMLElement | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isProductSelectorOpen, setIsProductSelectorOpen] = useState(false);
-  const [activeProductForAISuggestion, setActiveProductForAISuggestion] = useState<string | null>(null);
   const [editingGroupName, setEditingGroupName] = useState<string | null>(null);
   const groupNameInputRef = useRef<HTMLInputElement>(null);
   const [emptyGroups, setEmptyGroups] = useState<string[]>([]);
@@ -382,10 +379,6 @@ export default function QuoteDetailPage() {
         setEmptyGroups(prev => prev.filter(g => g !== targetGroupForProductAdd));
     }
     setTargetGroupForProductAdd(undefined);
-    
-    if (hasAddedNewProduct) {
-        setActiveProductForAISuggestion(firstNewProductName);
-    }
   };
 
   const handleAddNewGroup = () => {
@@ -552,13 +545,6 @@ export default function QuoteDetailPage() {
       <main className="flex-1 overflow-y-auto px-8 py-8 space-y-8 bg-slate-100/70">
         <Form {...form}>
             <form className="space-y-6">
-                {activeProductForAISuggestion && (
-                    <AISuggestionBox 
-                        productName={activeProductForAISuggestion}
-                        existingItems={form.watch('items').map(i => i.name)}
-                        onClose={() => setActiveProductForAISuggestion(null)}
-                    />
-                )}
                 
                 {allGroups.map(([groupName, itemsInGroup]) => {
                     const groupTotals = calculatedTotals.groupTotals[groupName];
@@ -726,7 +712,7 @@ export default function QuoteDetailPage() {
                              </div>
                              <div className="bg-slate-900 text-white px-6 py-4 grid grid-cols-3 items-center gap-8">
                                 <div className="col-span-1">
-                                    <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-3">Grup Döviz Dağılımı (KDV Hariç)</h4>
+                                    <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-3">{groupName} Döviz Dağılımı (KDV Hariç)</h4>
                                     <div className="space-y-2">
                                         {groupTotals && Object.entries(groupTotals.totalsByCurrency).filter(([, val]) => val > 0).map(([currency, value]) => (
                                             <div key={currency} className="flex justify-between items-center text-lg max-w-xs">
@@ -746,7 +732,7 @@ export default function QuoteDetailPage() {
                                 <div className="col-span-1 text-right">
                                     <div className="flex items-center justify-end gap-2 text-green-400">
                                         <TrendingUp className="h-5 w-5" />
-                                        <p className="text-sm font-semibold uppercase tracking-wider">Grup Kârı</p>
+                                        <p className="text-sm font-semibold uppercase tracking-wider">{groupName} Kârı</p>
                                     </div>
                                     <p className="font-mono font-bold text-2xl text-green-400">{formatCurrency(groupProfitTRY)}</p>
                                     <p className="font-mono text-sm text-green-500 font-semibold">({(groupProfitMargin * 100).toFixed(1)}%)</p>
@@ -849,73 +835,4 @@ export default function QuoteDetailPage() {
       />
     </div>
   );
-}
-
-
-function AISuggestionBox({ productName, existingItems, onClose }: { productName: string, existingItems: string[], onClose: () => void }) {
-    const [isLoading, setIsLoading] = useState(true);
-    const [suggestions, setSuggestions] = useState<string[]>([]);
-    
-    useEffect(() => {
-        async function getSuggestions() {
-            try {
-                setIsLoading(true);
-                const result = await suggestMissingParts({
-                    productName: productName,
-                    existingParts: existingItems,
-                });
-                const newSuggestions = result.suggestedParts.filter(
-                    suggestion => !existingItems.some(item => item.toLowerCase().includes(suggestion.toLowerCase()))
-                );
-                setSuggestions(newSuggestions);
-            } catch (error) {
-                console.error("AI suggestion error:", error);
-                setSuggestions([]);
-            } finally {
-                setIsLoading(false);
-            }
-        }
-        if (productName) {
-            getSuggestions();
-        }
-    }, [productName, existingItems]);
-
-
-    if (isLoading) {
-        return (
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-3 text-sm text-blue-700 mb-6">
-                <Loader2 size={18} className="animate-spin" />
-                <span>AI Asistan, <b>'{productName}'</b> için ilgili parçaları arıyor...</span>
-            </div>
-        )
-    }
-
-    if (suggestions.length === 0) return null;
-
-
-    return (
-         <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-6">
-            <div className="flex justify-between items-start mb-2">
-                <div className="flex items-start gap-3">
-                    <Bot size={20} className="text-primary" />
-                    <div>
-                        <h4 className="font-semibold text-primary">AI Önerisi: '{productName}'</h4>
-                        <p className="text-sm text-blue-800/80">Bu ürünle birlikte aşağıdaki parçaları da eklemek isteyebilirsiniz:</p>
-                    </div>
-                </div>
-                <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7 -mr-2 -mt-1">
-                    <X size={16} />
-                </Button>
-            </div>
-            <div className="pl-8 pt-1">
-                <ul className="flex flex-wrap gap-2">
-                    {suggestions.map((part, i) => (
-                         <li key={i} className="bg-blue-100 text-blue-800 px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer hover:bg-blue-200">
-                            {part}
-                        </li>
-                    ))}
-                </ul>
-            </div>
-        </div>
-    )
 }
