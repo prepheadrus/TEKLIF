@@ -243,10 +243,9 @@ export default function QuoteDetailPage() {
 
   // --- Calculations ---
     const calculatedTotals = useMemo(() => {
-        const initialValue = {
+         const initialTotals = {
             grandTotalSellExVAT: 0,
             grandTotalCost: 0,
-            totalsByCurrency: { TRY: 0, USD: 0, EUR: 0 }
         };
 
         const totals = watchedItems.reduce((acc, item) => {
@@ -255,14 +254,12 @@ export default function QuoteDetailPage() {
                 exchangeRate: item.currency === 'USD' ? watchedRates.USD : item.currency === 'EUR' ? watchedRates.EUR : 1,
             });
             
-            const itemOriginalTotal = itemTotals.originalSellPrice * item.quantity;
-            
             acc.grandTotalSellExVAT += itemTotals.totalTlSell;
-            acc.grandTotalCost += itemTotals.tlCost * item.quantity;
-            acc.totalsByCurrency[item.currency] += itemOriginalTotal;
+            acc.grandTotalCost += itemTotals.totalTlCost;
 
             return acc;
-        }, initialValue);
+        }, initialTotals);
+
 
         const groupTotals = watchedItems.reduce((acc, item) => {
             const groupName = item.groupName || 'Diğer';
@@ -282,7 +279,7 @@ export default function QuoteDetailPage() {
             const itemOriginalTotal = itemTotals.originalSellPrice * item.quantity;
             
             acc[groupName].totalSellInTRY += itemTotals.totalTlSell;
-            acc[groupName].totalCostInTRY += itemTotals.tlCost * item.quantity;
+            acc[groupName].totalCostInTRY += itemTotals.totalTlCost;
             acc[groupName].totalsByCurrency[item.currency] += itemOriginalTotal;
 
             return acc;
@@ -302,7 +299,7 @@ export default function QuoteDetailPage() {
             grandTotalSellExVAT: totals.grandTotalSellExVAT,
             grandTotalSellWithVAT,
             vatAmount,
-            grandTotalCost,
+            grandTotalCost: totals.grandTotalCost,
             grandTotalProfit,
             grandTotalProfitMargin
         };
@@ -579,8 +576,8 @@ export default function QuoteDetailPage() {
                     return (
                      <Collapsible key={groupName} defaultOpen={true} asChild>
                       <section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        <CollapsibleTrigger asChild>
-                             <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center w-full cursor-pointer group">
+                         <CollapsibleTrigger asChild>
+                            <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center w-full cursor-pointer group">
                                 <div className="flex items-center gap-3 flex-1">
                                     <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
                                         {getGroupIcon(groupName)}
@@ -609,8 +606,8 @@ export default function QuoteDetailPage() {
                                     </div>
                                     <ChevronDown className="h-5 w-5 text-slate-400 transition-transform duration-300 group-data-[state=open]:-rotate-180" />
                                 </div>
-                                 <div className="flex items-center gap-4">
-                                   <Button 
+                                <div className="flex items-center gap-4">
+                                  <Button 
                                       variant="ghost" 
                                       size="icon" 
                                       className="h-7 w-7 text-slate-400 hover:text-slate-600"
@@ -724,7 +721,7 @@ export default function QuoteDetailPage() {
                                     </TableBody>
                                 </Table>
                             </div>
-                             <div className="bg-slate-900 text-white p-6 grid grid-cols-3 items-center">
+                             <div className="bg-slate-900 text-white p-6 grid grid-cols-2 items-center gap-8">
                                 <div className="col-span-1">
                                     <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-3">Grup Döviz Dağılımı (KDV Hariç)</h4>
                                     <div className="space-y-2">
@@ -740,7 +737,7 @@ export default function QuoteDetailPage() {
                                         ))}
                                     </div>
                                 </div>
-                                <div className="col-span-2 flex justify-between items-start">
+                                <div className="col-span-1 flex justify-between items-start">
                                      <div className="flex items-center gap-6 font-mono text-2xl">
                                         <div>
                                             <p className="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-1">Grup Ara Toplamı (TL)</p>
@@ -777,9 +774,9 @@ export default function QuoteDetailPage() {
                     )
                 })}
 
-                <Button type="button" className="w-full py-6 border-2 border-dashed border-slate-300 rounded-xl text-slate-400 font-medium bg-white hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all flex-col items-center gap-1 h-auto" onClick={handleAddNewGroup}>
+                <Button type="button" className="w-full py-6 border-2 border-dashed border-slate-300 rounded-xl text-slate-400 font-medium bg-white hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all flex-col items-center gap-1 h-auto" onClick={() => openProductSelectorForGroup('Diğer')}>
                     <PlusCircle className="h-6 w-6" />
-                    <span>Yeni Mahal / Sistem Grubu Ekle</span>
+                    <span>Yeni Ürün Ekle</span>
                 </Button>
             </form>
         </Form>
@@ -908,3 +905,5 @@ function AISuggestionBox({ productName, existingItems, onClose }: { productName:
         </div>
     )
 }
+
+    
