@@ -243,11 +243,6 @@ export default function QuoteDetailPage() {
 
   // --- Calculations ---
     const calculatedTotals = useMemo(() => {
-        const initialTotals = {
-            grandTotalSellExVAT: 0,
-            grandTotalCost: 0,
-        };
-
         const totals = watchedItems.reduce((acc, item) => {
             const itemTotals = calculateItemTotals({
                 ...item,
@@ -256,37 +251,31 @@ export default function QuoteDetailPage() {
             
             acc.grandTotalSellExVAT += itemTotals.totalTlSell;
             acc.grandTotalCost += itemTotals.totalTlCost;
-            
-            return acc;
-        }, initialTotals);
 
-        const groupTotals = watchedItems.reduce((acc, item) => {
             const groupName = item.groupName || 'Diğer';
-            if (!acc[groupName]) {
-                acc[groupName] = { 
+            if (!acc.groupTotals[groupName]) {
+                acc.groupTotals[groupName] = { 
                     totalSellInTRY: 0,
                     totalCostInTRY: 0,
                     totalsByCurrency: { TRY: 0, USD: 0, EUR: 0 }
                 };
             }
+             const itemOriginalTotal = itemTotals.originalSellPrice * item.quantity;
             
-            const itemTotals = calculateItemTotals({
-                ...item,
-                exchangeRate: item.currency === 'USD' ? watchedRates.USD : item.currency === 'EUR' ? watchedRates.EUR : 1,
-            });
+            acc.groupTotals[groupName].totalSellInTRY += itemTotals.totalTlSell;
+            acc.groupTotals[groupName].totalCostInTRY += itemTotals.totalTlCost;
+            acc.groupTotals[groupName].totalsByCurrency[item.currency] += itemOriginalTotal;
             
-            const itemOriginalTotal = itemTotals.originalSellPrice * item.quantity;
-            
-            acc[groupName].totalSellInTRY += itemTotals.totalTlSell;
-            acc[groupName].totalCostInTRY += itemTotals.totalTlCost;
-            acc[groupName].totalsByCurrency[item.currency] += itemOriginalTotal;
-
             return acc;
-        }, {} as Record<string, { 
-            totalSellInTRY: number; 
-            totalCostInTRY: number;
-            totalsByCurrency: { TRY: number; USD: number; EUR: number; };
-        }>);
+        }, {
+            grandTotalSellExVAT: 0,
+            grandTotalCost: 0,
+            groupTotals: {} as Record<string, { 
+                totalSellInTRY: number; 
+                totalCostInTRY: number;
+                totalsByCurrency: { TRY: number; USD: number; EUR: number; };
+            }>
+        });
         
         const grandTotalProfit = totals.grandTotalSellExVAT - totals.grandTotalCost;
         const grandTotalProfitMargin = totals.grandTotalSellExVAT > 0 ? grandTotalProfit / totals.grandTotalSellExVAT : 0;
@@ -294,7 +283,7 @@ export default function QuoteDetailPage() {
         const grandTotalSellWithVAT = totals.grandTotalSellExVAT + vatAmount;
 
         return { 
-            groupTotals, 
+            groupTotals: totals.groupTotals, 
             grandTotalSellExVAT: totals.grandTotalSellExVAT,
             grandTotalSellWithVAT,
             vatAmount,
@@ -721,7 +710,7 @@ export default function QuoteDetailPage() {
                                 </Table>
                             </div>
                              <div className="bg-slate-50 px-6 py-3 border-t">
-                                <Button size="sm" variant="secondary" onClick={() => openProductSelectorForGroup(groupName)}>
+                                <Button type="button" size="sm" variant="secondary" onClick={() => openProductSelectorForGroup(groupName)}>
                                     <PlusCircle className="mr-2 h-4 w-4"/>
                                     Bu Gruba Ürün Ekle
                                 </Button>
