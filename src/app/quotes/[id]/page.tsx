@@ -568,368 +568,375 @@ export default function QuoteDetailPage() {
   };
 
   return (
-    <div className="h-full flex flex-col">
-       {exchangeRatePortal && createPortal(
-          <ExchangeRateDisplay form={form} onRefresh={handleFetchRates} isFetching={isFetchingRates} />,
-          exchangeRatePortal
-      )}
-      {subHeaderPortal && proposal && createPortal(
-          <div className="relative bg-white/95 backdrop-blur-sm px-8 py-3 flex justify-between items-center w-full border-b">
-              <div className="flex-1 min-w-0">
-                  <h1 className="text-xl font-bold text-slate-800 truncate" title={proposal.projectName}>
-                      {proposal.projectName}
-                  </h1>
-                  <p className="text-sm text-slate-500 mt-1">
-                    <span className="font-medium text-slate-600">{proposal.customerName}</span>
-                    <span className="mx-2 text-slate-300">|</span>
-                    {proposal.quoteNumber} (v{proposal.version})
-                  </p>
-              </div>
-          </div>,
-          subHeaderPortal
-      )}
-      <main className="flex-1 overflow-y-auto px-8 py-8 space-y-6 bg-slate-100/70">
-        <Form {...form}>
-            <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
-                
-                {allGroups.map(([groupName, itemsInGroup]) => {
-                    const groupTotals = calculatedTotals.groupTotals[groupName];
-                    const groupSubTotalTRY = groupTotals?.totalSellInTRY || 0;
-                    const groupCostTRY = groupTotals?.totalCostInTRY || 0;
-                    const groupProfitTRY = groupSubTotalTRY - groupCostTRY;
-                    const groupProfitMargin = groupSubTotalTRY > 0 ? (groupProfitTRY / groupSubTotalTRY) : 0;
-                    
-                    return (
-                     <Collapsible key={groupName} defaultOpen={true} asChild>
-                      <section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div className="flex justify-between items-center w-full group">
-                           <CollapsibleTrigger className="px-4 py-2 flex-1 flex items-center cursor-pointer">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
-                                        {getGroupIcon(groupName)}
-                                    </div>
-                                    <div>
-                                    <div className="flex items-center">
-                                        {editingGroupName === groupName ? (
-                                            <Input
-                                                ref={groupNameInputRef}
-                                                defaultValue={groupName}
-                                                onBlur={(e) => handleGroupNameChange(groupName, e.target.value)}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        handleGroupNameChange(groupName, e.currentTarget.value);
-                                                    }
-                                                    if (e.key === 'Escape') setEditingGroupName(null);
-                                                }}
-                                                className="h-8 text-lg font-bold"
-                                                onClick={(e) => e.stopPropagation()}
-                                            />
-                                        ) : (
-                                            <h2 className="font-bold text-slate-800 text-lg">{groupName}</h2>
-                                        )}
-                                    </div>
-                                    </div>
-                                    <ChevronDown className="h-5 w-5 text-slate-400 transition-transform duration-300 group-data-[state=open]:-rotate-180" />
-                                </div>
-                            </CollapsibleTrigger>
-                            <div className="flex items-center gap-2 px-4">
-                                <Button 
-                                    type="button"
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-7 w-7 text-slate-400 hover:text-slate-600"
-                                    onClick={(e) => { e.stopPropagation(); setEditingGroupName(groupName); }}
-                                >
-                                    <Edit className="h-4 w-4"/>
-                                </Button>
-                                <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7 text-destructive/60 hover:text-destructive"
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
-                                            <Trash2 className="h-4 w-4"/>
-                                        </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitle>Grubu Silmek İstediğinize Emin misiniz?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                                Bu işlem geri alınamaz. "{groupName}" grubundaki tüm kalemler kalıcı olarak silinecektir.
-                                            </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel>İptal</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDeleteGroup(groupName)} className="bg-destructive hover:bg-destructive/90">
-                                                Evet, Grubu Sil
-                                            </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
-
-                                <Badge variant="outline"><Box className="mr-2 h-3 w-3" />{itemsInGroup.length} Kalem Ürün</Badge>
-                            </div>
-                        </div>
-                        <CollapsibleContent>
-                            <div className="overflow-x-auto">
-                                <Table>
-                                    <TableHeader className="bg-slate-50">
-                                    <TableRow>
-                                        <TableHead className="py-2 pl-4 text-xs uppercase text-slate-500 font-semibold tracking-wider w-[30%]">Ürün Tanımı</TableHead>
-                                        <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider w-[15%]">Marka</TableHead>
-                                        <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Miktar</TableHead>
-                                        <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Liste Fiyatı</TableHead>
-                                        <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">İskonto</TableHead>
-                                        <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Maliyet</TableHead>
-                                        <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Kâr (% / Tutar)</TableHead>
-                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Birim Fiyat (TL)</TableHead>
-                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Toplam (TL)</TableHead>
-                                        <TableHead className="w-10 py-2 pr-4"></TableHead>
-                                    </TableRow>
-                                    </TableHeader>
-                                    <TableBody className="text-sm divide-y divide-slate-100">
-                                        {fields.map((field, index) => {
-                                            if (field.groupName !== groupName) return null;
-                                            
-                                            const currentItem = watchedItems?.[index];
-                                            if (!currentItem) return null; 
-
-                                            const itemTotals = calculateItemTotals({
-                                                ...currentItem,
-                                                exchangeRate: currentItem.currency === 'USD' ? watchedRates.USD : currentItem.currency === 'EUR' ? watchedRates.EUR : 1,
-                                            });
-
-                                        return (
-                                            <TableRow key={field.formId} className="hover:bg-slate-50/50 group/row odd:bg-slate-50/50">
-                                                <TableCell className="py-1.5 pl-4 font-medium text-slate-800 w-[30%]">
-                                                    <FormField control={form.control} name={`items.${index}.name`} render={({ field }) => <Input {...field} className="w-full h-7 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
-                                                </TableCell>
-                                                 <TableCell className="py-1.5 w-[15%]">
-                                                    <FormField control={form.control} name={`items.${index}.brand`} render={({ field }) => <Input {...field} className="w-full h-7 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
-                                                </TableCell>
-                                                <TableCell className="py-1.5">
-                                                    <div className="flex items-center">
-                                                        <FormField control={form.control} name={`items.${index}.quantity`} render={({ field }) => <Input {...field} type="number" step="any" className="w-16 font-mono text-right bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7" />} />
-                                                        <FormField control={form.control} name={`items.${index}.unit`} render={({ field }) => <Input {...field} className="w-16 h-7 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="py-1.5 font-mono">
-                                                     <div className="flex items-center justify-start gap-2">
-                                                        <FormField control={form.control} name={`items.${index}.listPrice`} render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7"/>} />
-                                                        <Controller control={form.control} name={`items.${index}.currency`} render={({ field: { onChange, value } }) => (
-                                                            <Badge
-                                                                onClick={() => onChange(currencyCycle[value])}
-                                                                variant={value === 'USD' ? 'secondary' : value === 'EUR' ? 'default' : 'outline'}
-                                                                className={cn(
-                                                                    "cursor-pointer font-bold w-12 justify-center",
-                                                                    value === 'USD' && "bg-green-100 text-green-800 border-green-200",
-                                                                    value === 'EUR' && "bg-blue-100 text-blue-800 border-blue-200"
-                                                                )}
-                                                            >
-                                                                {value}
-                                                            </Badge>
-                                                        )} />
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="py-1.5">
-                                                     <div className="flex items-center justify-start gap-1">
-                                                        <Controller
-                                                            control={form.control}
-                                                            name={`items.${index}.discountRate`}
-                                                            render={({ field }) => (
-                                                                <Input 
-                                                                    type="number"
-                                                                    value={field.value !== undefined ? (field.value * 100) : ''}
-                                                                    onChange={(e) => {
-                                                                        const numValue = parseFloat(e.target.value);
-                                                                        field.onChange(isNaN(numValue) ? 0 : numValue / 100);
-                                                                    }}
-                                                                    className="w-16 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7"
-                                                                    placeholder="0"
-                                                                />
-                                                            )}
-                                                        />
-                                                        <span className="text-slate-400">%</span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="py-1.5 font-mono">
-                                                    <div className="flex items-center justify-end gap-2">
-                                                        <span>{formatNumber(itemTotals.cost)}</span>
-                                                        <span className={cn(
-                                                        "font-semibold text-xs",
-                                                        currentItem.currency === 'USD' && "text-green-600",
-                                                        currentItem.currency === 'EUR' && "text-blue-600",
-                                                        currentItem.currency === 'TRY' && "text-slate-500",
-                                                        )}>{currentItem.currency}</span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="py-1.5 text-right">
-                                                    <div className="flex items-center justify-end gap-2">
-                                                        <div className="flex items-center gap-1">
-                                                            <Controller
-                                                                control={form.control}
-                                                                name={`items.${index}.profitMargin`}
-                                                                render={({ field }) => (
-                                                                    <Input
-                                                                        type="number"
-                                                                        value={field.value !== undefined ? (field.value * 100) : ''}
-                                                                        onChange={(e) => {
-                                                                            const numValue = parseFloat(e.target.value);
-                                                                            field.onChange(isNaN(numValue) ? 0 : numValue / 100);
-                                                                        }}
-                                                                        className="w-14 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7"
-                                                                        placeholder="20"
-                                                                    />
-                                                                )}
-                                                            />
-                                                            <span className="text-slate-400">%</span>
-                                                        </div>
-                                                        <span className="text-slate-300">|</span>
-                                                        <span className="text-xs font-mono text-green-600 font-semibold tabular-nums w-20 text-left">+{formatCurrency(itemTotals.totalProfit)}</span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-right font-mono tabular-nums font-semibold text-slate-600 py-1.5">{formatCurrency(itemTotals.tlSellPrice)}</TableCell>
-                                                <TableCell className="text-right font-bold font-mono tabular-nums text-slate-800 py-1.5">{formatCurrency(itemTotals.totalTlSell)}</TableCell>
-                                                <TableCell className="px-2 text-center py-1.5">
-                                                    <Button variant="ghost" size="icon" onClick={() => remove(index)} className="h-7 w-7 text-slate-400 hover:text-red-500 opacity-0 group-hover/row:opacity-100 transition-opacity">
-                                                    <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </TableCell>
-                                                </TableRow>
-                                            );
-                                            })}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                             <div className="bg-slate-50 px-4 py-2 border-t">
-                                <Button type="button" size="sm" variant="secondary" onClick={() => openProductSelectorForGroup(groupName)}>
-                                    <PlusCircle className="mr-2 h-4 w-4"/>
-                                    Bu Gruba Ürün Ekle
-                                </Button>
-                             </div>
-                             <div className="bg-slate-900 text-white px-4 py-3 grid grid-cols-3 items-center gap-8">
-                                <div className="col-span-1">
-                                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Döviz Dağılımı (KDV Hariç)</h4>
-                                    <div className="space-y-1">
-                                        {groupTotals && Object.entries(groupTotals.totalsByCurrency).filter(([, val]) => val > 0).map(([currency, value]) => (
-                                            <div key={currency} className="flex justify-between items-center text-sm max-w-xs">
-                                                <span className="text-slate-300">Toplam {currency}</span>
-                                                <span className={cn(
-                                                    "font-mono font-bold",
-                                                    currency === 'USD' && "text-green-400",
-                                                    currency === 'EUR' && "text-blue-400",
-                                                )}>{formatCurrency(value, currency as any)}</span>
-                                            </div>
-                                        ))}
-                                        {groupTotals && Object.values(groupTotals.totalsByCurrency).every(v => v === 0) && (
-                                            <div className="text-slate-400 text-xs">Bu grupta ürün yok.</div>
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="col-span-1 text-right">
-                                    <div className="flex items-center justify-end gap-2 text-green-400">
-                                        <TrendingUp className="h-4 w-4" />
-                                        <p className="text-xs font-semibold uppercase tracking-wider">Grup Kârı</p>
-                                    </div>
-                                    <p className="font-mono font-bold text-lg text-green-400">{formatCurrency(groupProfitTRY)}</p>
-                                    <p className="font-mono text-xs text-green-500 font-semibold">({(groupProfitMargin * 100).toFixed(1)}%)</p>
-                                </div>
-                                <div className="col-span-1 bg-slate-700 text-white rounded-lg px-4 py-2 text-right">
-                                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Grup Toplamı (KDV Hariç)</p>
-                                    <p className="font-mono font-bold text-xl">{formatCurrency(groupSubTotalTRY)}</p>
-                                </div>
-                             </div>
-                         </CollapsibleContent>
-                        </section>
-                     </Collapsible>
-                    )
-                })}
-                 <div className="space-y-4">
-                    <Button type="button" variant="outline" className="w-full" onClick={handleAddNewGroup}>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Yeni Grup Ekle
-                    </Button>
+    <Form {...form}>
+      <div className="h-full flex flex-col">
+        {exchangeRatePortal && createPortal(
+            <ExchangeRateDisplay form={form} onRefresh={handleFetchRates} isFetching={isFetchingRates} />,
+            exchangeRatePortal
+        )}
+        {subHeaderPortal && proposal && createPortal(
+            <div className="relative bg-white/95 backdrop-blur-sm px-8 py-3 flex justify-between items-center w-full border-b">
+                <div className="flex-1 min-w-0">
+                    <h1 className="text-xl font-bold text-slate-800 truncate" title={proposal.projectName}>
+                        {proposal.projectName}
+                    </h1>
+                    <p className="text-sm text-slate-500 mt-1">
+                      <span className="font-medium text-slate-600">{proposal.customerName}</span>
+                      <span className="mx-2 text-slate-300">|</span>
+                      {proposal.quoteNumber} (v{proposal.version})
+                    </p>
                 </div>
-            </form>
-        </Form>
-      </main>
+                 <div className="flex-1 ml-8">
+                     <FormField
+                        control={form.control}
+                        name="versionNote"
+                        render={({ field }) => (
+                            <Input
+                            {...field}
+                            placeholder="Bu versiyonla ilgili bir not ekleyin (örn: Isıtma kalemleri revize edildi)"
+                            className="w-full bg-slate-100"
+                            />
+                        )}
+                        />
+                 </div>
+            </div>,
+            subHeaderPortal
+        )}
+        <main className="flex-1 overflow-y-auto px-8 py-8 space-y-6 bg-slate-100/70">
+          
+              <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+                  
+                  {allGroups.map(([groupName, itemsInGroup]) => {
+                      const groupTotals = calculatedTotals.groupTotals[groupName];
+                      const groupSubTotalTRY = groupTotals?.totalSellInTRY || 0;
+                      const groupCostTRY = groupTotals?.totalCostInTRY || 0;
+                      const groupProfitTRY = groupSubTotalTRY - groupCostTRY;
+                      const groupProfitMargin = groupSubTotalTRY > 0 ? (groupProfitTRY / groupSubTotalTRY) : 0;
+                      
+                      return (
+                      <Collapsible key={groupName} defaultOpen={true} asChild>
+                        <section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                          <div className="flex justify-between items-center w-full group">
+                            <CollapsibleTrigger className="px-4 py-2 flex-1 flex items-center cursor-pointer">
+                                  <div className="flex items-center gap-3">
+                                      <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+                                          {getGroupIcon(groupName)}
+                                      </div>
+                                      <div>
+                                      <div className="flex items-center">
+                                          {editingGroupName === groupName ? (
+                                              <Input
+                                                  ref={groupNameInputRef}
+                                                  defaultValue={groupName}
+                                                  onBlur={(e) => handleGroupNameChange(groupName, e.target.value)}
+                                                  onKeyDown={(e) => {
+                                                      if (e.key === 'Enter') {
+                                                          e.preventDefault();
+                                                          handleGroupNameChange(groupName, e.currentTarget.value);
+                                                      }
+                                                      if (e.key === 'Escape') setEditingGroupName(null);
+                                                  }}
+                                                  className="h-8 text-lg font-bold"
+                                                  onClick={(e) => e.stopPropagation()}
+                                              />
+                                          ) : (
+                                              <h2 className="font-bold text-slate-800 text-lg">{groupName}</h2>
+                                          )}
+                                      </div>
+                                      </div>
+                                      <ChevronDown className="h-5 w-5 text-slate-400 transition-transform duration-300 group-data-[state=open]:-rotate-180" />
+                                  </div>
+                              </CollapsibleTrigger>
+                              <div className="flex items-center gap-2 px-4">
+                                  <Button 
+                                      type="button"
+                                      variant="ghost" 
+                                      size="icon" 
+                                      className="h-7 w-7 text-slate-400 hover:text-slate-600"
+                                      onClick={(e) => { e.stopPropagation(); setEditingGroupName(groupName); }}
+                                  >
+                                      <Edit className="h-4 w-4"/>
+                                  </Button>
+                                  <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                          <Button
+                                              type="button"
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-7 w-7 text-destructive/60 hover:text-destructive"
+                                              onClick={(e) => e.stopPropagation()}
+                                          >
+                                              <Trash2 className="h-4 w-4"/>
+                                          </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                                          <AlertDialogHeader>
+                                              <AlertDialogTitle>Grubu Silmek İstediğinize Emin misiniz?</AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                  Bu işlem geri alınamaz. "{groupName}" grubundaki tüm kalemler kalıcı olarak silinecektir.
+                                              </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                              <AlertDialogCancel>İptal</AlertDialogCancel>
+                                              <AlertDialogAction onClick={() => handleDeleteGroup(groupName)} className="bg-destructive hover:bg-destructive/90">
+                                                  Evet, Grubu Sil
+                                              </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                  </AlertDialog>
 
-       <div className="sticky bottom-0 left-0 right-0 z-20">
-          <div className="bg-white/80 backdrop-blur-md shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.05)] rounded-t-2xl max-w-7xl mx-auto px-6 py-3 flex justify-between items-center gap-x-8">
-                {/* Sol Taraf: Finansal Özet */}
-                <div className="flex-1 flex items-end gap-x-6">
-                     {!includeVAT ? (
-                        <div>
-                            <p className="text-sm font-semibold text-blue-600">Genel Toplam (KDV Hariç)</p>
-                            <p className="font-mono text-4xl font-extrabold text-blue-700">{formatCurrency(calculatedTotals.grandTotalSellExVAT)}</p>
-                        </div>
-                    ) : (
-                        <>
-                            <div>
-                                <p className="text-xs text-slate-500">Ara Toplam</p>
-                                <p className="font-mono text-xl font-bold text-slate-800">{formatCurrency(calculatedTotals.grandTotalSellExVAT)}</p>
-                            </div>
-                            <div className="text-xl text-slate-400">+</div>
-                            <div>
-                                <p className="text-xs text-slate-500">Toplam KDV (%{new Intl.NumberFormat('tr-TR').format(0.20 * 100)})</p>
-                                <p className="font-mono text-xl font-bold text-slate-800">{formatCurrency(calculatedTotals.vatAmount)}</p>
-                            </div>
-                             <div className="text-xl text-slate-400">=</div>
-                            <div>
-                                <p className="text-sm font-semibold text-blue-600">Genel Toplam</p>
-                                <p className="font-mono text-4xl font-extrabold text-blue-700">{formatCurrency(calculatedTotals.grandTotalSellWithVAT)}</p>
-                            </div>
-                        </>
-                    )}
-                </div>
+                                  <Badge variant="outline"><Box className="mr-2 h-3 w-3" />{itemsInGroup.length} Kalem Ürün</Badge>
+                              </div>
+                          </div>
+                          <CollapsibleContent>
+                              <div className="overflow-x-auto">
+                                  <Table>
+                                      <TableHeader className="bg-slate-50">
+                                      <TableRow>
+                                          <TableHead className="py-2 pl-4 text-xs uppercase text-slate-500 font-semibold tracking-wider w-[30%]">Ürün Tanımı</TableHead>
+                                          <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider w-[15%]">Marka</TableHead>
+                                          <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Miktar</TableHead>
+                                          <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Liste Fiyatı</TableHead>
+                                          <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">İskonto</TableHead>
+                                          <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Maliyet</TableHead>
+                                          <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Kâr (% / Tutar)</TableHead>
+                                          <TableHead className="text-right py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Birim Fiyat (TL)</TableHead>
+                                          <TableHead className="text-right py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Toplam (TL)</TableHead>
+                                          <TableHead className="w-10 py-2 pr-4"></TableHead>
+                                      </TableRow>
+                                      </TableHeader>
+                                      <TableBody className="text-sm divide-y divide-slate-100">
+                                          {fields.map((field, index) => {
+                                              if (field.groupName !== groupName) return null;
+                                              
+                                              const currentItem = watchedItems?.[index];
+                                              if (!currentItem) return null; 
 
-                 {/* Orta: Toplam Kar */}
-                <div className="text-right">
-                    <div className="flex items-center justify-end gap-2 text-green-600">
-                        <TrendingUp className="h-5 w-5" />
-                        <p className="text-sm font-semibold uppercase tracking-wider">Toplam Kâr</p>
-                    </div>
-                    <p className="font-mono font-bold text-2xl">{formatCurrency(calculatedTotals.grandTotalProfit)}</p>
-                    <p className="font-mono text-sm text-green-700 font-semibold">({(calculatedTotals.grandTotalProfitMargin * 100).toFixed(1)}%)</p>
-                </div>
+                                              const itemTotals = calculateItemTotals({
+                                                  ...currentItem,
+                                                  exchangeRate: currentItem.currency === 'USD' ? watchedRates.USD : currentItem.currency === 'EUR' ? watchedRates.EUR : 1,
+                                              });
+
+                                          return (
+                                              <TableRow key={field.formId} className="hover:bg-slate-50/50 group/row odd:bg-slate-50/50">
+                                                  <TableCell className="py-1.5 pl-4 font-medium text-slate-800 w-[30%]">
+                                                      <FormField control={form.control} name={`items.${index}.name`} render={({ field }) => <Input {...field} className="w-full h-7 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
+                                                  </TableCell>
+                                                  <TableCell className="py-1.5 w-[15%]">
+                                                      <FormField control={form.control} name={`items.${index}.brand`} render={({ field }) => <Input {...field} className="w-full h-7 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
+                                                  </TableCell>
+                                                  <TableCell className="py-1.5">
+                                                      <div className="flex items-center">
+                                                          <FormField control={form.control} name={`items.${index}.quantity`} render={({ field }) => <Input {...field} type="number" step="any" className="w-16 font-mono text-right bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7" />} />
+                                                          <FormField control={form.control} name={`items.${index}.unit`} render={({ field }) => <Input {...field} className="w-16 h-7 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
+                                                      </div>
+                                                  </TableCell>
+                                                  <TableCell className="py-1.5 font-mono">
+                                                      <div className="flex items-center justify-start gap-2">
+                                                          <FormField control={form.control} name={`items.${index}.listPrice`} render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7"/>} />
+                                                          <Controller control={form.control} name={`items.${index}.currency`} render={({ field: { onChange, value } }) => (
+                                                              <Badge
+                                                                  onClick={() => onChange(currencyCycle[value])}
+                                                                  variant={value === 'USD' ? 'secondary' : value === 'EUR' ? 'default' : 'outline'}
+                                                                  className={cn(
+                                                                      "cursor-pointer font-bold w-12 justify-center",
+                                                                      value === 'USD' && "bg-green-100 text-green-800 border-green-200",
+                                                                      value === 'EUR' && "bg-blue-100 text-blue-800 border-blue-200"
+                                                                  )}
+                                                              >
+                                                                  {value}
+                                                              </Badge>
+                                                          )} />
+                                                      </div>
+                                                  </TableCell>
+                                                  <TableCell className="py-1.5">
+                                                      <div className="flex items-center justify-start gap-1">
+                                                          <Controller
+                                                              control={form.control}
+                                                              name={`items.${index}.discountRate`}
+                                                              render={({ field }) => (
+                                                                  <Input 
+                                                                      type="number"
+                                                                      value={field.value !== undefined ? ((field.value || 0) * 100) : ''}
+                                                                      onChange={(e) => {
+                                                                          const numValue = parseFloat(e.target.value);
+                                                                          field.onChange(isNaN(numValue) ? 0 : numValue / 100);
+                                                                      }}
+                                                                      className="w-16 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7"
+                                                                      placeholder="0"
+                                                                  />
+                                                              )}
+                                                          />
+                                                          <span className="text-slate-400">%</span>
+                                                      </div>
+                                                  </TableCell>
+                                                  <TableCell className="py-1.5 font-mono">
+                                                      <div className="flex items-center justify-end gap-2">
+                                                          <span>{formatNumber(itemTotals.cost)}</span>
+                                                          <span className={cn(
+                                                          "font-semibold text-xs",
+                                                          currentItem.currency === 'USD' && "text-green-600",
+                                                          currentItem.currency === 'EUR' && "text-blue-600",
+                                                          currentItem.currency === 'TRY' && "text-slate-500",
+                                                          )}>{currentItem.currency}</span>
+                                                      </div>
+                                                  </TableCell>
+                                                  <TableCell className="py-1.5 text-right">
+                                                      <div className="flex items-center justify-end gap-2">
+                                                          <div className="flex items-center gap-1">
+                                                              <Controller
+                                                                  control={form.control}
+                                                                  name={`items.${index}.profitMargin`}
+                                                                  render={({ field }) => (
+                                                                      <Input
+                                                                          type="number"
+                                                                          value={field.value !== undefined ? ((field.value || 0) * 100) : ''}
+                                                                          onChange={(e) => {
+                                                                              const numValue = parseFloat(e.target.value);
+                                                                              field.onChange(isNaN(numValue) ? 0 : numValue / 100);
+                                                                          }}
+                                                                          className="w-14 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7"
+                                                                          placeholder="20"
+                                                                      />
+                                                                  )}
+                                                              />
+                                                              <span className="text-slate-400">%</span>
+                                                          </div>
+                                                          <span className="text-slate-300">|</span>
+                                                          <span className="text-xs font-mono text-green-600 font-semibold tabular-nums w-20 text-left">+{formatCurrency(itemTotals.totalProfit)}</span>
+                                                      </div>
+                                                  </TableCell>
+                                                  <TableCell className="text-right font-mono tabular-nums font-semibold text-slate-600 py-1.5">{formatCurrency(itemTotals.tlSellPrice)}</TableCell>
+                                                  <TableCell className="text-right font-bold font-mono tabular-nums text-slate-800 py-1.5">{formatCurrency(itemTotals.totalTlSell)}</TableCell>
+                                                  <TableCell className="px-2 text-center py-1.5">
+                                                      <Button variant="ghost" size="icon" onClick={() => remove(index)} className="h-7 w-7 text-slate-400 hover:text-red-500 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                                                      <Trash2 className="h-4 w-4" />
+                                                      </Button>
+                                                  </TableCell>
+                                                  </TableRow>
+                                              );
+                                              })}
+                                      </TableBody>
+                                  </Table>
+                              </div>
+                              <div className="bg-slate-50 px-4 py-2 border-t">
+                                  <Button type="button" size="sm" variant="secondary" onClick={() => openProductSelectorForGroup(groupName)}>
+                                      <PlusCircle className="mr-2 h-4 w-4"/>
+                                      Bu Gruba Ürün Ekle
+                                  </Button>
+                              </div>
+                              <div className="bg-slate-900 text-white px-4 py-3 grid grid-cols-3 items-center gap-8">
+                                  <div className="col-span-1">
+                                      <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Döviz Dağılımı (KDV Hariç)</h4>
+                                      <div className="space-y-1">
+                                          {groupTotals && Object.entries(groupTotals.totalsByCurrency).filter(([, val]) => val > 0).map(([currency, value]) => (
+                                              <div key={currency} className="flex justify-between items-center text-sm max-w-xs">
+                                                  <span className="text-slate-300">Toplam {currency}</span>
+                                                  <span className={cn(
+                                                      "font-mono font-bold",
+                                                      currency === 'USD' && "text-green-400",
+                                                      currency === 'EUR' && "text-blue-400",
+                                                  )}>{formatCurrency(value, currency as any)}</span>
+                                              </div>
+                                          ))}
+                                          {groupTotals && Object.values(groupTotals.totalsByCurrency).every(v => v === 0) && (
+                                              <div className="text-slate-400 text-xs">Bu grupta ürün yok.</div>
+                                          )}
+                                      </div>
+                                  </div>
+                                  <div className="col-span-1 text-right">
+                                      <div className="flex items-center justify-end gap-2 text-green-400">
+                                          <TrendingUp className="h-4 w-4" />
+                                          <p className="text-xs font-semibold uppercase tracking-wider">Grup Kârı</p>
+                                      </div>
+                                      <p className="font-mono font-bold text-lg text-green-400">{formatCurrency(groupProfitTRY)}</p>
+                                      <p className="font-mono text-xs text-green-500 font-semibold">({(groupProfitMargin * 100).toFixed(1)}%)</p>
+                                  </div>
+                                  <div className="col-span-1 bg-slate-700 text-white rounded-lg px-4 py-2 text-right">
+                                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Grup Toplamı (KDV Hariç)</p>
+                                      <p className="font-mono font-bold text-xl">{formatCurrency(groupSubTotalTRY)}</p>
+                                  </div>
+                              </div>
+                          </CollapsibleContent>
+                          </section>
+                      </Collapsible>
+                      )
+                  })}
+                  <div className="space-y-4">
+                      <Button type="button" variant="outline" className="w-full" onClick={handleAddNewGroup}>
+                          <PlusCircle className="mr-2 h-4 w-4" />
+                          Yeni Grup Ekle
+                      </Button>
+                  </div>
+              </form>
+        </main>
+
+        <div className="sticky bottom-0 left-0 right-0 z-20">
+            <div className="bg-white/80 backdrop-blur-md shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.05)] rounded-t-2xl max-w-7xl mx-auto px-6 py-3 flex justify-between items-center gap-x-8">
+                  {/* Sol Taraf: Finansal Özet */}
+                  <div className="flex-1 flex items-end gap-x-6">
+                      {!includeVAT ? (
+                          <div>
+                              <p className="text-sm font-semibold text-blue-600">Genel Toplam (KDV Hariç)</p>
+                              <p className="font-mono text-4xl font-extrabold text-blue-700">{formatCurrency(calculatedTotals.grandTotalSellExVAT)}</p>
+                          </div>
+                      ) : (
+                          <>
+                              <div>
+                                  <p className="text-xs text-slate-500">Ara Toplam</p>
+                                  <p className="font-mono text-xl font-bold text-slate-800">{formatCurrency(calculatedTotals.grandTotalSellExVAT)}</p>
+                              </div>
+                              <div className="text-xl text-slate-400">+</div>
+                              <div>
+                                  <p className="text-xs text-slate-500">Toplam KDV (%{new Intl.NumberFormat('tr-TR').format(0.20 * 100)})</p>
+                                  <p className="font-mono text-xl font-bold text-slate-800">{formatCurrency(calculatedTotals.vatAmount)}</p>
+                              </div>
+                              <div className="text-xl text-slate-400">=</div>
+                              <div>
+                                  <p className="text-sm font-semibold text-blue-600">Genel Toplam</p>
+                                  <p className="font-mono text-4xl font-extrabold text-blue-700">{formatCurrency(calculatedTotals.grandTotalSellWithVAT)}</p>
+                              </div>
+                          </>
+                      )}
+                  </div>
+
+                  {/* Orta: Toplam Kar */}
+                  <div className="text-right">
+                      <div className="flex items-center justify-end gap-2 text-green-600">
+                          <TrendingUp className="h-5 w-5" />
+                          <p className="text-sm font-semibold uppercase tracking-wider">Toplam Kâr</p>
+                      </div>
+                      <p className="font-mono font-bold text-2xl">{formatCurrency(calculatedTotals.grandTotalProfit)}</p>
+                      <p className="font-mono text-sm text-green-700 font-semibold">({(calculatedTotals.grandTotalProfitMargin * 100).toFixed(1)}%)</p>
+                  </div>
 
 
-                 {/* Sağ Taraf: Kontroller */}
-                 <div className="flex items-center justify-end gap-4">
-                    <div className="flex flex-col gap-2 items-center">
-                        <div className="flex items-center space-x-2">
-                            <Switch id="vat-switch" checked={includeVAT} onCheckedChange={setIncludeVAT} />
-                            <Label htmlFor="vat-switch" className="text-sm font-medium">
-                                KDV Dahil
-                            </Label>
-                        </div>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            className="w-full"
-                            onClick={() => router.push(`/quotes/${proposalId}/print?customerId=${proposal.customerId}`)}
-                        >
-                            <FileDown className="mr-2 h-4 w-4" /> PDF
-                        </Button>
-                    </div>
-                    <Button onClick={form.handleSubmit(handleSaveChanges)} disabled={isSaving} size="lg" className="rounded-full h-14 w-44 text-base">
-                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-5 w-5" />}
-                        Kaydet
-                    </Button>
-                </div>
-          </div>
-       </div>
-
-      <ProductSelector
-        isOpen={isProductSelectorOpen}
-        onOpenChange={setIsProductSelectorOpen}
-        onProductsSelected={handleProductsSelected}
-        targetGroupName={targetGroupForProductAdd}
-      />
-    </div>
+                  {/* Sağ Taraf: Kontroller */}
+                  <div className="flex items-center justify-end gap-4">
+                      <div className="flex flex-col gap-2 items-center">
+                          <div className="flex items-center space-x-2">
+                              <Switch id="vat-switch" checked={includeVAT} onCheckedChange={setIncludeVAT} />
+                              <Label htmlFor="vat-switch" className="text-sm font-medium">
+                                  KDV Dahil
+                              </Label>
+                          </div>
+                          <Button
+                              type="button"
+                              variant="outline"
+                              className="w-full"
+                              onClick={() => router.push(`/quotes/${proposalId}/print?customerId=${proposal.customerId}`)}
+                          >
+                              <FileDown className="mr-2 h-4 w-4" /> PDF
+                          </Button>
+                      </div>
+                      <Button onClick={form.handleSubmit(handleSaveChanges)} disabled={isSaving} size="lg" className="rounded-full h-14 w-44 text-base">
+                          {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-5 w-5" />}
+                          Kaydet
+                      </Button>
+                  </div>
+            </div>
+        </div>
+      </div>
+    </Form>
   );
 }
