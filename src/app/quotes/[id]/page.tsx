@@ -243,39 +243,42 @@ export default function QuoteDetailPage() {
 
   // --- Calculations ---
     const calculatedTotals = useMemo(() => {
-        const totals = watchedItems.reduce((acc, item) => {
-            const itemTotals = calculateItemTotals({
-                ...item,
-                exchangeRate: item.currency === 'USD' ? watchedRates.USD : item.currency === 'EUR' ? watchedRates.EUR : 1,
-            });
-            
-            acc.grandTotalSellExVAT += itemTotals.totalTlSell;
-            acc.grandTotalCost += itemTotals.totalTlCost;
+    const initialTotals = {
+        grandTotalSellExVAT: 0,
+        grandTotalCost: 0,
+        groupTotals: {} as Record<string, { 
+            totalSellInTRY: number; 
+            totalCostInTRY: number;
+            totalsByCurrency: { TRY: number; USD: number; EUR: number; };
+        }>
+    };
 
-            const groupName = item.groupName || 'Diğer';
-            if (!acc.groupTotals[groupName]) {
-                acc.groupTotals[groupName] = { 
-                    totalSellInTRY: 0,
-                    totalCostInTRY: 0,
-                    totalsByCurrency: { TRY: 0, USD: 0, EUR: 0 }
-                };
-            }
-             const itemOriginalTotal = itemTotals.originalSellPrice * item.quantity;
-            
-            acc.groupTotals[groupName].totalSellInTRY += itemTotals.totalTlSell;
-            acc.groupTotals[groupName].totalCostInTRY += itemTotals.totalTlCost;
-            acc.groupTotals[groupName].totalsByCurrency[item.currency] += itemOriginalTotal;
-            
-            return acc;
-        }, {
-            grandTotalSellExVAT: 0,
-            grandTotalCost: 0,
-            groupTotals: {} as Record<string, { 
-                totalSellInTRY: number; 
-                totalCostInTRY: number;
-                totalsByCurrency: { TRY: number; USD: number; EUR: number; };
-            }>
+    const totals = watchedItems.reduce((acc, item) => {
+        const itemTotals = calculateItemTotals({
+            ...item,
+            exchangeRate: item.currency === 'USD' ? watchedRates.USD : item.currency === 'EUR' ? watchedRates.EUR : 1,
         });
+        
+        acc.grandTotalSellExVAT += itemTotals.totalTlSell;
+        acc.grandTotalCost += itemTotals.totalTlCost;
+
+        const groupName = item.groupName || 'Diğer';
+        if (!acc.groupTotals[groupName]) {
+            acc.groupTotals[groupName] = { 
+                totalSellInTRY: 0,
+                totalCostInTRY: 0,
+                totalsByCurrency: { TRY: 0, USD: 0, EUR: 0 }
+            };
+        }
+        
+        const itemOriginalTotal = itemTotals.originalSellPrice * item.quantity;
+        
+        acc.groupTotals[groupName].totalSellInTRY += itemTotals.totalTlSell;
+        acc.groupTotals[groupName].totalCostInTRY += itemTotals.totalTlCost;
+        acc.groupTotals[groupName].totalsByCurrency[item.currency] += itemOriginalTotal;
+        
+        return acc;
+    }, initialTotals);
         
         const grandTotalProfit = totals.grandTotalSellExVAT - totals.grandTotalCost;
         const grandTotalProfitMargin = totals.grandTotalSellExVAT > 0 ? grandTotalProfit / totals.grandTotalSellExVAT : 0;
@@ -322,49 +325,55 @@ export default function QuoteDetailPage() {
   // --- Event Handlers ---
    const handleProductsSelected = (selectedProducts: ProductType[]) => {
     const currentItems = form.getValues('items');
-
+    let hasAddedNewProduct = false;
+    let firstNewProductName = '';
+     
     selectedProducts.forEach(product => {
-        const existingItemIndex = currentItems.findIndex(
-            item => item.productId === product.id && item.groupName === (targetGroupForProductAdd || 'Diğer')
-        );
+      let groupName = targetGroupForProductAdd || 'Diğer';
+      if (!targetGroupForProductAdd && product.installationTypeId && installationTypes) {
+          let current = installationTypes.find(it => it.id === product.installationTypeId);
+          let parent = current;
+          while (parent?.parentId) {
+              const nextParent = installationTypes.find(it => it.id === parent.parentId);
+              if (nextParent) {
+                  parent = nextParent;
+              } else {
+                  break;
+              }
+          }
+          groupName = parent?.name || 'Diğer';
+      }
 
-        if (existingItemIndex !== -1) {
-            const existingItem = currentItems[existingItemIndex];
-            update(existingItemIndex, {
-                ...existingItem,
-                quantity: (existingItem.quantity || 0) + 1,
-            });
-        } else {
-            let groupName = targetGroupForProductAdd || 'Diğer';
-             if (!targetGroupForProductAdd && product.installationTypeId && installationTypes) {
-                let current = installationTypes.find(it => it.id === product.installationTypeId);
-                let parent = current;
-                while (parent?.parentId) {
-                    const nextParent = installationTypes.find(it => it.id === parent.parentId);
-                    if (nextParent) {
-                        parent = nextParent;
-                    } else {
-                        break;
-                    }
-                }
-                groupName = parent?.name || 'Diğer';
-            }
-            
-            const newItem: ProposalItem = {
-                productId: product.id,
-                name: product.name,
-                brand: product.brand,
-                unit: product.unit,
-                quantity: 1,
-                listPrice: product.listPrice,
-                currency: product.currency,
-                discountRate: product.discountRate || 0,
-                profitMargin: 0.2, // Default 20%
-                groupName: groupName,
-                basePrice: product.basePrice,
-            };
-            append(newItem);
-        }
+      const existingItemIndex = currentItems.findIndex(
+          item => item.productId === product.id && item.groupName === groupName
+      );
+
+      if (existingItemIndex !== -1) {
+          const existingItem = currentItems[existingItemIndex];
+          update(existingItemIndex, {
+              ...existingItem,
+              quantity: (existingItem.quantity || 0) + 1,
+          });
+      } else {
+          if (!hasAddedNewProduct) {
+              hasAddedNewProduct = true;
+              firstNewProductName = product.name;
+          }
+          const newItem: ProposalItem = {
+              productId: product.id,
+              name: product.name,
+              brand: product.brand,
+              unit: product.unit,
+              quantity: 1,
+              listPrice: product.listPrice,
+              currency: product.currency,
+              discountRate: product.discountRate || 0,
+              profitMargin: 0.2, // Default 20%
+              groupName: groupName,
+              basePrice: product.basePrice,
+          };
+          append(newItem);
+      }
     });
 
     setIsProductSelectorOpen(false);
@@ -374,9 +383,8 @@ export default function QuoteDetailPage() {
     }
     setTargetGroupForProductAdd(undefined);
     
-    const firstNewProduct = selectedProducts.find(p => !currentItems.some(item => item.productId === p.id));
-    if (firstNewProduct) {
-        setActiveProductForAISuggestion(firstNewProduct.name);
+    if (hasAddedNewProduct) {
+        setActiveProductForAISuggestion(firstNewProductName);
     }
   };
 
@@ -562,9 +570,9 @@ export default function QuoteDetailPage() {
                     return (
                      <Collapsible key={groupName} defaultOpen={true} asChild>
                       <section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                         <div className="flex justify-between items-center w-full group">
-                            <CollapsibleTrigger asChild>
-                               <div className="px-6 py-4 border-b border-slate-200 flex-1 flex items-center cursor-pointer">
+                        <div className="flex justify-between items-center w-full group">
+                           <CollapsibleTrigger asChild>
+                                <div className="px-6 py-4 border-b border-slate-200 flex-1 flex items-center cursor-pointer">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
                                             {getGroupIcon(groupName)}
@@ -597,6 +605,7 @@ export default function QuoteDetailPage() {
                             </CollapsibleTrigger>
                             <div className="flex items-center gap-4 px-6">
                                 <Button 
+                                    type="button"
                                     variant="ghost" 
                                     size="icon" 
                                     className="h-7 w-7 text-slate-400 hover:text-slate-600"
@@ -743,7 +752,7 @@ export default function QuoteDetailPage() {
                                     <p className="font-mono text-sm text-green-500 font-semibold">({(groupProfitMargin * 100).toFixed(1)}%)</p>
                                 </div>
                                 <div className="col-span-1 bg-slate-700 text-white rounded-lg px-6 py-4 text-right">
-                                    <p className="text-sm font-semibold uppercase tracking-wider text-slate-300 mb-1">Grup Toplamı (KDV Hariç)</p>
+                                    <p className="text-sm font-semibold uppercase tracking-wider text-slate-300 mb-1">{groupName} Toplamı (KDV Hariç)</p>
                                     <p className="font-mono font-bold text-3xl">{formatCurrency(groupSubTotalTRY)}</p>
                                 </div>
                              </div>
