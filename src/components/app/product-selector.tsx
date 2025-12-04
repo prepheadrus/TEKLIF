@@ -8,6 +8,11 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -172,79 +177,92 @@ export function ProductSelector({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-6xl h-[90vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Teklife Ürün Ekle</DialogTitle>
-          <DialogDescription>
-             {targetGroupName 
+      <DialogContent className="max-w-6xl h-[90vh] flex flex-col p-0">
+        <div className="p-6 pb-0">
+          <DialogHeader>
+            <DialogTitle>Teklife Ürün Ekle</DialogTitle>
+            <DialogDescription>
+              {targetGroupName
                 ? `"${targetGroupName}" grubuna ürün ekliyorsunuz.`
                 : "Kategori seçerek ve arama yaparak ürünleri filtreleyin, ardından eklemek istediklerinizi seçin."
-            }
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 flex-1 overflow-hidden">
-            {/* Left Panel: Categories */}
-            <div className="md:col-span-1 border-r pr-4 overflow-y-auto">
-                <h3 className="font-semibold mb-2 px-2 sticky top-0 bg-background py-2">Tesisat Kategorileri</h3>
-                <div className="flex flex-col gap-1 p-2">
-                    <div
-                        className={cn("flex items-center gap-1 py-1.5 px-2 rounded-md cursor-pointer hover:bg-accent text-sm", !selectedCategoryId && "bg-accent text-accent-foreground")}
-                        onClick={() => setSelectedCategoryId(null)}
-                    >
-                        Tüm Ürünler
-                    </div>
-                    {isLoadingCategories ? <Loader2 className="animate-spin mx-auto mt-4" /> : categoryTree.map(node => (
-                        <CategoryNode key={node.id} node={node} level={0} onSelect={setSelectedCategoryId} selectedCategoryId={selectedCategoryId} />
-                    ))}
-                </div>
-            </div>
-
-            {/* Right Panel: Products */}
-            <div className="md:col-span-3 flex flex-col gap-4 overflow-hidden">
-                <div className="relative">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                        placeholder="Ürün adı veya marka ara..." 
-                        className="pl-8"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-                <ScrollArea className="flex-1">
-                    <div className="space-y-2 pr-4">
-                        {isLoadingProducts ? <Loader2 className="animate-spin mx-auto mt-8" /> : (
-                            filteredProducts.map(product => (
-                                <div key={product.id} className="flex items-center gap-4 p-2 border rounded-md">
-                                    <Checkbox
-                                        id={`product-${product.id}`}
-                                        checked={selectedProducts.has(product.id)}
-                                        onCheckedChange={(checked) => handleSelectProduct(product, !!checked)}
-                                    />
-                                    <label htmlFor={`product-${product.id}`} className="flex-1 cursor-pointer">
-                                        <p className="font-medium">{product.name}</p>
-                                        <p className="text-sm text-muted-foreground">{product.brand}</p>
-                                    </label>
-                                    <div className="text-sm font-mono">{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: product.currency }).format(product.listPrice)}</div>
-                                </div>
-                            ))
-                        )}
-                         {!isLoadingProducts && filteredProducts.length === 0 && (
-                            <div className="text-center text-muted-foreground py-8">
-                                Bu kategoriye ait veya aramanızla eşleşen ürün bulunamadı.
-                            </div>
-                        )}
-                    </div>
-                </ScrollArea>
-            </div>
+              }
+            </DialogDescription>
+          </DialogHeader>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose}>
-            İptal
-          </Button>
-          <Button onClick={handleAddClick} disabled={selectedProducts.size === 0}>
-            {selectedProducts.size > 0 ? `${selectedProducts.size} Ürün Ekle` : 'Ürün Ekle'}
-          </Button>
-        </DialogFooter>
+        <ResizablePanelGroup
+          direction="horizontal"
+          className="flex-1 rounded-lg border-t"
+        >
+          <ResizablePanel defaultSize={30} minSize={20}>
+            <div className="flex flex-col h-full">
+              <h3 className="font-semibold p-4 border-b">Tesisat Kategorileri</h3>
+              <ScrollArea className="flex-1">
+                <div className="flex flex-col gap-1 p-2">
+                  <div
+                    className={cn("flex items-center gap-1 py-1.5 px-2 rounded-md cursor-pointer hover:bg-accent text-sm", !selectedCategoryId && "bg-accent text-accent-foreground")}
+                    onClick={() => setSelectedCategoryId(null)}
+                  >
+                    Tüm Ürünler
+                  </div>
+                  {isLoadingCategories ? <Loader2 className="animate-spin mx-auto mt-4" /> : categoryTree.map(node => (
+                    <CategoryNode key={node.id} node={node} level={0} onSelect={setSelectedCategoryId} selectedCategoryId={selectedCategoryId} />
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          </ResizablePanel>
+          <ResizableHandle withHandle />
+          <ResizablePanel defaultSize={70}>
+            <div className="flex flex-col h-full">
+              <div className="p-4 border-b">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Ürün adı veya marka ara..."
+                    className="pl-8"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+              </div>
+              <ScrollArea className="flex-1">
+                <div className="space-y-2 p-4">
+                  {isLoadingProducts ? <Loader2 className="animate-spin mx-auto mt-8" /> : (
+                    filteredProducts.map(product => (
+                      <div key={product.id} className="flex items-center gap-4 p-2 border rounded-md">
+                        <Checkbox
+                          id={`product-${product.id}`}
+                          checked={selectedProducts.has(product.id)}
+                          onCheckedChange={(checked) => handleSelectProduct(product, !!checked)}
+                        />
+                        <label htmlFor={`product-${product.id}`} className="flex-1 cursor-pointer">
+                          <p className="font-medium">{product.name}</p>
+                          <p className="text-sm text-muted-foreground">{product.brand}</p>
+                        </label>
+                        <div className="text-sm font-mono">{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: product.currency }).format(product.listPrice)}</div>
+                      </div>
+                    ))
+                  )}
+                  {!isLoadingProducts && filteredProducts.length === 0 && (
+                    <div className="text-center text-muted-foreground py-8">
+                      Bu kategoriye ait veya aramanızla eşleşen ürün bulunamadı.
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+        <div className="p-6 border-t">
+          <DialogFooter>
+            <Button variant="outline" onClick={handleClose}>
+              İptal
+            </Button>
+            <Button onClick={handleAddClick} disabled={selectedProducts.size === 0}>
+              {selectedProducts.size > 0 ? `${selectedProducts.size} Ürün Ekle` : 'Ürün Ekle'}
+            </Button>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
