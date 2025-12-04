@@ -63,14 +63,6 @@ export default function PrintQuotePage() {
     const proposalId = params.id as string;
     const customerId = searchParams.get('customerId');
 
-    useEffect(() => {
-        // Automatically trigger print dialog after a short delay
-        const timer = setTimeout(() => {
-           // window.print();
-        }, 500);
-        return () => clearTimeout(timer);
-    }, []);
-
     const proposalRef = useMemoFirebase(
         () => (firestore && proposalId ? doc(firestore, 'proposals', proposalId) : null),
         [firestore, proposalId]
@@ -176,11 +168,11 @@ export default function PrintQuotePage() {
 
     return (
         <div className="print-layout bg-white text-black min-h-screen text-[10px] font-body">
-            <header className="flex justify-between items-start mb-4 pb-3 border-b">
+            <header className="flex justify-between items-start mb-4 pb-3 border-b" style={{ breakInside: 'avoid' }}>
                 <div className="flex items-start gap-3">
                     <Image src="/logo.png" alt="Firma Logosu" width={80} height={80} style={{objectFit: 'contain'}} />
                     <div>
-                        <h2 className="text-lg font-bold text-slate-800">İMS Mühendislik</h2>
+                        <h2 className="text-base font-bold text-slate-800">İMS Mühendislik</h2>
                         <p className="text-[10px] font-semibold text-gray-600">Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
                         <p className="text-[10px] max-w-xs mt-1">
                             Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA
@@ -189,7 +181,7 @@ export default function PrintQuotePage() {
                     </div>
                 </div>
                 <div className="text-right flex-shrink-0">
-                    <h2 className="text-lg font-bold uppercase tracking-wider">TEKLİF</h2>
+                    <h2 className="text-xl font-bold uppercase tracking-wider">TEKLİF</h2>
                     <p className="mt-1">
                         <span className="font-semibold">Teklif No:</span> {proposal.quoteNumber}
                     </p>
@@ -199,7 +191,7 @@ export default function PrintQuotePage() {
                 </div>
             </header>
 
-            <section className="mb-4 grid grid-cols-2 gap-3">
+            <section className="mb-4 grid grid-cols-2 gap-3" style={{ breakInside: 'avoid' }}>
                 <div className="border p-2 rounded-md bg-gray-50">
                     <h3 className="text-sm font-semibold mb-1">Müşteri Bilgileri</h3>
                     <p className="font-bold text-xs">{customer.name}</p>
@@ -215,18 +207,18 @@ export default function PrintQuotePage() {
             
              <section className="mb-4 space-y-4">
                 {sortedGroups.map(([groupName, groupItems]) => (
-                    <div key={groupName} className="break-inside-avoid">
-                        <h3 className="text-sm font-bold mb-1 p-1 bg-gray-100 rounded-t-md border-b-2 border-gray-300">{groupName}</h3>
+                    <div key={groupName}>
+                        <h3 className="text-sm font-bold mb-1 p-1 bg-gray-100 rounded-t-md border-b-2 border-gray-300" style={{ breakInside: 'avoid' }}>{groupName}</h3>
                         <table className="w-full text-[10px] text-left" style={{ borderCollapse: 'collapse', width: '100%'}}>
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="p-1 font-semibold">#</th>
-                                    <th className="p-1 font-semibold w-2/5">Açıklama</th>
-                                    <th className="p-1 font-semibold">Marka</th>
-                                    <th className="p-1 text-center font-semibold">Miktar</th>
-                                    <th className="p-1 font-semibold">Birim</th>
-                                    <th className="p-1 text-right font-semibold">Birim Fiyat</th>
-                                    <th className="p-1 text-right font-semibold">Toplam Tutar</th>
+                            <thead style={{ display: 'table-header-group', breakInside: 'avoid' }}>
+                                <tr className="bg-gray-50">
+                                    <th className="p-1 font-semibold border-b">#</th>
+                                    <th className="p-1 font-semibold border-b w-2/5">Açıklama</th>
+                                    <th className="p-1 font-semibold border-b">Marka</th>
+                                    <th className="p-1 text-center font-semibold border-b">Miktar</th>
+                                    <th className="p-1 font-semibold border-b">Birim</th>
+                                    <th className="p-1 text-right font-semibold border-b">Birim Fiyat</th>
+                                    <th className="p-1 text-right font-semibold border-b">Toplam Tutar</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -242,10 +234,10 @@ export default function PrintQuotePage() {
                                     </tr>
                                 ))}
                             </tbody>
-                             <tfoot>
+                             <tfoot style={{ breakInside: 'avoid' }}>
                                 <tr className="bg-gray-100 font-bold">
-                                    <td colSpan={6} className="p-1 text-right">Grup Toplamı (KDV Hariç):</td>
-                                    <td className="p-1 text-right">
+                                    <td colSpan={6} className="p-1 text-right border-t-2 border-gray-300">Grup Toplamı (KDV Hariç):</td>
+                                    <td className="p-1 text-right border-t-2 border-gray-300">
                                         {formatCurrency(groupItems.reduce((sum, item) => sum + item.total, 0), 'TRY')}
                                     </td>
                                 </tr>
@@ -255,9 +247,9 @@ export default function PrintQuotePage() {
                 ))}
             </section>
 
-            <section className="flex justify-between items-start mb-4 break-inside-avoid">
+            <section className="flex justify-between items-start mb-4" style={{ breakInside: 'avoid' }}>
                 <div className="w-full sm:w-1/3 lg:w-1/2"></div>
-                <div className="w-full sm:w-2/3 lg:w-1/2 space-y-2">
+                <div className="w-full sm:w-2/3 lg:w-1/2 space-y-1">
                     <div className="border-b pb-1">
                         <div className="flex justify-between">
                             <span className="font-semibold">Ara Toplam (TL):</span>
@@ -274,7 +266,7 @@ export default function PrintQuotePage() {
                         </div>
                     </div>
                     
-                    {(Object.keys(totals.byCurrency).length > 0) && (
+                    {(Object.keys(totals.byCurrency).length > 1) && (
                         <div className="pt-1">
                         <h4 className="font-semibold text-xs mb-1">Para Birimi Bazında Özet (KDV Dahil)</h4>
                         {Object.entries(totals.byCurrency).map(([currency, currencyTotals]) => (
@@ -292,7 +284,7 @@ export default function PrintQuotePage() {
                 </div>
             </section>
             
-            <div className="flex justify-between items-end mt-8 pt-2 border-t break-inside-avoid">
+            <div className="flex justify-between items-end mt-8 pt-2 border-t" style={{ breakInside: 'avoid' }}>
                 <footer className="text-[9px] text-gray-600 space-y-1">
                     <p className='font-semibold'>Teklif Koşulları:</p>
                     <ul className="list-disc list-inside">
