@@ -8,84 +8,65 @@ interface PriceCalculationInput {
   discountRate: number; // 0-1 aralığında, örn: 0.15
   profitMargin: number;  // 0-1 aralığında, örn: 0.20
   exchangeRate: number;  // Yabancı para birimi için, TL ise 1 olmalı
-  basePrice?: number; // Bu artık doğrudan kullanılmıyor ama uyumluluk için kalabilir
+  quantity: number;
 }
 
 interface PriceCalculationOutput {
   cost: number;            // Orijinal para biriminde maliyet (iskonto uygulanmış liste fiyatı)
   tlCost: number;          // TL cinsinden maliyet
-  originalSellPrice: number; // Orijinal para biriminde satış fiyatı
-  tlSellPrice: number;       // TL cinsinden satış fiyatı
-  profitAmount: number;    // TL cinsinden kâr tutarı (her birim için)
+  originalSellPrice: number; // Orijinal para biriminde KDV HARİÇ satış fiyatı
+  tlSellPrice: number;       // TL cinsinden KDV HARİÇ satış fiyatı
+  profitAmount: number;    // TL cinsinden BİRİM kâr tutarı
+  totalTlSell: number;     // TL cinsinden KDV HARİÇ toplam satış tutarı
+  totalTlCost: number;     // TL cinsinden toplam maliyet
+  totalProfit: number;     // TL cinsinden toplam kâr
 }
 
 /**
- * Verilen bilgilere göre maliyet, orijinal satış fiyatı ve TL satış fiyatını hesaplar.
- * @param listPrice - Ürünün liste fiyatı.
- * @param discountRate - Liste fiyatı üzerinden yapılacak iskonto oranı (örn: 0.15 for 15%).
- * @param profitMargin - Maliyet üzerinden eklenecek kâr marjı (örn: 0.20 for 20%).
- * @param exchangeRate - Yabancı para biriminin TL karşılığı olan kur.
- * @returns Maliyet, satış fiyatı ve kâr bilgilerini içeren bir nesne.
+ * Verilen bilgilere göre birim ve toplam fiyatları KDV HARİÇ olarak hesaplar.
+ * @returns Tüm KDV hariç maliyet, satış ve kâr bilgilerini içeren bir nesne.
  */
-export function calculatePrice({
+export function calculateItemTotals({
   listPrice,
   discountRate,
   profitMargin,
   exchangeRate,
+  quantity,
 }: PriceCalculationInput): PriceCalculationOutput {
-  // DÜZELTME: Maliyet her zaman LİSTE FİYATI üzerinden hesaplanır.
-  // Maliyet (İskontolu Fiyat) = Liste Fiyatı * (1 - İskonto Oranı)
+  
+  // 1. Maliyet Hesaplaması (Cost)
+  // Maliyet, her zaman liste fiyatı üzerinden yapılan iskonto ile bulunur.
+  // Maliyet (Orijinal Para Birimi) = Liste Fiyatı * (1 - İskonto Oranı)
   const cost = listPrice * (1 - discountRate);
 
-  // Yeni Mantık: "Maliyet Artı Kâr" (Cost Plus)
+  // 2. Satış Fiyatı Hesaplaması (Sell Price - KDV HARİÇ)
+  // Satış fiyatı, maliyetin üzerine kâr marjının eklenmesiyle bulunur.
   // Satış Fiyatı (Orijinal Para Birimi) = Maliyet * (1 + Kâr Oranı)
-  // Örn: 100 liralık maliyete %20 kâr eklemek için 100 * (1 + 0.20) = 120 TL.
   const originalSellPrice = cost * (1 + profitMargin);
   
-  // TL cinsinden değerler
+  // 3. TL'ye Çevrim
   const tlCost = cost * exchangeRate;
   const tlSellPrice = originalSellPrice * exchangeRate;
 
-  // Birim başına TL kâr
+  // 4. Kâr Hesaplaması (Profit)
+  // Birim kâr, birim satış fiyatı ile birim maliyet arasındaki farktır.
   const profitAmount = tlSellPrice - tlCost;
 
+  // 5. Toplam Değerlerin Hesaplanması (Totals)
+  const totalTlCost = tlCost * quantity;
+  const totalTlSell = tlSellPrice * quantity;
+  const totalProfit = profitAmount * quantity;
+
   return {
+    // Birim değerler
     cost,
     tlCost,
     originalSellPrice,
     tlSellPrice,
     profitAmount,
+    // Toplam değerler
+    totalTlSell,
+    totalTlCost,
+    totalProfit,
   };
 }
-
-/**
- * Toplam fiyatları hesaplamak için kullanılır.
- */
-interface TotalPriceInput {
-    quantity: number;
-    listPrice: number;
-    discountRate: number;
-    profitMargin: number;
-    exchangeRate: number;
-    basePrice?: number;
-}
-
-/**
- * Bir kalem için toplam maliyet, satış ve karı hesaplar.
- */
-export function calculateItemTotals(input: TotalPriceInput) {
-    const priceInfo = calculatePrice(input);
-    
-    const totalTlCost = priceInfo.tlCost * input.quantity;
-    const totalTlSell = priceInfo.tlSellPrice * input.quantity;
-    const totalProfit = priceInfo.profitAmount * input.quantity;
-    
-    return {
-        ...priceInfo,
-        totalTlCost,
-        totalTlSell,
-        totalProfit
-    };
-}
-
-    

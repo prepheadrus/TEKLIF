@@ -243,7 +243,7 @@ export default function QuoteDetailPage() {
 
   // --- Calculations ---
     const calculatedTotals = useMemo(() => {
-         const initialTotals = {
+        const initialTotals = {
             grandTotalSellExVAT: 0,
             grandTotalCost: 0,
         };
@@ -276,6 +276,7 @@ export default function QuoteDetailPage() {
                 exchangeRate: item.currency === 'USD' ? watchedRates.USD : item.currency === 'EUR' ? watchedRates.EUR : 1,
             });
             
+            // Here, we use the original (non-TL) sell price for currency-based grouping
             const itemOriginalTotal = itemTotals.originalSellPrice * item.quantity;
             
             acc[groupName].totalSellInTRY += itemTotals.totalTlSell;
@@ -570,9 +571,7 @@ export default function QuoteDetailPage() {
                     const groupCostTRY = groupTotals?.totalCostInTRY || 0;
                     const groupProfitTRY = groupSubTotalTRY - groupCostTRY;
                     const groupProfitMargin = groupSubTotalTRY > 0 ? (groupProfitTRY / groupSubTotalTRY) : 0;
-                    const groupVatAmount = groupSubTotalTRY * VAT_RATE;
-                    const groupTotalWithVAT = groupSubTotalTRY + groupVatAmount;
-
+                    
                     return (
                      <Collapsible key={groupName} defaultOpen={true} asChild>
                       <section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -721,7 +720,7 @@ export default function QuoteDetailPage() {
                                     </TableBody>
                                 </Table>
                             </div>
-                             <div className="bg-slate-900 text-white p-6 grid grid-cols-2 items-center gap-8">
+                            <div className="bg-slate-900 text-white p-6 grid grid-cols-2 items-center gap-8">
                                 <div className="col-span-1">
                                     <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-3">Grup Döviz Dağılımı (KDV Hariç)</h4>
                                     <div className="space-y-2">
@@ -737,35 +736,19 @@ export default function QuoteDetailPage() {
                                         ))}
                                     </div>
                                 </div>
-                                <div className="col-span-1 flex justify-between items-start">
-                                     <div className="flex items-center gap-6 font-mono text-2xl">
-                                        <div>
-                                            <p className="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-1">Grup Ara Toplamı (TL)</p>
-                                            <p className="font-bold">{formatCurrency(groupSubTotalTRY)}</p>
+                                <div className="col-span-1 flex justify-end items-start gap-8">
+                                     <div className="text-right">
+                                        <div className="flex items-center justify-end gap-2 text-green-400">
+                                            <TrendingUp className="h-5 w-5" />
+                                            <p className="text-sm font-semibold uppercase tracking-wider">Grup Kârı</p>
                                         </div>
-                                        <p className="text-slate-500">+</p>
-                                        <div>
-                                            <p className="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-1">Toplam KDV (%20)</p>
-                                            <p className="font-bold">{formatCurrency(groupVatAmount)}</p>
-                                        </div>
-                                        <p className="text-slate-500">=</p>
+                                        <p className="font-mono font-bold text-xl text-green-400">{formatCurrency(groupProfitTRY)}</p>
+                                        <p className="font-mono text-sm text-green-500 font-semibold">({(groupProfitMargin * 100).toFixed(1)}%)</p>
                                     </div>
-
-                                    <div className="flex items-center gap-8">
-                                        <div className="text-right">
-                                            <div className="flex items-center justify-end gap-2 text-green-400">
-                                                <TrendingUp className="h-5 w-5" />
-                                                <p className="text-sm font-semibold uppercase tracking-wider">Grup Kârı</p>
-                                            </div>
-                                            <p className="font-mono font-bold text-xl text-green-400">{formatCurrency(groupProfitTRY)}</p>
-                                            <p className="font-mono text-sm text-green-500 font-semibold">({(groupProfitMargin * 100).toFixed(1)}%)</p>
-                                        </div>
-                                        <div className="bg-blue-600 text-white rounded-lg px-6 py-4 text-right">
-                                            <p className="text-sm font-semibold uppercase tracking-wider text-blue-200 mb-1">Grup Genel Toplamı</p>
-                                            <p className="font-mono font-bold text-3xl">{formatCurrency(groupTotalWithVAT)}</p>
-                                        </div>
+                                    <div className="bg-slate-700 text-white rounded-lg px-6 py-4 text-right">
+                                        <p className="text-sm font-semibold uppercase tracking-wider text-slate-300 mb-1">Grup Toplamı (KDV Hariç)</p>
+                                        <p className="font-mono font-bold text-3xl">{formatCurrency(groupSubTotalTRY)}</p>
                                     </div>
-
                                 </div>
                              </div>
                          </CollapsibleContent>
@@ -785,24 +768,24 @@ export default function QuoteDetailPage() {
        <div className="sticky bottom-0 left-0 right-0 z-20">
           <div className="bg-white/80 backdrop-blur-md shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.05)] rounded-t-2xl max-w-6xl mx-auto px-8 py-4 grid grid-cols-5 items-center gap-8">
                 <div className="col-span-1">
-                     <p className="text-sm text-slate-500">Genel Ara Toplam</p>
-                     <p className="font-mono text-2xl font-bold text-slate-800">{formatCurrency(calculatedTotals.grandTotalSellExVAT)}</p>
+                    <p className="text-sm text-slate-500">Genel Ara Toplam</p>
+                    <p className="font-mono text-2xl font-bold text-slate-800">{formatCurrency(calculatedTotals.grandTotalSellExVAT)}</p>
                 </div>
-                 <div className="col-span-1">
-                     <p className="text-sm text-slate-500">Toplam KDV (%20)</p>
-                     <p className="font-mono text-2xl font-bold text-slate-800">{formatCurrency(calculatedTotals.vatAmount)}</p>
+                <div className="col-span-1">
+                    <p className="text-sm text-slate-500">Toplam KDV (%{VAT_RATE * 100})</p>
+                    <p className="font-mono text-2xl font-bold text-slate-800">{formatCurrency(calculatedTotals.vatAmount)}</p>
                 </div>
                 <div className="col-span-1 text-right">
-                     <div className="flex items-center justify-end gap-2 text-green-600">
+                    <div className="flex items-center justify-end gap-2 text-green-600">
                         <TrendingUp className="h-5 w-5" />
                         <p className="text-sm font-semibold uppercase tracking-wider">Toplam Kâr</p>
                     </div>
                     <p className="font-mono font-bold text-2xl">{formatCurrency(calculatedTotals.grandTotalProfit)}</p>
                     <p className="font-mono text-sm text-green-700 font-semibold">({(calculatedTotals.grandTotalProfitMargin * 100).toFixed(1)}%)</p>
                 </div>
-                 <div className="col-span-1 text-right">
-                     <p className="text-sm font-semibold text-blue-600">Genel Toplam</p>
-                     <p className="font-mono text-4xl font-extrabold text-blue-700">{formatCurrency(calculatedTotals.grandTotalSellWithVAT)}</p>
+                <div className="col-span-1 text-right">
+                    <p className="text-sm font-semibold text-blue-600">Genel Toplam</p>
+                    <p className="font-mono text-4xl font-extrabold text-blue-700">{formatCurrency(calculatedTotals.grandTotalSellWithVAT)}</p>
                 </div>
                  <div className="col-span-1 flex flex-col gap-2 items-center justify-self-end">
                     <div className="flex items-center space-x-2">
@@ -905,5 +888,3 @@ function AISuggestionBox({ productName, existingItems, onClose }: { productName:
         </div>
     )
 }
-
-    
