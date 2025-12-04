@@ -257,7 +257,10 @@ export default function QuotesPage() {
 
 
   const filteredProposalGroups = useMemo(() => {
-    if (statusFilter !== 'All') return [];
+    if (statusFilter !== 'All') {
+      // If a status filter is active, we don't show groups, so return an empty array.
+      return [];
+    }
     
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30).getTime();
@@ -276,15 +279,15 @@ export default function QuotesPage() {
             if (dateFilter === 'last90days' && proposalDate < ninetyDaysAgo) return false;
         }
 
+        // When statusFilter is 'All', no need for status-based filtering on the group
         return true;
     });
   }, [groupedProposals, searchTerm, statusFilter, dateFilter]);
   
 
   const filteredStats = useMemo(() => {
-    const listToProcess = statusFilter === 'All' 
-        ? filteredProposalGroups.map(g => g.latestProposal) 
-        : flatFilteredProposals;
+    // This calculation now ALWAYS runs on the flat, fully-filtered list of individual proposals.
+    const listToProcess = flatFilteredProposals;
 
     const count = listToProcess.length;
     const totalAmount = listToProcess.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
@@ -295,7 +298,7 @@ export default function QuotesPage() {
       totalAmount,
       averageAmount,
     };
-  }, [filteredProposalGroups, flatFilteredProposals, statusFilter]);
+  }, [flatFilteredProposals]);
 
   // Pagination Logic
   const paginatedGroups = useMemo(() => {
