@@ -197,9 +197,11 @@ export default function QuoteDetailPage() {
   const { fields, append, remove, update } = useFieldArray({
     control: form.control,
     name: 'items',
-    keyName: "formId"
+    keyName: "formId" // Use a different key name to avoid conflicts with 'id' from Firestore
   });
   
+  // *** KEY CHANGE: WATCH THE ENTIRE FIELD ARRAY FOR CHANGES ***
+  const watchedItems = form.watch('items');
   const watchedRates = form.watch('exchangeRates');
   const VAT_RATE = 0.20;
 
@@ -210,8 +212,7 @@ export default function QuoteDetailPage() {
   }, []);
 
   useEffect(() => {
-    let isMounted = true;
-    if (proposal && initialItems && isMounted) {
+    if (proposal && initialItems) {
       form.reset({
         versionNote: proposal.versionNote || '',
         items: initialItems.map((item) => ({
@@ -226,7 +227,6 @@ export default function QuoteDetailPage() {
          handleFetchRates();
        }
     }
-    return () => { isMounted = false; }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proposal, initialItems, form.reset]);
 
@@ -239,6 +239,7 @@ export default function QuoteDetailPage() {
   }, [editingGroupName]);
 
   // --- Calculations ---
+  // *** KEY CHANGE: 'watchedItems' is now a dependency ***
   const calculatedTotals = useMemo(() => {
     const initialTotals = {
         grandTotalSellExVAT: 0,
@@ -250,17 +251,16 @@ export default function QuoteDetailPage() {
         }>
     };
 
-    const totals = fields.reduce((acc, item, index) => {
-        const itemData = form.getValues(`items.${index}`);
+    const totals = (watchedItems || []).reduce((acc, item) => {
         const itemTotals = calculateItemTotals({
-            ...itemData,
-            exchangeRate: itemData.currency === 'USD' ? watchedRates.USD : itemData.currency === 'EUR' ? watchedRates.EUR : 1,
+            ...item,
+            exchangeRate: item.currency === 'USD' ? watchedRates.USD : item.currency === 'EUR' ? watchedRates.EUR : 1,
         });
         
         acc.grandTotalSellExVAT += itemTotals.totalTlSell;
         acc.grandTotalCost += itemTotals.totalTlCost;
 
-        const groupName = itemData.groupName || 'Diğer';
+        const groupName = item.groupName || 'Diğer';
         if (!acc.groupTotals[groupName]) {
             acc.groupTotals[groupName] = { 
                 totalSellInTRY: 0,
@@ -269,11 +269,11 @@ export default function QuoteDetailPage() {
             };
         }
         
-        const itemOriginalTotal = itemTotals.originalSellPrice * itemData.quantity;
+        const itemOriginalTotal = itemTotals.originalSellPrice * item.quantity;
         
         acc.groupTotals[groupName].totalSellInTRY += itemTotals.totalTlSell;
         acc.groupTotals[groupName].totalCostInTRY += itemTotals.totalTlCost;
-        acc.groupTotals[groupName].totalsByCurrency[itemData.currency] += itemOriginalTotal;
+        acc.groupTotals[groupName].totalsByCurrency[item.currency] += itemOriginalTotal;
         
         return acc;
     }, initialTotals);
@@ -292,7 +292,7 @@ export default function QuoteDetailPage() {
         grandTotalProfit,
         grandTotalProfitMargin
     };
-  }, [fields, watchedRates, form]);
+  }, [watchedItems, watchedRates]);
 
 
   const allGroups = useMemo(() => {
@@ -322,7 +322,6 @@ export default function QuoteDetailPage() {
   
   // --- Event Handlers ---
    const handleProductsSelected = (selectedProducts: ProductType[]) => {
-    const currentItems = form.getValues('items');
     
     selectedProducts.forEach(product => {
       let groupName = targetGroupForProductAdd || 'Diğer';
@@ -341,7 +340,10 @@ export default function QuoteDetailPage() {
       }
 
       const existingItemIndex = fields.findIndex(
-          field => field.productId === product.id && field.groupName === groupName
+          (field, index) => {
+            const itemValue = form.getValues(`items.${index}`);
+            return itemValue.productId === product.id && itemValue.groupName === groupName
+          }
       );
 
       if (existingItemIndex !== -1) {
@@ -616,7 +618,8 @@ export default function QuoteDetailPage() {
                                         {itemsInGroup.map((item) => {
                                         const { originalIndex } = item;
                                         if (originalIndex === -1) return null;
-                                        const itemValues = form.getValues(`items.${originalIndex}`);
+                                        
+                                        const itemValues = watchedItems?.[originalIndex];
                                         if (!itemValues) return null;
                                         
                                         const itemTotals = calculateItemTotals({
@@ -829,3 +832,5 @@ export default function QuoteDetailPage() {
     </div>
   );
 }
+
+    
