@@ -73,16 +73,12 @@
   body {
     background-color: white;
   }
-  .print-layout {
-    margin: 0;
-    padding: 0;
-  }
   .print-hidden {
     display: none !important;
   }
   @page {
     size: A4;
-    margin: 0;
+    margin: 2cm;
   }
   ::-webkit-scrollbar {
     display: none;
