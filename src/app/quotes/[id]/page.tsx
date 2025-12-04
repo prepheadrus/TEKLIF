@@ -33,6 +33,13 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
   Trash2,
   PlusCircle,
   Loader2,
@@ -265,6 +272,7 @@ export default function QuoteDetailPage() {
   const watchedRates = form.watch('exchangeRates');
 
   // --- Calculations ---
+  // HESAPLAMALAR ARTIK BURADA, HER RENDER'DA ÇALIŞIR
   const calculatedTotals = calculateAllTotals(watchedItems, watchedRates);
   const VAT_RATE = 0.20;
 
@@ -561,9 +569,9 @@ export default function QuoteDetailPage() {
                      <Collapsible key={groupName} defaultOpen={true} asChild>
                       <section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                         <div className="flex justify-between items-center w-full group">
-                           <CollapsibleTrigger className="px-6 py-3 flex-1 flex items-center cursor-pointer">
+                           <CollapsibleTrigger className="px-4 py-2 flex-1 flex items-center cursor-pointer">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
+                                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
                                         {getGroupIcon(groupName)}
                                     </div>
                                     <div>
@@ -591,7 +599,7 @@ export default function QuoteDetailPage() {
                                     <ChevronDown className="h-5 w-5 text-slate-400 transition-transform duration-300 group-data-[state=open]:-rotate-180" />
                                 </div>
                             </CollapsibleTrigger>
-                            <div className="flex items-center gap-4 px-6">
+                            <div className="flex items-center gap-4 px-4">
                                 <Button 
                                     type="button"
                                     variant="ghost" 
@@ -615,7 +623,7 @@ export default function QuoteDetailPage() {
                                         <TableHead className="py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Liste Fiyatı</TableHead>
                                         <TableHead className="text-right py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">İskonto</TableHead>
                                         <TableHead className="text-right py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Maliyet</TableHead>
-                                        <TableHead className="text-right py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Kâr (%/Tutar)</TableHead>
+                                        <TableHead className="text-right py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Kâr (% / Tutar)</TableHead>
                                         <TableHead className="text-right py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Birim Fiyat (TL)</TableHead>
                                         <TableHead className="text-right py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Toplam (TL)</TableHead>
                                         <TableHead className="w-10 py-1 pr-4"></TableHead>
@@ -625,12 +633,12 @@ export default function QuoteDetailPage() {
                                         {fields.map((field, index) => {
                                         if (field.groupName !== groupName) return null;
                                         
-                                        const itemValues = watchedItems?.[index];
-                                        if (!itemValues) return null;
+                                        const currentItem = watchedItems?.[index];
+                                        if (!currentItem) return null;
                                         
                                         const itemTotals = calculateItemTotals({
-                                            ...itemValues,
-                                            exchangeRate: itemValues.currency === 'USD' ? watchedRates.USD : itemValues.currency === 'EUR' ? watchedRates.EUR : 1,
+                                            ...currentItem,
+                                            exchangeRate: currentItem.currency === 'USD' ? watchedRates.USD : currentItem.currency === 'EUR' ? watchedRates.EUR : 1,
                                         });
 
                                         return (
@@ -682,7 +690,7 @@ export default function QuoteDetailPage() {
                                                         <span className="text-slate-400">%</span>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="text-right font-mono tabular-nums py-1">{formatNumber(itemTotals.cost)} {itemValues.currency}</TableCell>
+                                                <TableCell className="text-right font-mono tabular-nums py-1">{formatNumber(itemTotals.cost)} {currentItem.currency}</TableCell>
                                                 <TableCell className="py-1 text-right">
                                                     <div className="flex items-center justify-end gap-2">
                                                         <div className="flex items-center gap-1">
@@ -716,18 +724,18 @@ export default function QuoteDetailPage() {
                                     </TableBody>
                                 </Table>
                             </div>
-                             <div className="bg-slate-50 px-6 py-2 border-t">
+                             <div className="bg-slate-50 px-4 py-2 border-t">
                                 <Button type="button" size="sm" variant="secondary" onClick={() => openProductSelectorForGroup(groupName)}>
                                     <PlusCircle className="mr-2 h-4 w-4"/>
                                     Bu Gruba Ürün Ekle
                                 </Button>
                              </div>
-                             <div className="bg-slate-900 text-white px-6 py-3 grid grid-cols-3 items-center gap-8">
+                             <div className="bg-slate-900 text-white px-4 py-3 grid grid-cols-3 items-center gap-8">
                                 <div className="col-span-1">
-                                    <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-2">Döviz Dağılımı (KDV Hariç)</h4>
+                                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Döviz Dağılımı (KDV Hariç)</h4>
                                     <div className="space-y-1">
                                         {groupTotals && Object.entries(groupTotals.totalsByCurrency).filter(([, val]) => val > 0).map(([currency, value]) => (
-                                            <div key={currency} className="flex justify-between items-center text-base max-w-xs">
+                                            <div key={currency} className="flex justify-between items-center text-sm max-w-xs">
                                                 <span className="text-slate-300">Toplam {currency}</span>
                                                 <span className={cn(
                                                     "font-mono font-bold",
@@ -737,7 +745,7 @@ export default function QuoteDetailPage() {
                                             </div>
                                         ))}
                                         {groupTotals && Object.values(groupTotals.totalsByCurrency).every(v => v === 0) && (
-                                            <div className="text-slate-400 text-sm">Bu grupta ürün yok.</div>
+                                            <div className="text-slate-400 text-xs">Bu grupta ürün yok.</div>
                                         )}
                                     </div>
                                 </div>
@@ -746,12 +754,12 @@ export default function QuoteDetailPage() {
                                         <TrendingUp className="h-4 w-4" />
                                         <p className="text-xs font-semibold uppercase tracking-wider">Grup Kârı</p>
                                     </div>
-                                    <p className="font-mono font-bold text-xl text-green-400">{formatCurrency(groupProfitTRY)}</p>
+                                    <p className="font-mono font-bold text-lg text-green-400">{formatCurrency(groupProfitTRY)}</p>
                                     <p className="font-mono text-xs text-green-500 font-semibold">({(groupProfitMargin * 100).toFixed(1)}%)</p>
                                 </div>
                                 <div className="col-span-1 bg-slate-700 text-white rounded-lg px-4 py-2 text-right">
                                     <p className="text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Grup Toplamı (KDV Hariç)</p>
-                                    <p className="font-mono font-bold text-2xl">{formatCurrency(groupSubTotalTRY)}</p>
+                                    <p className="font-mono font-bold text-xl">{formatCurrency(groupSubTotalTRY)}</p>
                                 </div>
                              </div>
                          </CollapsibleContent>
@@ -848,3 +856,5 @@ export default function QuoteDetailPage() {
     </div>
   );
 }
+
+    
