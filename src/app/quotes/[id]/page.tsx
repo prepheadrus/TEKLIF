@@ -146,6 +146,66 @@ export const ExchangeRateDisplay = ({ form, onRefresh, isFetching }: { form: any
 };
 
 
+// --- Helper function for calculations ---
+const calculateAllTotals = (items: ProposalItem[] | undefined, rates: { USD: number; EUR: number } | undefined) => {
+    const initialTotals = {
+       grandTotalSellExVAT: 0,
+       grandTotalCost: 0,
+       groupTotals: {} as Record<string, { 
+           totalSellInTRY: number; 
+           totalCostInTRY: number;
+           totalsByCurrency: { TRY: number; USD: number; EUR: number; };
+       }>
+   };
+
+   if (!items || !rates) return initialTotals;
+
+   const totals = items.reduce((acc, item) => {
+       if (!item || !item.quantity || !item.listPrice) return acc;
+       const itemTotals = calculateItemTotals({
+           ...item,
+           exchangeRate: item.currency === 'USD' ? rates.USD : item.currency === 'EUR' ? rates.EUR : 1,
+       });
+       
+       acc.grandTotalSellExVAT += itemTotals.totalTlSell;
+       acc.grandTotalCost += itemTotals.totalTlCost;
+
+       const groupName = item.groupName || 'Diğer';
+       if (!acc.groupTotals[groupName]) {
+           acc.groupTotals[groupName] = { 
+               totalSellInTRY: 0,
+               totalCostInTRY: 0,
+               totalsByCurrency: { TRY: 0, USD: 0, EUR: 0 }
+           };
+       }
+       
+       const itemOriginalTotal = itemTotals.originalSellPrice * item.quantity;
+       
+       acc.groupTotals[groupName].totalSellInTRY += itemTotals.totalTlSell;
+       acc.groupTotals[groupName].totalCostInTRY += itemTotals.totalTlCost;
+       acc.groupTotals[groupName].totalsByCurrency[item.currency] += itemOriginalTotal;
+       
+       return acc;
+   }, initialTotals);
+       
+   const VAT_RATE = 0.20;
+   const grandTotalProfit = totals.grandTotalSellExVAT - totals.grandTotalCost;
+   const grandTotalProfitMargin = totals.grandTotalSellExVAT > 0 ? grandTotalProfit / totals.grandTotalSellExVAT : 0;
+   const vatAmount = totals.grandTotalSellExVAT * VAT_RATE;
+   const grandTotalSellWithVAT = totals.grandTotalSellExVAT + vatAmount;
+
+   return { 
+       groupTotals: totals.groupTotals, 
+       grandTotalSellExVAT: totals.grandTotalSellExVAT,
+       grandTotalSellWithVAT,
+       vatAmount,
+       grandTotalCost: totals.grandTotalCost,
+       grandTotalProfit,
+       grandTotalProfitMargin
+   };
+}
+
+
 // Main Component
 export default function QuoteDetailPage() {
   const params = useParams();
@@ -199,9 +259,14 @@ export default function QuoteDetailPage() {
     name: 'items',
     keyName: "formId"
   });
-
+  
+  // --- Watchers for real-time updates ---
   const watchedItems = form.watch('items');
   const watchedRates = form.watch('exchangeRates');
+
+  // --- Calculations ---
+  // This is now calculated directly on every render, triggered by form.watch()
+  const calculatedTotals = calculateAllTotals(watchedItems, watchedRates);
   const VAT_RATE = 0.20;
 
   // --- Effects ---
@@ -237,68 +302,6 @@ export default function QuoteDetailPage() {
     }
   }, [editingGroupName]);
 
-  // --- Calculations ---
-  // IMPORTANT: This is now calculated directly in the render function.
-  // No useMemo to avoid stale state issues.
-  const calculateAllTotals = (items: ProposalItem[], rates: { USD: number; EUR: number }) => {
-     const initialTotals = {
-        grandTotalSellExVAT: 0,
-        grandTotalCost: 0,
-        groupTotals: {} as Record<string, { 
-            totalSellInTRY: number; 
-            totalCostInTRY: number;
-            totalsByCurrency: { TRY: number; USD: number; EUR: number; };
-        }>
-    };
-
-    if (!items || !rates) return initialTotals;
-
-    const totals = items.reduce((acc, item) => {
-        if (!item || !item.quantity || !item.listPrice) return acc;
-        const itemTotals = calculateItemTotals({
-            ...item,
-            exchangeRate: item.currency === 'USD' ? rates.USD : item.currency === 'EUR' ? rates.EUR : 1,
-        });
-        
-        acc.grandTotalSellExVAT += itemTotals.totalTlSell;
-        acc.grandTotalCost += itemTotals.totalTlCost;
-
-        const groupName = item.groupName || 'Diğer';
-        if (!acc.groupTotals[groupName]) {
-            acc.groupTotals[groupName] = { 
-                totalSellInTRY: 0,
-                totalCostInTRY: 0,
-                totalsByCurrency: { TRY: 0, USD: 0, EUR: 0 }
-            };
-        }
-        
-        const itemOriginalTotal = itemTotals.originalSellPrice * item.quantity;
-        
-        acc.groupTotals[groupName].totalSellInTRY += itemTotals.totalTlSell;
-        acc.groupTotals[groupName].totalCostInTRY += itemTotals.totalTlCost;
-        acc.groupTotals[groupName].totalsByCurrency[item.currency] += itemOriginalTotal;
-        
-        return acc;
-    }, initialTotals);
-        
-    const grandTotalProfit = totals.grandTotalSellExVAT - totals.grandTotalCost;
-    const grandTotalProfitMargin = totals.grandTotalSellExVAT > 0 ? grandTotalProfit / totals.grandTotalSellExVAT : 0;
-    const vatAmount = totals.grandTotalSellExVAT * VAT_RATE;
-    const grandTotalSellWithVAT = totals.grandTotalSellExVAT + vatAmount;
-
-    return { 
-        groupTotals: totals.groupTotals, 
-        grandTotalSellExVAT: totals.grandTotalSellExVAT,
-        grandTotalSellWithVAT,
-        vatAmount,
-        grandTotalCost: totals.grandTotalCost,
-        grandTotalProfit,
-        grandTotalProfitMargin
-    };
-  }
-
-  // Calculate totals on every render. This is the key to ensure UI is always in sync.
-  const calculatedTotals = calculateAllTotals(watchedItems, watchedRates);
 
   const allGroups = useMemo(() => {
     const itemGroups = fields.reduce((acc, item, index) => {
@@ -837,4 +840,3 @@ export default function QuoteDetailPage() {
     </div>
   );
 }
-
