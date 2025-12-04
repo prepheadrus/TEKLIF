@@ -218,78 +218,83 @@ export default function QuotesPage() {
     }
   };
   
-    const handleDuplicateProposal = async (proposalToClone: Proposal) => {
-        if (!firestore || !proposalToClone) return;
-        setIsRevising(proposalToClone.rootProposalId);
-        toast({ title: 'Revizyon oluşturuluyor...' });
+  const handleDuplicateProposal = async (proposalToClone: Proposal) => {
+    if (!firestore || !proposalToClone) return;
+    setIsRevising(proposalToClone.rootProposalId);
+    toast({ title: 'Revizyon oluşturuluyor...' });
 
-        try {
-            const versionsQuery = query(
-                collection(firestore, 'proposals'),
-                where('rootProposalId', '==', proposalToClone.rootProposalId)
-            );
-            const versionsSnap = await getDocs(versionsQuery);
-            const latestVersionNumber = versionsSnap.size; // simpler way to get the count for the next version
+    try {
+        // We fetch all versions to reliably determine the next version number on the client side.
+        const versionsQuery = query(
+            collection(firestore, 'proposals'),
+            where('rootProposalId', '==', proposalToClone.rootProposalId)
+        );
+        const versionsSnap = await getDocs(versionsQuery);
+        const latestVersionNumber = versionsSnap.size; // This is the most reliable way to get count.
 
-            const batch = writeBatch(firestore);
-            const newProposalRef = doc(collection(firestore, 'proposals'));
-            const newRates = await fetchExchangeRates();
+        const batch = writeBatch(firestore);
+        const newProposalRef = doc(collection(firestore, 'proposals'));
+        const newRates = await fetchExchangeRates();
 
-            const newProposalData = {
-                ...proposalToClone,
-                id: newProposalRef.id,
-                version: latestVersionNumber + 1,
-                status: 'Draft' as const,
-                createdAt: serverTimestamp(),
-                versionNote: `Revizyon (v${proposalToClone.version}'dan kopyalandı)`,
-                exchangeRates: newRates,
-            };
-            batch.set(newProposalRef, newProposalData);
+        // Create a copy, but update critical fields for the new version.
+        const newProposalData = {
+            ...proposalToClone,
+            id: newProposalRef.id, // This is important but Firestore ignores it on set.
+            version: latestVersionNumber + 1,
+            status: 'Draft' as const,
+            createdAt: serverTimestamp(),
+            versionNote: `Revizyon (v${proposalToClone.version}'dan kopyalandı)`,
+            exchangeRates: newRates,
+        };
+        batch.set(newProposalRef, newProposalData);
 
-            const itemsRef = collection(firestore, 'proposals', proposalToClone.id, 'proposal_items');
-            const itemsSnap = await getDocs(itemsRef);
-            itemsSnap.forEach(itemDoc => {
-                const newItemRef = doc(collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'));
-                batch.set(newItemRef, itemDoc.data());
-            });
+        // Copy all items from the cloned proposal to the new one.
+        const itemsRef = collection(firestore, 'proposals', proposalToClone.id, 'proposal_items');
+        const itemsSnap = await getDocs(itemsRef);
+        itemsSnap.forEach(itemDoc => {
+            const newItemRef = doc(collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'));
+            batch.set(newItemRef, itemDoc.data());
+        });
 
-            await batch.commit();
+        await batch.commit();
 
-            toast({ title: "Başarılı!", description: `Teklif revize edildi. Yeni versiyon: v${latestVersionNumber + 1}` });
-            router.push(`/quotes/${newProposalRef.id}`);
+        toast({ title: "Başarılı!", description: `Teklif revize edildi. Yeni versiyon: v${latestVersionNumber + 1}` });
+        router.push(`/quotes/${newProposalRef.id}`);
 
-        } catch (error: any) {
-            console.error("Teklif revizyon hatası:", error);
-            toast({ variant: "destructive", title: "Hata", description: `Revizyon oluşturulamadı: ${error.message}` });
-        } finally {
-            setIsRevising(null);
-        }
+    } catch (error: any) {
+        console.error("Teklif revizyon hatası:", error);
+        toast({ variant: "destructive", title: "Hata", description: `Revizyon oluşturulamadı: ${error.message}` });
+    } finally {
+        setIsRevising(null);
     }
+}
   
  const handleDeleteProposal = async (idToDelete: string, rootId: string, isGroupDelete: boolean) => {
     if (!firestore) return;
     try {
         const batch = writeBatch(firestore);
+        
+        const idsToDelete: string[] = [];
+
         if (isGroupDelete) {
             const versionsQuery = query(collection(firestore, 'proposals'), where('rootProposalId', '==', rootId));
             const versionsSnap = await getDocs(versionsQuery);
-            
-            for (const versionDoc of versionsSnap.docs) {
-                batch.delete(versionDoc.ref);
-                const itemsRef = collection(firestore, 'proposals', versionDoc.id, 'proposal_items');
-                const itemsSnap = await getDocs(itemsRef);
-                itemsSnap.forEach(itemDoc => batch.delete(itemDoc.ref));
-            }
+            versionsSnap.forEach(doc => idsToDelete.push(doc.id));
         } else {
-            const docRef = doc(firestore, 'proposals', idToDelete);
+            idsToDelete.push(idToDelete);
+        }
+
+        for (const id of idsToDelete) {
+            const docRef = doc(firestore, 'proposals', id);
             batch.delete(docRef);
-            const itemsRef = collection(firestore, 'proposals', idToDelete, 'proposal_items');
+            
+            const itemsRef = collection(firestore, 'proposals', id, 'proposal_items');
             const itemsSnap = await getDocs(itemsRef);
             itemsSnap.forEach(itemDoc => batch.delete(itemDoc.ref));
         }
 
         await batch.commit();
-        toast({ title: "Başarılı", description: "Teklif ve ilgili tüm kalemler silindi." });
+        toast({ title: "Başarılı", description: "Teklif ve ilgili kalemler silindi." });
         await refetchProposals();
     } catch (error: any) {
         console.error("Teklif silme hatası:", error);
@@ -425,9 +430,9 @@ export default function QuotesPage() {
                 </TableRow>
               ) : filteredProposalGroups && filteredProposalGroups.length > 0 ? (
                 filteredProposalGroups.map((group) => (
-                    <Collapsible asChild key={group.rootProposalId} onOpenChange={(isOpen) => setOpenCollapsibles(prev => ({...prev, [group.rootProposalId]: isOpen}))}>
+                    <Collapsible key={group.rootProposalId} asChild onOpenChange={(isOpen) => setOpenCollapsibles(prev => ({...prev, [group.rootProposalId]: isOpen}))}>
                         <React.Fragment>
-                            <TableRow className="font-medium bg-slate-50 hover:bg-slate-100 data-[state=open]:bg-slate-100">
+                            <TableRow className={cn("font-medium bg-slate-50 hover:bg-slate-100", openCollapsibles[group.rootProposalId] && "bg-slate-100")}>
                                 <TableCell>
                                     <CollapsibleTrigger asChild>
                                         <Button variant="ghost" size="sm" className="w-full justify-start">
@@ -576,5 +581,3 @@ export default function QuotesPage() {
     </>
   );
 }
-
-    
