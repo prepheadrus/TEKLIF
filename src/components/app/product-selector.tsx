@@ -182,14 +182,14 @@ export function ProductSelector({
             }
           </DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 flex-1 overflow-hidden">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 overflow-hidden">
             {/* Left Panel: Categories */}
             <div className="md:col-span-1 border-r pr-4 flex flex-col">
                 <h3 className="font-semibold mb-2 px-2">Tesisat Kategorileri</h3>
                 <ScrollArea className="flex-1 -mx-2">
-                    <div className="flex flex-col gap-1 px-2">
+                    <div className="flex flex-col gap-1 p-2">
                         <div
-                            className={cn("flex items-center gap-1 py-1.5 px-2 rounded-md cursor-pointer hover:bg-accent", !selectedCategoryId && "bg-accent text-accent-foreground")}
+                            className={cn("flex items-center gap-1 py-1.5 px-2 rounded-md cursor-pointer hover:bg-accent text-sm", !selectedCategoryId && "bg-accent text-accent-foreground")}
                             onClick={() => setSelectedCategoryId(null)}
                         >
                             Tüm Ürünler
@@ -202,7 +202,7 @@ export function ProductSelector({
             </div>
 
             {/* Right Panel: Products */}
-            <div className="md:col-span-3 flex flex-col gap-4 overflow-hidden">
+            <div className="md:col-span-2 flex flex-col gap-4 overflow-hidden">
                 <div className="relative">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input 
