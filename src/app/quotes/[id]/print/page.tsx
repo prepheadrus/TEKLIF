@@ -1,15 +1,15 @@
+
 'use client';
 
 import { useParams, useSearchParams } from 'next/navigation';
-import { useMemo, useEffect } from 'react';
-import Image from 'next/image';
+import { useMemo, useEffect, useCallback } from 'react';
 import { useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 import { Loader2, Printer } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { calculateItemTotals } from '@/lib/pricing';
 import { cn } from '@/lib/utils';
+import { renderToStaticMarkup } from 'react-dom/server';
 
 
 type Proposal = {
@@ -50,6 +50,17 @@ type CalculatedItem = ProposalItem & {
     total: number;
 };
 
+const formatDate = (timestamp?: { seconds: number }) => {
+    if (!timestamp) return '-';
+    return new Date(timestamp.seconds * 1000).toLocaleDateString('tr-TR');
+}
+
+const formatCurrency = (amount: number, currency: string = 'TRY') => {
+    return new Intl.NumberFormat('tr-TR', { style: 'currency', currency, minimumFractionDigits: 2 }).format(amount);
+}
+
+
+// This component no longer renders a page, but triggers the print window logic
 export default function PrintQuotePage() {
     const params = useParams();
     const searchParams = useSearchParams();
@@ -74,33 +85,11 @@ export default function PrintQuotePage() {
         [firestore, customerId]
     );
     const { data: customer, isLoading: isCustomerLoading } = useDoc<Customer>(customerRef);
-    
-    useEffect(() => {
-        if (proposal && items && customer) {
-          const timer = setTimeout(() => {
-            window.print();
-          }, 500);
-          return () => clearTimeout(timer);
-        }
-    }, [proposal, items, customer]);
 
-
-    const isLoading = isProposalLoading || areItemsLoading || isCustomerLoading;
-    const allDataLoaded = !!proposal && !!items && !!customer;
-
-    
-    const formatDate = (timestamp?: { seconds: number }) => {
-        if (!timestamp) return '-';
-        return new Date(timestamp.seconds * 1000).toLocaleDateString('tr-TR');
-    }
-
-    const formatCurrency = (amount: number, currency: string = 'TRY') => {
-        return new Intl.NumberFormat('tr-TR', { style: 'currency', currency, minimumFractionDigits: 2 }).format(amount);
-    }
-    
-    const groupedAndCalculatedItems = useMemo(() => {
-        if (!items || !proposal) return { groups: [], totals: {} };
-
+    const generatePrintHTML = useCallback(() => {
+        if (!proposal || !items || !customer) return '';
+        
+        // --- Calculations ---
         const calculatedItems: CalculatedItem[] = items.map(item => {
             const totals = calculateItemTotals({
                 ...item,
@@ -114,7 +103,6 @@ export default function PrintQuotePage() {
             };
         });
 
-        // Group items
         const itemGroups = calculatedItems.reduce((acc, item) => {
           const groupName = item.groupName || 'Diğer';
           if (!acc[groupName]) {
@@ -123,7 +111,6 @@ export default function PrintQuotePage() {
           acc[groupName].push(item);
           return acc;
         }, {} as Record<string, CalculatedItem[]>);
-
 
         const sortedGroups = Object.entries(itemGroups).sort(([a], [b]) => {
             if (a === 'Diğer') return 1;
@@ -134,7 +121,7 @@ export default function PrintQuotePage() {
         const totalsByCurrency = items.reduce((acc, item) => {
             const itemTotals = calculateItemTotals({
                  ...item,
-                 exchangeRate: 1, // Calculate in original currency
+                 exchangeRate: 1,
             });
             const originalTotal = itemTotals.originalSellPrice * item.quantity;
 
@@ -158,187 +145,221 @@ export default function PrintQuotePage() {
         const vatInTRY = grandTotalInTRY * 0.20;
         const finalTotalInTRY = grandTotalInTRY + vatInTRY;
 
-
-        return { 
-            groups: sortedGroups, 
-            totals: {
-                byCurrency: totalsByCurrency,
-                grandTotalInTRY: {
-                    subtotal: grandTotalInTRY,
-                    vat: vatInTRY,
-                    grandTotal: finalTotalInTRY
-                }
-            } 
+        const totals = {
+            byCurrency: totalsByCurrency,
+            grandTotalInTRY: {
+                subtotal: grandTotalInTRY,
+                vat: vatInTRY,
+                grandTotal: finalTotalInTRY
+            }
         };
 
-    }, [items, proposal]);
 
-    const { groups, totals } = groupedAndCalculatedItems;
-
-
-    return (
-        <div className="bg-white text-black min-h-screen text-xs print:p-0 p-8 font-body">
-            {isLoading && (
-                 <div className="flex h-screen items-center justify-center print:hidden">
-                    <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
-                    <p className="ml-4 text-lg">Teklif verileri yükleniyor...</p>
-                </div>
-            )}
-            
-            {allDataLoaded && totals.grandTotalInTRY ? (
-                <>
-                <div className="fixed top-4 right-4 print:hidden z-50">
-                    <Button onClick={() => window.print()}>
-                        <Printer className="mr-2" /> Yazdır veya PDF Olarak Kaydet
-                    </Button>
-                </div>
-                {/* Printable Area */}
-                <div className="max-w-4xl mx-auto p-4 sm:p-8">
-                    <header className="flex justify-between items-start mb-6 pb-4 border-b">
-                        <div className="flex items-start gap-4">
-                            <Image src="/logo.png" alt="Firma Logosu" width={100} height={100} className="object-contain" />
-                            <div>
-                                <h2 className="text-xl font-bold text-blue-700">İMS Mühendislik</h2>
-                                <p className="text-xs font-semibold text-gray-600">Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
-                                <p className="text-xs max-w-xs mt-2">
-                                    Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA
-                                </p>
-                                <p className="text-xs mt-1">ims.m.muhendislik@gmail.com | (553) 469 75 01</p>
-                            </div>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                            <h2 className="text-xl font-bold uppercase tracking-wider">TEKLİF</h2>
-                            <p className="mt-1">
-                                <span className="font-semibold">Teklif No:</span> {proposal.quoteNumber}
+        // --- HTML Generation using JSX and renderToStaticMarkup ---
+        const PrintDocument = (
+            <div className="bg-white text-black min-h-screen text-xs p-8 font-body">
+                 <header className="flex justify-between items-start mb-6 pb-4 border-b">
+                    <div className="flex items-start gap-4">
+                        <img src="/logo.png" alt="Firma Logosu" style={{width: '100px', height: '100px', objectFit: 'contain'}} />
+                        <div>
+                            <h2 className="text-xl font-bold text-blue-700">İMS Mühendislik</h2>
+                            <p className="text-xs font-semibold text-gray-600">Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
+                            <p className="text-xs max-w-xs mt-2">
+                                Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA
                             </p>
-                            <p>
-                                <span className="font-semibold">Tarih:</span> {formatDate(proposal.createdAt)}
-                            </p>
-                        </div>
-                    </header>
-
-                    <section className="mb-6">
-                        <div className="border p-3 rounded-md bg-gray-50">
-                            <h3 className="text-base font-semibold mb-1">Müşteri Bilgileri</h3>
-                            <p className="font-bold text-base">{customer.name}</p>
-                            <p>{customer.address || 'Adres belirtilmemiş'}</p>
-                            <p>{customer.email} | {customer.phone || 'Telefon belirtilmemiş'}</p>
-                            {customer.taxNumber && <p>Vergi No: {customer.taxNumber}</p>}
-                            
-                        </div>
-                        <div className="mt-3">
-                            <span className="font-semibold">Proje:</span> {proposal.projectName}
-                        </div>
-                    </section>
-
-                    <section className="mb-6 space-y-6">
-                        {groups.map(([groupName, groupItems]) => (
-                            <div key={groupName}>
-                                <h3 className="text-base font-bold mb-2 p-2 bg-gray-100 rounded-t-md border-b-2 border-gray-300">{groupName}</h3>
-                                <table className="w-full text-xs text-left">
-                                    <thead className="bg-gray-50">
-                                        <tr>
-                                            <th className="p-2 font-semibold">#</th>
-                                            <th className="p-2 font-semibold w-2/5">Açıklama</th>
-                                            <th className="p-2 font-semibold">Marka</th>
-                                            <th className="p-2 text-center font-semibold">Miktar</th>
-                                            <th className="p-2 font-semibold">Birim</th>
-                                            <th className="p-2 text-right font-semibold">Birim Fiyat (TL)</th>
-                                            <th className="p-2 text-right font-semibold">Toplam Tutar (TL)</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {groupItems.map((item, index) => (
-                                            <tr key={item.id} className="border-b">
-                                                <td className="p-2">{index + 1}</td>
-                                                <td className="p-2 font-medium">{item.name}</td>
-                                                <td className="p-2">{item.brand}</td>
-                                                <td className="p-2 text-center">{item.quantity}</td>
-                                                <td className="p-2">{item.unit}</td>
-                                                <td className="p-2 text-right">{formatCurrency(item.unitPrice, 'TRY')}</td>
-                                                <td className="p-2 text-right font-semibold">{formatCurrency(item.total, 'TRY')}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                     <tfoot>
-                                        <tr className="bg-gray-100 font-bold">
-                                            <td colSpan={6} className="p-2 text-right">Grup Toplamı (TL):</td>
-                                            <td className="p-2 text-right">
-                                                {formatCurrency(groupItems.reduce((sum, item) => sum + item.total, 0), 'TRY')}
-                                            </td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            </div>
-                        ))}
-                    </section>
-
-                    <section className="flex justify-between items-start mb-6">
-                         <div className="w-full sm:w-1/3 lg:w-1/2">
-                            {/* Notes can go here if needed */}
-                         </div>
-                        <div className="w-full sm:w-2/3 lg:w-1/2 space-y-4">
-                            
-                            {/* --- Total in TRY --- */}
-                            <div className="border-b pb-2">
-                                <div className="flex justify-between">
-                                    <span className="font-semibold">Ara Toplam (TL):</span>
-                                    <span>{formatCurrency(totals.grandTotalInTRY.subtotal, 'TRY')}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="font-semibold">KDV (%20) (TL):</span>
-                                    <span>{formatCurrency(totals.grandTotalInTRY.vat, 'TRY')}</span>
-                                </div>
-                                <Separator className="my-1"/>
-                                <div className="flex justify-between text-base font-bold text-blue-700">
-                                    <span>Genel Toplam (TL):</span>
-                                    <span>{formatCurrency(totals.grandTotalInTRY.grandTotal, 'TRY')}</span>
-                                </div>
-                            </div>
-                            
-                             {/* --- Totals by Currency --- */}
-                            {(Object.keys(totals.byCurrency).length > 0) && (
-                                <div className="pt-2">
-                                <h4 className="font-semibold text-sm mb-1">Para Birimi Bazında Özet (KDV Dahil)</h4>
-                                {Object.entries(totals.byCurrency).map(([currency, currencyTotals]) => (
-                                     <div className={cn(
-                                        "flex justify-between text-sm",
-                                        currency === 'USD' && 'text-green-600',
-                                        currency === 'EUR' && 'text-blue-600'
-                                     )} key={currency}>
-                                        <span>Toplam ({currency}):</span>
-                                        <span className="font-mono font-semibold">{formatCurrency(currencyTotals.grandTotal, currency)}</span>
-                                     </div>
-                                ))}
-                                </div>
-                            )}
-
-                        </div>
-                    </section>
-                    
-                    <div className="flex justify-between items-end mt-16 pt-4 border-t">
-                        <footer className="text-xs text-gray-500">
-                            <p>
-                                Teklifin geçerlilik süresi 15 gündür. Fiyatlarımıza KDV dahildir.
-                            </p>
-                             {proposal.exchangeRates && (
-                                <p className="text-xs mt-1">
-                                    Hesaplamada kullanılan kurlar: 1 EUR = {proposal.exchangeRates.EUR.toFixed(4)} TL, 1 USD = {proposal.exchangeRates.USD.toFixed(4)} TL
-                                </p>
-                            )}
-                            <p className="mt-4 font-semibold text-sm">İMS Mühendislik | Teşekkür Ederiz!</p>
-                        </footer>
-                        <div className="relative w-48 h-48">
-                           <Image src="/kase.png" alt="Firma Kaşesi" layout="fill" className="object-contain" />
+                            <p className="text-xs mt-1">ims.m.muhendislik@gmail.com | (553) 469 75 01</p>
                         </div>
                     </div>
+                    <div className="text-right flex-shrink-0">
+                        <h2 className="text-xl font-bold uppercase tracking-wider">TEKLİF</h2>
+                        <p className="mt-1">
+                            <span className="font-semibold">Teklif No:</span> {proposal.quoteNumber}
+                        </p>
+                        <p>
+                            <span className="font-semibold">Tarih:</span> {formatDate(proposal.createdAt)}
+                        </p>
+                    </div>
+                </header>
+
+                <section className="mb-6">
+                    <div className="border p-3 rounded-md bg-gray-50">
+                        <h3 className="text-base font-semibold mb-1">Müşteri Bilgileri</h3>
+                        <p className="font-bold text-base">{customer.name}</p>
+                        <p>{customer.address || 'Adres belirtilmemiş'}</p>
+                        <p>{customer.email} | {customer.phone || 'Telefon belirtilmemiş'}</p>
+                        {customer.taxNumber && <p>Vergi No: {customer.taxNumber}</p>}
+                    </div>
+                    <div className="mt-3">
+                        <span className="font-semibold">Proje:</span> {proposal.projectName}
+                    </div>
+                </section>
+                
+                 <section className="mb-6 space-y-6">
+                    {sortedGroups.map(([groupName, groupItems]) => (
+                        <div key={groupName}>
+                            <h3 className="text-base font-bold mb-2 p-2 bg-gray-100 rounded-t-md border-b-2 border-gray-300">{groupName}</h3>
+                            <table className="w-full text-xs text-left" style={{ borderCollapse: 'collapse', width: '100%'}}>
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="p-2 font-semibold">#</th>
+                                        <th className="p-2 font-semibold w-2/5">Açıklama</th>
+                                        <th className="p-2 font-semibold">Marka</th>
+                                        <th className="p-2 text-center font-semibold">Miktar</th>
+                                        <th className="p-2 font-semibold">Birim</th>
+                                        <th className="p-2 text-right font-semibold">Birim Fiyat (TL)</th>
+                                        <th className="p-2 text-right font-semibold">Toplam Tutar (TL)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {groupItems.map((item, index) => (
+                                        <tr key={item.id} className="border-b">
+                                            <td className="p-2">{index + 1}</td>
+                                            <td className="p-2 font-medium">{item.name}</td>
+                                            <td className="p-2">{item.brand}</td>
+                                            <td className="p-2 text-center">{item.quantity}</td>
+                                            <td className="p-2">{item.unit}</td>
+                                            <td className="p-2 text-right">{formatCurrency(item.unitPrice, 'TRY')}</td>
+                                            <td className="p-2 text-right font-semibold">{formatCurrency(item.total, 'TRY')}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                                 <tfoot>
+                                    <tr className="bg-gray-100 font-bold">
+                                        <td colSpan={6} className="p-2 text-right">Grup Toplamı (TL):</td>
+                                        <td className="p-2 text-right">
+                                            {formatCurrency(groupItems.reduce((sum, item) => sum + item.total, 0), 'TRY')}
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    ))}
+                </section>
+
+                <section className="flex justify-between items-start mb-6">
+                    <div className="w-full sm:w-1/3 lg:w-1/2"></div>
+                    <div className="w-full sm:w-2/3 lg:w-1/2 space-y-4">
+                        <div className="border-b pb-2">
+                            <div className="flex justify-between">
+                                <span className="font-semibold">Ara Toplam (TL):</span>
+                                <span>{formatCurrency(totals.grandTotalInTRY.subtotal, 'TRY')}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="font-semibold">KDV (%20) (TL):</span>
+                                <span>{formatCurrency(totals.grandTotalInTRY.vat, 'TRY')}</span>
+                            </div>
+                            <div style={{height: '1px', backgroundColor: '#e2e8f0', margin: '4px 0'}} />
+                            <div className="flex justify-between text-base font-bold text-blue-700">
+                                <span>Genel Toplam (TL):</span>
+                                <span>{formatCurrency(totals.grandTotalInTRY.grandTotal, 'TRY')}</span>
+                            </div>
+                        </div>
+                        
+                        {(Object.keys(totals.byCurrency).length > 0) && (
+                            <div className="pt-2">
+                            <h4 className="font-semibold text-sm mb-1">Para Birimi Bazında Özet (KDV Dahil)</h4>
+                            {Object.entries(totals.byCurrency).map(([currency, currencyTotals]) => (
+                                 <div className={cn(
+                                    "flex justify-between text-sm",
+                                    currency === 'USD' && 'text-green-600',
+                                    currency === 'EUR' && 'text-blue-600'
+                                 )} key={currency}>
+                                    <span>Toplam ({currency}):</span>
+                                    <span className="font-mono font-semibold">{formatCurrency(currencyTotals.grandTotal, currency)}</span>
+                                 </div>
+                            ))}
+                            </div>
+                        )}
+                    </div>
+                </section>
+                
+                <div className="flex justify-between items-end mt-16 pt-4 border-t">
+                    <footer className="text-xs text-gray-500">
+                        <p>Teklifin geçerlilik süresi 15 gündür. Fiyatlarımıza KDV dahildir.</p>
+                         {proposal.exchangeRates && (
+                            <p className="text-xs mt-1">
+                                Hesaplamada kullanılan kurlar: 1 EUR = {proposal.exchangeRates.EUR.toFixed(4)} TL, 1 USD = {proposal.exchangeRates.USD.toFixed(4)} TL
+                            </p>
+                        )}
+                        <p className="mt-4 font-semibold text-sm">İMS Mühendislik | Teşekkür Ederiz!</p>
+                    </footer>
+                    <div style={{ position: 'relative', width: '12rem', height: '12rem' }}>
+                       <img src="/kase.png" alt="Firma Kaşesi" style={{ objectFit: 'contain', width: '100%', height: '100%' }} />
+                    </div>
                 </div>
-                </>
-            ) : (
-                 !isLoading && <div className="flex h-screen items-center justify-center print:hidden">
-                    <p className="text-lg text-red-600">Teklif verileri yüklenemedi veya eksik. Lütfen tekrar deneyin.</p>
-                </div>
-            )}
+
+            </div>
+        );
+        
+        return renderToStaticMarkup(PrintDocument);
+    }, [proposal, items, customer]);
+
+
+    useEffect(() => {
+        if (isProposalLoading || areItemsLoading || isCustomerLoading) {
+            return; // Wait for all data
+        }
+
+        if (!proposal || !items || !customer) {
+            // Data loading finished but something is missing
+            console.error("Print data is incomplete.");
+            // Optionally close the window or show an error
+            return;
+        }
+        
+        const htmlContent = generatePrintHTML();
+        const printWindow = window.open('', '_blank');
+
+        if (printWindow) {
+            printWindow.document.open();
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html lang="tr">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Teklif - ${proposal.quoteNumber}</title>
+                    <link rel="stylesheet" href="/globals.css">
+                    <style>
+                        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+                        body { font-family: 'Inter', sans-serif; }
+                        @page { size: A4; margin: 0; }
+                        @media print {
+                            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                            .print-layout { margin: 0; padding: 0; }
+                            /* Add any print-specific overrides here */
+                        }
+                    </style>
+                </head>
+                <body>
+                    ${htmlContent}
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+
+            // Use a timeout to ensure CSS is loaded before printing
+            const timer = setTimeout(() => {
+                printWindow.print();
+                printWindow.close();
+            }, 1000); // 1-second delay might be necessary for CSS to apply
+
+            // Go back to the previous page in the main window
+            window.history.back();
+
+        }
+
+    }, [isProposalLoading, areItemsLoading, isCustomerLoading, proposal, items, customer, generatePrintHTML]);
+    
+
+    // This component now shows a loading state in the main window while the print window is being prepared.
+    return (
+        <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center gap-4 z-50">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <p className="text-lg font-medium text-slate-700">Yazdırma penceresi hazırlanıyor...</p>
+            <p className="text-sm text-slate-500">Lütfen bekleyin.</p>
         </div>
     );
 }
+
+    
