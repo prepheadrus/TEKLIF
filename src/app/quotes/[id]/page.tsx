@@ -197,10 +197,9 @@ export default function QuoteDetailPage() {
   const { fields, append, remove, update } = useFieldArray({
     control: form.control,
     name: 'items',
-    keyName: "formId" // Use a different key name to avoid conflicts with 'id' from Firestore
+    keyName: "formId"
   });
-  
-  // *** KEY CHANGE: WATCH THE ENTIRE FIELD ARRAY FOR CHANGES ***
+
   const watchedItems = form.watch('items');
   const watchedRates = form.watch('exchangeRates');
   const VAT_RATE = 0.20;
@@ -239,7 +238,6 @@ export default function QuoteDetailPage() {
   }, [editingGroupName]);
 
   // --- Calculations ---
-  // *** KEY CHANGE: 'watchedItems' is now a dependency ***
   const calculatedTotals = useMemo(() => {
     const initialTotals = {
         grandTotalSellExVAT: 0,
@@ -252,6 +250,7 @@ export default function QuoteDetailPage() {
     };
 
     const totals = (watchedItems || []).reduce((acc, item) => {
+        if (!item || !item.quantity || !item.listPrice) return acc;
         const itemTotals = calculateItemTotals({
             ...item,
             exchangeRate: item.currency === 'USD' ? watchedRates.USD : item.currency === 'EUR' ? watchedRates.EUR : 1,
@@ -615,11 +614,10 @@ export default function QuoteDetailPage() {
                                     </TableRow>
                                     </TableHeader>
                                     <TableBody className="text-sm divide-y divide-slate-100">
-                                        {itemsInGroup.map((item) => {
-                                        const { originalIndex } = item;
-                                        if (originalIndex === -1) return null;
+                                        {fields.map((item, index) => {
+                                        if (item.groupName !== groupName) return null;
                                         
-                                        const itemValues = watchedItems?.[originalIndex];
+                                        const itemValues = watchedItems?.[index];
                                         if (!itemValues) return null;
                                         
                                         const itemTotals = calculateItemTotals({
@@ -630,15 +628,15 @@ export default function QuoteDetailPage() {
                                         return (
                                             <TableRow key={item.formId} className="hover:bg-slate-50/50 group/row">
                                                 <TableCell className="py-2 pl-4 font-medium text-slate-800 w-[30%]">
-                                                    <FormField control={form.control} name={`items.${originalIndex}.name`} render={({ field }) => <Input {...field} className="w-full h-8 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
+                                                    <FormField control={form.control} name={`items.${index}.name`} render={({ field }) => <Input {...field} className="w-full h-8 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
                                                 </TableCell>
                                                  <TableCell className="py-2 w-[15%]">
-                                                    <FormField control={form.control} name={`items.${originalIndex}.brand`} render={({ field }) => <Input {...field} className="w-full h-8 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
+                                                    <FormField control={form.control} name={`items.${index}.brand`} render={({ field }) => <Input {...field} className="w-full h-8 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
                                                 </TableCell>
                                                 <TableCell className="py-2 w-28">
                                                     <div className="flex items-center">
-                                                        <FormField control={form.control} name={`items.${originalIndex}.quantity`} render={({ field }) => <Input {...field} type="number" step="any" className="w-16 font-mono text-right bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-8" />} />
-                                                        <FormField control={form.control} name={`items.${originalIndex}.unit`} render={({ field }) => <Input {...field} className="w-16 h-8 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
+                                                        <FormField control={form.control} name={`items.${index}.quantity`} render={({ field }) => <Input {...field} type="number" step="any" className="w-16 font-mono text-right bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-8" />} />
+                                                        <FormField control={form.control} name={`items.${index}.unit`} render={({ field }) => <Input {...field} className="w-16 h-8 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="w-40 py-2 font-mono">
@@ -648,14 +646,14 @@ export default function QuoteDetailPage() {
                                                             itemValues.currency === 'EUR' && 'bg-blue-100 text-blue-800 border-blue-200',
                                                             itemValues.currency === 'TRY' && 'bg-slate-100 text-slate-800 border-slate-200',
                                                         )}>{itemValues.currency}</Badge>
-                                                        <FormField control={form.control} name={`items.${originalIndex}.listPrice`} render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-8"/>} />
+                                                        <FormField control={form.control} name={`items.${index}.listPrice`} render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-8"/>} />
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="py-2 w-24">
                                                     <div className="flex items-center justify-end gap-1">
                                                         <Controller
                                                             control={form.control}
-                                                            name={`items.${originalIndex}.discountRate`}
+                                                            name={`items.${index}.discountRate`}
                                                             render={({ field }) => (
                                                                 <Input 
                                                                     type="number"
@@ -673,7 +671,7 @@ export default function QuoteDetailPage() {
                                                         <div className="flex items-center gap-1">
                                                              <Controller
                                                                 control={form.control}
-                                                                name={`items.${originalIndex}.profitMargin`}
+                                                                name={`items.${index}.profitMargin`}
                                                                 render={({ field }) => (
                                                                     <Input
                                                                         type="number"
@@ -690,7 +688,7 @@ export default function QuoteDetailPage() {
                                                 <TableCell className="text-right font-mono tabular-nums font-semibold text-slate-600 py-2">{formatCurrency(itemTotals.tlSellPrice)}</TableCell>
                                                 <TableCell className="text-right font-bold font-mono tabular-nums text-slate-800 py-2">{formatCurrency(itemTotals.totalTlSell)}</TableCell>
                                                 <TableCell className="px-2 text-center py-2">
-                                                    <Button variant="ghost" size="icon" onClick={() => remove(originalIndex)} className="h-8 w-8 text-slate-400 hover:text-red-500 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                                                    <Button variant="ghost" size="icon" onClick={() => remove(index)} className="h-8 w-8 text-slate-400 hover:text-red-500 opacity-0 group-hover/row:opacity-100 transition-opacity">
                                                     <Trash2 className="h-4 w-4" />
                                                     </Button>
                                                 </TableCell>
