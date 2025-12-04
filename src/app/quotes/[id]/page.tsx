@@ -287,6 +287,7 @@ export default function QuoteDetailPage() {
             grandTotalSellExVAT,
             grandTotalSellWithVAT,
             vatAmount,
+            grandTotalCost,
             grandTotalProfit,
             grandTotalProfitMargin
         };
@@ -563,63 +564,49 @@ export default function QuoteDetailPage() {
                     return (
                      <Collapsible key={groupName} defaultOpen={true} asChild>
                       <section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        <CollapsibleTrigger className="w-full">
-                            <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center w-full hover:bg-slate-50 transition-colors">
-                                <div className="flex items-center gap-3">
+                        <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center w-full">
+                            <CollapsibleTrigger asChild>
+                                <div className="flex items-center gap-3 flex-1 cursor-pointer">
                                     <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
                                         {getGroupIcon(groupName)}
                                     </div>
                                     <div>
-                                        <div className="flex items-center gap-2">
-                                            {editingGroupName === groupName ? (
-                                                <Input
-                                                    ref={groupNameInputRef}
-                                                    defaultValue={groupName}
-                                                    onBlur={(e) => handleGroupNameChange(groupName, e.target.value)}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            e.preventDefault();
-                                                            handleGroupNameChange(groupName, e.currentTarget.value);
-                                                        }
-                                                        if (e.key === 'Escape') setEditingGroupName(null);
-                                                    }}
-                                                    className="h-8 text-lg font-bold"
-                                                    onClick={(e) => e.stopPropagation()}
-                                                />
-                                            ) : (
-                                                <>
-                                                    <h2 className="font-bold text-slate-800 text-lg">{groupName}</h2>
-                                                    <Button 
-                                                        variant="ghost" 
-                                                        size="icon" 
-                                                        className="h-7 w-7 text-slate-400 opacity-0 hover:opacity-100 transition-opacity"
-                                                        onClick={(e) => { e.stopPropagation(); setEditingGroupName(groupName); }}
-                                                    >
-                                                        <Edit className="h-4 w-4"/>
-                                                    </Button>
-                                                </>
-                                            )}
-                                        </div>
-                                         <div className="text-left text-sm text-slate-500 flex items-center gap-x-3">
-                                            {groupTotals && Object.entries(groupTotals.totalsByCurrency).filter(([, val]) => val > 0).map(([currency, value]) => (
-                                                <span key={currency} className={cn(
-                                                    "font-mono font-semibold",
-                                                    currency === 'USD' && "text-green-600",
-                                                    currency === 'EUR' && "text-blue-600",
-                                                    currency === 'TRY' && "text-slate-600"
-                                                )}>
-                                                    {formatCurrency(value, currency as any)}
-                                                </span>
-                                            ))}
-                                        </div>
+                                      <div className="flex items-center">
+                                          {editingGroupName === groupName ? (
+                                              <Input
+                                                  ref={groupNameInputRef}
+                                                  defaultValue={groupName}
+                                                  onBlur={(e) => handleGroupNameChange(groupName, e.target.value)}
+                                                  onKeyDown={(e) => {
+                                                      if (e.key === 'Enter') {
+                                                          e.preventDefault();
+                                                          handleGroupNameChange(groupName, e.currentTarget.value);
+                                                      }
+                                                      if (e.key === 'Escape') setEditingGroupName(null);
+                                                  }}
+                                                  className="h-8 text-lg font-bold"
+                                                  onClick={(e) => e.stopPropagation()}
+                                              />
+                                          ) : (
+                                              <h2 className="font-bold text-slate-800 text-lg">{groupName}</h2>
+                                          )}
+                                      </div>
                                     </div>
+                                    <ChevronDown className="h-5 w-5 text-slate-400 transition-transform duration-300 group-data-[state=open]:-rotate-180" />
                                 </div>
-                                <div className="flex items-center gap-4">
-                                  <Badge variant="outline"><Box className="mr-2 h-3 w-3" />{itemsInGroup.length} Kalem Ürün</Badge>
-                                  <ChevronDown className="h-5 w-5 text-slate-400 transition-transform duration-300 [&[data-state=open]]:-rotate-180" />
-                                </div>
+                            </CollapsibleTrigger>
+                             <div className="flex items-center gap-4">
+                               <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-7 w-7 text-slate-400 hover:text-slate-600"
+                                  onClick={(e) => { e.stopPropagation(); setEditingGroupName(groupName); }}
+                              >
+                                  <Edit className="h-4 w-4"/>
+                              </Button>
+                              <Badge variant="outline"><Box className="mr-2 h-3 w-3" />{itemsInGroup.length} Kalem Ürün</Badge>
                             </div>
-                        </CollapsibleTrigger>
+                        </div>
                         <CollapsibleContent>
                             <div className="overflow-x-auto">
                                 <Table>
@@ -654,7 +641,7 @@ export default function QuoteDetailPage() {
                                                 <TableCell className="py-2 pl-4 font-medium text-slate-800 w-[30%]">
                                                     <FormField control={form.control} name={`items.${originalIndex}.name`} render={({ field }) => <Input {...field} className="w-full h-8 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
                                                 </TableCell>
-                                                <TableCell className="py-2 w-[15%]">
+                                                 <TableCell className="py-2 w-[15%]">
                                                     <FormField control={form.control} name={`items.${originalIndex}.brand`} render={({ field }) => <Input {...field} className="w-full h-8 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
                                                 </TableCell>
                                                 <TableCell className="py-2 w-28">
