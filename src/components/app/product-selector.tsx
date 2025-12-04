@@ -61,7 +61,7 @@ const buildTree = (categories: InstallationType[]): TreeNode[] => {
 };
 
 const CategoryNode = ({ node, level, onSelect, selectedCategoryId }: { node: TreeNode; level: number; onSelect: (id: string) => void; selectedCategoryId: string | null }) => {
-    const [isExpanded, setIsExpanded] = useState(true);
+    const [isExpanded, setIsExpanded] = useState(false);
     const hasChildren = node.children && node.children.length > 0;
     const isSelected = node.id === selectedCategoryId;
 
@@ -172,7 +172,7 @@ export function ProductSelector({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
+      <DialogContent className="max-w-6xl h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Teklife Ürün Ekle</DialogTitle>
           <DialogDescription>
@@ -184,10 +184,10 @@ export function ProductSelector({
         </DialogHeader>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 flex-1 overflow-hidden">
             {/* Left Panel: Categories */}
-            <div className="md:col-span-1 border-r pr-4">
+            <div className="md:col-span-1 border-r pr-4 flex flex-col">
                 <h3 className="font-semibold mb-2 px-2">Tesisat Kategorileri</h3>
-                <ScrollArea className="h-full">
-                    <div className="flex flex-col gap-1">
+                <ScrollArea className="flex-1 -mx-2">
+                    <div className="flex flex-col gap-1 px-2">
                         <div
                             className={cn("flex items-center gap-1 py-1.5 px-2 rounded-md cursor-pointer hover:bg-accent", !selectedCategoryId && "bg-accent text-accent-foreground")}
                             onClick={() => setSelectedCategoryId(null)}
