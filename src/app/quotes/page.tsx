@@ -246,7 +246,7 @@ export default function QuotesPage() {
             version: latestVersionNumber + 1,
             status: 'Draft' as const,
             createdAt: serverTimestamp(),
-            versionNote: `Revizyon (v${proposalToClone.version}'dan kopyalandı)`,
+            versionNote: '',
             exchangeRates: newRates,
         };
         
