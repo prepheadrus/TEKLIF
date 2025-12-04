@@ -246,6 +246,7 @@ export default function QuoteDetailPage() {
         const initialTotals = {
             grandTotalSellExVAT: 0,
             grandTotalCost: 0,
+            totalsByCurrency: { TRY: 0, USD: 0, EUR: 0 }
         };
 
         const totals = watchedItems.reduce((acc, item) => {
@@ -256,10 +257,12 @@ export default function QuoteDetailPage() {
             
             acc.grandTotalSellExVAT += itemTotals.totalTlSell;
             acc.grandTotalCost += itemTotals.totalTlCost;
+            
+            const itemOriginalTotal = itemTotals.originalSellPrice * item.quantity;
+            acc.totalsByCurrency[item.currency] += itemOriginalTotal;
 
             return acc;
         }, initialTotals);
-
 
         const groupTotals = watchedItems.reduce((acc, item) => {
             const groupName = item.groupName || 'Diğer';
@@ -276,7 +279,6 @@ export default function QuoteDetailPage() {
                 exchangeRate: item.currency === 'USD' ? watchedRates.USD : item.currency === 'EUR' ? watchedRates.EUR : 1,
             });
             
-            // Here, we use the original (non-TL) sell price for currency-based grouping
             const itemOriginalTotal = itemTotals.originalSellPrice * item.quantity;
             
             acc[groupName].totalSellInTRY += itemTotals.totalTlSell;
@@ -576,7 +578,7 @@ export default function QuoteDetailPage() {
                      <Collapsible key={groupName} defaultOpen={true} asChild>
                       <section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                          <CollapsibleTrigger asChild>
-                            <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center w-full cursor-pointer group">
+                           <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center w-full cursor-pointer group">
                                 <div className="flex items-center gap-3 flex-1">
                                     <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
                                         {getGroupIcon(groupName)}
@@ -720,7 +722,7 @@ export default function QuoteDetailPage() {
                                     </TableBody>
                                 </Table>
                             </div>
-                            <div className="bg-slate-900 text-white p-6 grid grid-cols-2 items-center gap-8">
+                             <div className="bg-slate-900 text-white px-6 py-4 grid grid-cols-3 items-center gap-8">
                                 <div className="col-span-1">
                                     <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-3">Grup Döviz Dağılımı (KDV Hariç)</h4>
                                     <div className="space-y-2">
@@ -736,19 +738,17 @@ export default function QuoteDetailPage() {
                                         ))}
                                     </div>
                                 </div>
-                                <div className="col-span-1 flex justify-end items-start gap-8">
-                                     <div className="text-right">
-                                        <div className="flex items-center justify-end gap-2 text-green-400">
-                                            <TrendingUp className="h-5 w-5" />
-                                            <p className="text-sm font-semibold uppercase tracking-wider">Grup Kârı</p>
-                                        </div>
-                                        <p className="font-mono font-bold text-xl text-green-400">{formatCurrency(groupProfitTRY)}</p>
-                                        <p className="font-mono text-sm text-green-500 font-semibold">({(groupProfitMargin * 100).toFixed(1)}%)</p>
+                                <div className="col-span-1 text-right">
+                                    <div className="flex items-center justify-end gap-2 text-green-400">
+                                        <TrendingUp className="h-5 w-5" />
+                                        <p className="text-sm font-semibold uppercase tracking-wider">Grup Kârı</p>
                                     </div>
-                                    <div className="bg-slate-700 text-white rounded-lg px-6 py-4 text-right">
-                                        <p className="text-sm font-semibold uppercase tracking-wider text-slate-300 mb-1">Grup Toplamı (KDV Hariç)</p>
-                                        <p className="font-mono font-bold text-3xl">{formatCurrency(groupSubTotalTRY)}</p>
-                                    </div>
+                                    <p className="font-mono font-bold text-2xl text-green-400">{formatCurrency(groupProfitTRY)}</p>
+                                    <p className="font-mono text-sm text-green-500 font-semibold">({(groupProfitMargin * 100).toFixed(1)}%)</p>
+                                </div>
+                                <div className="col-span-1 bg-slate-700 text-white rounded-lg px-6 py-4 text-right">
+                                    <p className="text-sm font-semibold uppercase tracking-wider text-slate-300 mb-1">Grup Toplamı (KDV Hariç)</p>
+                                    <p className="font-mono font-bold text-3xl">{formatCurrency(groupSubTotalTRY)}</p>
                                 </div>
                              </div>
                          </CollapsibleContent>
@@ -766,16 +766,36 @@ export default function QuoteDetailPage() {
       </main>
 
        <div className="sticky bottom-0 left-0 right-0 z-20">
-          <div className="bg-white/80 backdrop-blur-md shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.05)] rounded-t-2xl max-w-6xl mx-auto px-8 py-4 grid grid-cols-5 items-center gap-8">
-                <div className="col-span-1">
-                    <p className="text-sm text-slate-500">Genel Ara Toplam</p>
-                    <p className="font-mono text-2xl font-bold text-slate-800">{formatCurrency(calculatedTotals.grandTotalSellExVAT)}</p>
+          <div className="bg-white/80 backdrop-blur-md shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.05)] rounded-t-2xl max-w-6xl mx-auto px-8 py-4 flex justify-between items-center gap-x-8">
+                {/* Sol Taraf: Finansal Özet */}
+                <div className="flex items-end gap-x-8">
+                     {!includeVAT ? (
+                        <div>
+                            <p className="text-sm font-semibold text-blue-600">Genel Toplam (KDV Hariç)</p>
+                            <p className="font-mono text-4xl font-extrabold text-blue-700">{formatCurrency(calculatedTotals.grandTotalSellExVAT)}</p>
+                        </div>
+                    ) : (
+                        <>
+                            <div>
+                                <p className="text-sm text-slate-500">Genel Ara Toplam</p>
+                                <p className="font-mono text-2xl font-bold text-slate-800">{formatCurrency(calculatedTotals.grandTotalSellExVAT)}</p>
+                            </div>
+                            <div className="text-2xl text-slate-400">+</div>
+                            <div>
+                                <p className="text-sm text-slate-500">Toplam KDV (%{VAT_RATE * 100})</p>
+                                <p className="font-mono text-2xl font-bold text-slate-800">{formatCurrency(calculatedTotals.vatAmount)}</p>
+                            </div>
+                             <div className="text-2xl text-slate-400">=</div>
+                            <div>
+                                <p className="text-sm font-semibold text-blue-600">Genel Toplam</p>
+                                <p className="font-mono text-4xl font-extrabold text-blue-700">{formatCurrency(calculatedTotals.grandTotalSellWithVAT)}</p>
+                            </div>
+                        </>
+                    )}
                 </div>
-                <div className="col-span-1">
-                    <p className="text-sm text-slate-500">Toplam KDV (%{VAT_RATE * 100})</p>
-                    <p className="font-mono text-2xl font-bold text-slate-800">{formatCurrency(calculatedTotals.vatAmount)}</p>
-                </div>
-                <div className="col-span-1 text-right">
+
+                 {/* Orta: Toplam Kar */}
+                <div className="text-right">
                     <div className="flex items-center justify-end gap-2 text-green-600">
                         <TrendingUp className="h-5 w-5" />
                         <p className="text-sm font-semibold uppercase tracking-wider">Toplam Kâr</p>
@@ -783,26 +803,27 @@ export default function QuoteDetailPage() {
                     <p className="font-mono font-bold text-2xl">{formatCurrency(calculatedTotals.grandTotalProfit)}</p>
                     <p className="font-mono text-sm text-green-700 font-semibold">({(calculatedTotals.grandTotalProfitMargin * 100).toFixed(1)}%)</p>
                 </div>
-                <div className="col-span-1 text-right">
-                    <p className="text-sm font-semibold text-blue-600">Genel Toplam</p>
-                    <p className="font-mono text-4xl font-extrabold text-blue-700">{formatCurrency(calculatedTotals.grandTotalSellWithVAT)}</p>
-                </div>
-                 <div className="col-span-1 flex flex-col gap-2 items-center justify-self-end">
-                    <div className="flex items-center space-x-2">
-                        <Switch id="vat-switch" checked={includeVAT} onCheckedChange={setIncludeVAT} />
-                        <Label htmlFor="vat-switch" className="text-sm font-medium">
-                            KDV Dahil
-                        </Label>
+
+
+                 {/* Sağ Taraf: Kontroller */}
+                 <div className="flex items-center justify-end gap-4">
+                    <div className="flex flex-col gap-2 items-center">
+                        <div className="flex items-center space-x-2">
+                            <Switch id="vat-switch" checked={includeVAT} onCheckedChange={setIncludeVAT} />
+                            <Label htmlFor="vat-switch" className="text-sm font-medium">
+                                KDV Dahil
+                            </Label>
+                        </div>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full"
+                            onClick={() => router.push(`/quotes/${proposalId}/print?customerId=${proposal.customerId}`)}
+                        >
+                            <FileDown className="mr-2 h-4 w-4" /> PDF
+                        </Button>
                     </div>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full"
-                        onClick={() => router.push(`/quotes/${proposalId}/print?customerId=${proposal.customerId}`)}
-                    >
-                        <FileDown className="mr-2 h-4 w-4" /> PDF
-                    </Button>
-                    <Button onClick={form.handleSubmit(handleSaveChanges)} disabled={isSaving} size="lg" className="rounded-full w-full">
+                    <Button onClick={form.handleSubmit(handleSaveChanges)} disabled={isSaving} size="lg" className="rounded-full h-16 w-48 text-base">
                         {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                         Değişiklikleri Kaydet
                     </Button>
