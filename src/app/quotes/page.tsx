@@ -239,7 +239,6 @@ export default function QuotesPage() {
             createdAt: serverTimestamp(),
             versionNote: `Revizyon (v${originalData.version}'dan kopyalandı)`,
             totalAmount: originalData.totalAmount,
-            // Re-use existing rates, user can refresh on the detail page
             exchangeRates: originalData.exchangeRates || await fetchExchangeRates(),
         };
         batch.set(newProposalRef, newProposalData);
