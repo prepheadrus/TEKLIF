@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { addDoc, collection, doc, serverTimestamp, getDocs, query, orderBy, where, getDoc, writeBatch, deleteDoc, setDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, serverTimestamp, getDocs, query, orderBy, where, getDoc, writeBatch } from 'firebase/firestore';
 
 import {
   Table,
@@ -45,7 +45,7 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { PlusCircle, MoreHorizontal, Copy, Trash2, Loader2, Search, ChevronDown, ChevronRight, Eye, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, deleteDocumentNonBlocking } from '@/firebase';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -128,8 +128,8 @@ export default function QuotesPage() {
   const customersRef = useMemoFirebase(() => (firestore ? collection(firestore, 'customers') : null), [firestore]);
   const { data: customers, isLoading: isLoadingCustomers } = useCollection<Customer>(customersRef);
 
-  const groupedProposals = useMemo((): ProposalGroup[] => {
-    if (!proposals) return [];
+  const groupedProposals = useMemo((): ProposalGroup[] | undefined => {
+    if (!proposals) return undefined;
 
     const groups: Record<string, Proposal[]> = {};
     
@@ -425,7 +425,7 @@ export default function QuotesPage() {
                 </TableRow>
               ) : filteredProposalGroups && filteredProposalGroups.length > 0 ? (
                 filteredProposalGroups.map((group) => (
-                    <Collapsible key={group.rootProposalId} asChild onOpenChange={(isOpen) => setOpenCollapsibles(prev => ({...prev, [group.rootProposalId]: isOpen}))}>
+                    <Collapsible key={group.rootProposalId} onOpenChange={(isOpen) => setOpenCollapsibles(prev => ({...prev, [group.rootProposalId]: isOpen}))}>
                         <React.Fragment>
                             <TableRow className="font-medium bg-slate-50 hover:bg-slate-100 data-[state=open]:bg-slate-100">
                                 <TableCell>
@@ -576,3 +576,5 @@ export default function QuotesPage() {
     </>
   );
 }
+
+    
