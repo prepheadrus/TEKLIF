@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { addDoc, collection, doc, serverTimestamp, getDocs, query, orderBy, where, getDoc, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, doc, serverTimestamp, getDocs, query, orderBy, where, writeBatch } from 'firebase/firestore';
 
 import {
   Table,
@@ -143,7 +143,6 @@ export default function QuotesPage() {
         });
 
         return Object.values(groups).map(versions => {
-            // Sort versions within the group to find the latest one reliably
             versions.sort((a, b) => b.version - a.version);
             return {
                 rootProposalId: versions[0].rootProposalId || `legacy-${versions[0].id}`,
@@ -151,7 +150,7 @@ export default function QuotesPage() {
                 versions: versions
             };
         }).sort((a, b) => {
-            // SAFE SORTING: Handle cases where createdAt might be null (due to serverTimestamp latency)
+            // SAFE SORTING: Handle cases where createdAt might be null
             const timeA = a.latestProposal.createdAt?.seconds ?? 0;
             const timeB = b.latestProposal.createdAt?.seconds ?? 0;
             return timeB - timeA;
@@ -187,6 +186,7 @@ export default function QuotesPage() {
         const exchangeRates = await fetchExchangeRates();
 
         const newProposalRef = doc(collection(firestore, 'proposals'));
+        
         const newProposalData = {
             rootProposalId: newProposalRef.id,
             version: 1,
@@ -195,12 +195,15 @@ export default function QuotesPage() {
             projectName: values.projectName,
             quoteNumber: quoteNumber,
             totalAmount: 0,
-            status: 'Draft',
+            status: 'Draft' as const,
             createdAt: serverTimestamp(),
             exchangeRates: exchangeRates,
             versionNote: "İlk Versiyon"
         };
-        await setDoc(newProposalRef, newProposalData);
+        
+        const batch = writeBatch(firestore);
+        batch.set(newProposalRef, newProposalData);
+        await batch.commit();
 
         toast({ title: "Başarılı!", description: "Yeni teklif taslağı oluşturuldu." });
         setIsDialogOpen(false);
@@ -224,22 +227,24 @@ export default function QuotesPage() {
     toast({ title: 'Revizyon oluşturuluyor...' });
 
     try {
-        // We fetch all versions to reliably determine the next version number on the client side.
         const versionsQuery = query(
             collection(firestore, 'proposals'),
             where('rootProposalId', '==', proposalToClone.rootProposalId)
         );
         const versionsSnap = await getDocs(versionsQuery);
-        const latestVersionNumber = versionsSnap.size; // This is the most reliable way to get count.
+        
+        const versions = versionsSnap.docs.map(doc => doc.data() as Proposal);
+        versions.sort((a, b) => b.version - a.version);
+        const latestVersionNumber = versions[0]?.version || 0;
+
 
         const batch = writeBatch(firestore);
         const newProposalRef = doc(collection(firestore, 'proposals'));
         const newRates = await fetchExchangeRates();
 
-        // Create a copy, but update critical fields for the new version.
         const newProposalData = {
             ...proposalToClone,
-            id: newProposalRef.id, // This is important but Firestore ignores it on set.
+            id: newProposalRef.id, 
             version: latestVersionNumber + 1,
             status: 'Draft' as const,
             createdAt: serverTimestamp(),
@@ -248,7 +253,6 @@ export default function QuotesPage() {
         };
         batch.set(newProposalRef, newProposalData);
 
-        // Copy all items from the cloned proposal to the new one.
         const itemsRef = collection(firestore, 'proposals', proposalToClone.id, 'proposal_items');
         const itemsSnap = await getDocs(itemsRef);
         itemsSnap.forEach(itemDoc => {
@@ -407,30 +411,32 @@ export default function QuotesPage() {
             </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[120px]"></TableHead>
-                <TableHead>Teklif No</TableHead>
-                <TableHead>Müşteri</TableHead>
-                <TableHead>Proje Adı</TableHead>
-                <TableHead>Versiyonlar</TableHead>
-                <TableHead>Tutar (Son V.)</TableHead>
-                <TableHead>Durum (Son V.)</TableHead>
-                <TableHead>Tarih (Son V.)</TableHead>
-                <TableHead className="text-right">İşlemler</TableHead>
-              </TableRow>
-            </TableHeader>
+          <div className="border rounded-lg">
+            <Table>
+                <TableHeader>
+                <TableRow>
+                    <TableHead className="w-[120px]"></TableHead>
+                    <TableHead>Teklif No</TableHead>
+                    <TableHead>Müşteri</TableHead>
+                    <TableHead>Proje Adı</TableHead>
+                    <TableHead>Versiyonlar</TableHead>
+                    <TableHead>Tutar (Son V.)</TableHead>
+                    <TableHead>Durum (Son V.)</TableHead>
+                    <TableHead>Tarih (Son V.)</TableHead>
+                    <TableHead className="text-right">İşlemler</TableHead>
+                </TableRow>
+                </TableHeader>
+            </Table>
             <TableBody>
               {isLoadingProposals ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center">
+                  <TableCell colSpan={9} className="text-center h-24">
                     <Loader2 className="mx-auto my-4 h-6 w-6 animate-spin" />
                   </TableCell>
                 </TableRow>
               ) : filteredProposalGroups && filteredProposalGroups.length > 0 ? (
                 filteredProposalGroups.map((group) => (
-                    <Collapsible key={group.rootProposalId} asChild onOpenChange={(isOpen) => setOpenCollapsibles(prev => ({...prev, [group.rootProposalId]: isOpen}))}>
+                    <Collapsible asChild key={group.rootProposalId} onOpenChange={(isOpen) => setOpenCollapsibles(prev => ({...prev, [group.rootProposalId]: isOpen}))}>
                         <React.Fragment>
                             <TableRow className={cn("font-medium bg-slate-50 hover:bg-slate-100", openCollapsibles[group.rootProposalId] && "bg-slate-100")}>
                                 <TableCell>
@@ -526,9 +532,9 @@ export default function QuotesPage() {
                                 </TableCell>
                             </TableRow>
                             <CollapsibleContent asChild>
-                                <TableRow>
-                                    <TableCell colSpan={9} className="p-0">
-                                        <div className="bg-white p-4 border-t-4 border-blue-200">
+                                <tr className="bg-white">
+                                    <td colSpan={9} className="p-0">
+                                        <div className="p-4 border-t-2 border-blue-200">
                                             <h4 className="font-semibold mb-2 px-4">Teklif Versiyonları ({group.latestProposal.projectName})</h4>
                                             <Table>
                                                 <TableHeader>
@@ -561,8 +567,8 @@ export default function QuotesPage() {
                                                 </TableBody>
                                             </Table>
                                         </div>
-                                    </TableCell>
-                                </TableRow>
+                                    </td>
+                                </tr>
                             </CollapsibleContent>
                         </React.Fragment>
                     </Collapsible>
@@ -575,9 +581,11 @@ export default function QuotesPage() {
                 </TableRow>
               )}
             </TableBody>
-          </Table>
+          </div>
         </CardContent>
       </Card>
     </>
   );
 }
+
+    
