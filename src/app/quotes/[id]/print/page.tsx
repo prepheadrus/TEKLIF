@@ -195,15 +195,18 @@ export default function PrintQuotePage() {
                 {/* Printable Area */}
                 <div className="max-w-4xl mx-auto p-4 sm:p-8">
                     <header className="flex justify-between items-start mb-6 pb-4 border-b">
-                        <div>
-                            <h2 className="text-xl font-bold text-blue-700">İMS Mühendislik</h2>
-                            <p className="text-xs font-semibold text-gray-600">Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
-                            <p className="text-xs max-w-xs mt-2">
-                                Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA
-                            </p>
-                            <p className="text-xs mt-1">ims.m.muhendislik@gmail.com | (553) 469 75 01</p>
+                        <div className="flex items-start gap-4">
+                            <Image src="/logo.png" alt="Firma Logosu" width={100} height={100} className="object-contain" />
+                            <div>
+                                <h2 className="text-xl font-bold text-blue-700">İMS Mühendislik</h2>
+                                <p className="text-xs font-semibold text-gray-600">Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
+                                <p className="text-xs max-w-xs mt-2">
+                                    Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA
+                                </p>
+                                <p className="text-xs mt-1">ims.m.muhendislik@gmail.com | (553) 469 75 01</p>
+                            </div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right flex-shrink-0">
                             <h2 className="text-xl font-bold uppercase tracking-wider">TEKLİF</h2>
                             <p className="mt-1">
                                 <span className="font-semibold">Teklif No:</span> {proposal.quoteNumber}
@@ -270,7 +273,10 @@ export default function PrintQuotePage() {
                         ))}
                     </section>
 
-                    <section className="flex justify-end mb-6">
+                    <section className="flex justify-between items-start mb-6">
+                         <div className="w-full sm:w-1/3 lg:w-1/2">
+                            {/* Notes can go here if needed */}
+                         </div>
                         <div className="w-full sm:w-2/3 lg:w-1/2 space-y-4">
                             
                             {/* --- Total in TRY --- */}
@@ -309,9 +315,9 @@ export default function PrintQuotePage() {
 
                         </div>
                     </section>
-
-                    <footer className="w-full mt-8 pt-4 border-t">
-                        <div className="text-xs text-gray-500 text-center">
+                    
+                    <div className="flex justify-between items-end mt-16 pt-4 border-t">
+                        <footer className="text-xs text-gray-500">
                             <p>
                                 Teklifin geçerlilik süresi 15 gündür. Fiyatlarımıza KDV dahildir.
                             </p>
@@ -320,9 +326,12 @@ export default function PrintQuotePage() {
                                     Hesaplamada kullanılan kurlar: 1 EUR = {proposal.exchangeRates.EUR.toFixed(4)} TL, 1 USD = {proposal.exchangeRates.USD.toFixed(4)} TL
                                 </p>
                             )}
-                            <p className="mt-2 font-semibold">İMS Mühendislik | Teşekkür Ederiz!</p>
+                            <p className="mt-4 font-semibold text-sm">İMS Mühendislik | Teşekkür Ederiz!</p>
+                        </footer>
+                        <div className="relative w-48 h-48">
+                           <Image src="/kase.png" alt="Firma Kaşesi" layout="fill" className="object-contain" />
                         </div>
-                    </footer>
+                    </div>
                 </div>
                 </>
             ) : (
