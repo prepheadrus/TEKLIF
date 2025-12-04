@@ -45,6 +45,7 @@ import { fetchExchangeRates } from '@/ai/flows/fetch-exchange-rates';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Separator } from '@/components/ui/separator';
 
 
 const newQuoteSchema = z.object({
@@ -104,12 +105,18 @@ const formatDate = (timestamp: { seconds: number } | null) => {
 };
 
 
-const filterOptions: { label: string; value: Proposal['status'] | 'All' }[] = [
+const statusFilterOptions: { label: string; value: Proposal['status'] | 'All' }[] = [
     { label: 'Tümü', value: 'All' },
     { label: 'Taslak', value: 'Draft' },
     { label: 'Gönderildi', value: 'Sent' },
     { label: 'Onaylandı', value: 'Approved' },
     { label: 'Reddedildi', value: 'Rejected' },
+];
+
+const dateFilterOptions: { label: string; value: 'all' | 'last30days' | 'last90days' }[] = [
+    { label: 'Tümü', value: 'all' },
+    { label: 'Son 30 Gün', value: 'last30days' },
+    { label: 'Son 90 Gün', value: 'last90days' },
 ];
 
 const statusOptions: { label: string; value: Proposal['status'] }[] = [
@@ -130,6 +137,8 @@ export default function QuotesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isRevising, setIsRevising] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<Proposal['status'] | 'All'>('All');
+  const [dateFilter, setDateFilter] = useState<'all' | 'last30days' | 'last90days'>('all');
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
 
 
   const form = useForm<NewQuoteFormValues>({
@@ -179,11 +188,17 @@ export default function QuotesPage() {
     }).sort((a, b) => {
         const timeA = a.latestProposal.createdAt?.seconds ?? 0;
         const timeB = b.latestProposal.createdAt?.seconds ?? 0;
+        
         if (timeA === 0 && timeB !== 0) return 1;
         if (timeB === 0 && timeA !== 0) return -1;
-        return timeB - timeA;
+        
+        if (sortOrder === 'newest') {
+          return timeB - timeA;
+        } else {
+          return timeA - timeB;
+        }
     });
-}, [proposals]);
+}, [proposals, sortOrder]);
 
   const handleCreateNewQuote = async (values: NewQuoteFormValues) => {
     if (!firestore) {
@@ -264,7 +279,7 @@ export default function QuotesPage() {
             version: latestVersionNumber + 1,
             status: 'Draft' as const,
             createdAt: serverTimestamp(),
-            versionNote: `Revizyon (v${proposalToClone.version}'dan kopyalandı)`,
+            versionNote: "",
             exchangeRates: newRates,
         };
         
@@ -339,7 +354,18 @@ export default function QuotesPage() {
   const filteredProposalGroups = useMemo(() => {
       if (!groupedProposals) return [];
       
+      const now = new Date();
+      const thirtyDaysAgo = new Date().setDate(now.getDate() - 30);
+      const ninetyDaysAgo = new Date().setDate(now.getDate() - 90);
+
       return groupedProposals.filter(g => {
+        // Date filter
+        if (dateFilter !== 'all' && g.latestProposal.createdAt) {
+            const proposalDate = g.latestProposal.createdAt.seconds * 1000;
+            if (dateFilter === 'last30days' && proposalDate < thirtyDaysAgo) return false;
+            if (dateFilter === 'last90days' && proposalDate < ninetyDaysAgo) return false;
+        }
+
         // Status filter
         const statusMatch = statusFilter === 'All' || g.latestProposal.status === statusFilter;
         if (!statusMatch) return false;
@@ -352,7 +378,7 @@ export default function QuotesPage() {
         
         return searchMatch;
       });
-  }, [groupedProposals, searchTerm, statusFilter]);
+  }, [groupedProposals, searchTerm, statusFilter, dateFilter]);
 
   return (
     <>
@@ -447,18 +473,45 @@ export default function QuotesPage() {
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
-                 <div className="flex items-center gap-2">
-                    {filterOptions.map(option => (
-                        <Button 
-                            key={option.value}
-                            variant={statusFilter === option.value ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => setStatusFilter(option.value)}
-                        >
-                            {option.label}
-                        </Button>
-                    ))}
-                 </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-muted-foreground">Durum:</span>
+                      {statusFilterOptions.map(option => (
+                          <Button 
+                              key={option.value}
+                              variant={statusFilter === option.value ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={() => setStatusFilter(option.value)}
+                          >
+                              {option.label}
+                          </Button>
+                      ))}
+                      <Separator orientation="vertical" className="h-6 mx-2"/>
+                      <span className="text-sm font-medium text-muted-foreground">Tarih:</span>
+                       {dateFilterOptions.map(option => (
+                          <Button 
+                              key={option.value}
+                              variant={dateFilter === option.value ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={() => setDateFilter(option.value)}
+                          >
+                              {option.label}
+                          </Button>
+                      ))}
+                  </div>
+                  <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-muted-foreground">Sıralama:</span>
+                       <Select value={sortOrder} onValueChange={(value: 'newest' | 'oldest') => setSortOrder(value)}>
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Sırala" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="newest">En Yeni</SelectItem>
+                                <SelectItem value="oldest">En Eski</SelectItem>
+                            </SelectContent>
+                        </Select>
+                  </div>
+                </div>
            </div>
         </CardHeader>
         <CardContent className="p-0">
