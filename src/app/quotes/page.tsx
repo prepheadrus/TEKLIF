@@ -233,8 +233,6 @@ export default function QuotesPage() {
 
         const newProposalRef = doc(collection(firestore, 'proposals'));
         
-        const currentRates = originalData.exchangeRates || await fetchExchangeRates();
-
         const newProposalData = {
             ...originalData,
             version: latestVersion + 1,
@@ -242,7 +240,7 @@ export default function QuotesPage() {
             createdAt: serverTimestamp(),
             versionNote: `Revizyon (v${originalData.version}'dan kopyalandı)`,
             totalAmount: originalData.totalAmount,
-            exchangeRates: currentRates,
+            exchangeRates: originalData.exchangeRates || await fetchExchangeRates(), // Use existing rates first
         };
         batch.set(newProposalRef, newProposalData);
 
@@ -294,7 +292,7 @@ export default function QuotesPage() {
         g.latestProposal.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         g.latestProposal.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         g.latestProposal.quoteNumber.toLowerCase().includes(searchTerm.toLowerCase())
-  ) ?? [];
+  );
 
   return (
     <>
@@ -413,7 +411,7 @@ export default function QuotesPage() {
                 </TableRow>
               ) : filteredProposalGroups && filteredProposalGroups.length > 0 ? (
                 filteredProposalGroups.map((group) => (
-                    <Collapsible key={group.rootProposalId} asChild onOpenChange={(isOpen) => setOpenCollapsibles(prev => ({...prev, [group.rootProposalId]: isOpen}))}>
+                    <Collapsible key={group.rootProposalId} onOpenChange={(isOpen) => setOpenCollapsibles(prev => ({...prev, [group.rootProposalId]: isOpen}))}>
                       <React.Fragment>
                         <TableRow className="font-medium bg-slate-50 hover:bg-slate-100 data-[state=open]:bg-slate-100">
                             <TableCell>
@@ -509,7 +507,7 @@ export default function QuotesPage() {
                             </TableCell>
                         </TableRow>
                         <CollapsibleContent asChild>
-                            <TableRow>
+                             <TableRow>
                                 <TableCell colSpan={9} className="p-0">
                                     <div className="bg-white p-4 border-t-4 border-blue-200">
                                         <h4 className="font-semibold mb-2 px-4">Teklif Versiyonları ({group.latestProposal.projectName})</h4>
