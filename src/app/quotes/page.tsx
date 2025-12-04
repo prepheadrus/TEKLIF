@@ -251,28 +251,28 @@ export default function QuotesPage() {
 
 
   const filteredProposalGroups = useMemo(() => {
-    if (statusFilter !== 'All') {
-        return []; // Don't use grouped view when a specific status is filtered
-    }
-    
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30).getTime();
     const ninetyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 90).getTime();
 
     return groupedProposals.filter(g => {
-      const searchMatch = 
-          g.latestProposal.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          g.latestProposal.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          g.latestProposal.quoteNumber.toLowerCase().includes(searchTerm.toLowerCase());
-      if (!searchMatch) return false;
+        const searchMatch = 
+            g.latestProposal.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            g.latestProposal.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            g.latestProposal.quoteNumber.toLowerCase().includes(searchTerm.toLowerCase());
+        if (!searchMatch) return false;
 
-      if (dateFilter !== 'all' && g.latestProposal.createdAt) {
-          const proposalDate = g.latestProposal.createdAt.seconds * 1000;
-          if (dateFilter === 'last30days' && proposalDate < thirtyDaysAgo) return false;
-          if (dateFilter === 'last90days' && proposalDate < ninetyDaysAgo) return false;
-      }
-      
-      return true;
+        if (dateFilter !== 'all' && g.latestProposal.createdAt) {
+            const proposalDate = g.latestProposal.createdAt.seconds * 1000;
+            if (dateFilter === 'last30days' && proposalDate < thirtyDaysAgo) return false;
+            if (dateFilter === 'last90days' && proposalDate < ninetyDaysAgo) return false;
+        }
+        
+        if (statusFilter !== 'All') {
+            return g.versions.some(v => v.status === statusFilter);
+        }
+
+        return true;
     });
   }, [groupedProposals, searchTerm, statusFilter, dateFilter]);
   
@@ -471,7 +471,6 @@ export default function QuotesPage() {
 
         try {
             const batch = writeBatch(firestore);
-            // Need to fetch rootProposalId for each selected item to potentially delete sub-items
             for (const id of selectedIds) {
                 const docRef = doc(firestore, 'proposals', id);
                 batch.delete(docRef);
@@ -491,11 +490,23 @@ export default function QuotesPage() {
         }
     };
 
+    const toggleGroupSelection = (group: ProposalGroup, isChecked: boolean) => {
+        setSelectedIds(prev => {
+            const newSet = new Set(prev);
+            if (isChecked) {
+                group.versions.forEach(v => newSet.add(v.id));
+            } else {
+                group.versions.forEach(v => newSet.delete(v.id));
+            }
+            return newSet;
+        });
+    };
+
     const toggleAllSelection = (isChecked: boolean) => {
         const newSelectedIds = new Set<string>();
         if (isChecked) {
-            const itemsToSelect = statusFilter === 'All' ? filteredProposalGroups.map(g => g.latestProposal.id) : flatFilteredProposals.map(p => p.id);
-            itemsToSelect.forEach(id => newSelectedIds.add(id));
+            const listToSelect = statusFilter === 'All' ? filteredProposalGroups.flatMap(g => g.versions) : flatFilteredProposals;
+            listToSelect.forEach(p => newSelectedIds.add(p.id));
         }
         setSelectedIds(newSelectedIds);
     };
@@ -512,9 +523,10 @@ export default function QuotesPage() {
         });
     };
 
-    const currentList = statusFilter === 'All' ? filteredProposalGroups.map(g => g.latestProposal) : flatFilteredProposals;
-    const allVisibleSelected = currentList.length > 0 && selectedIds.size === currentList.length;
-    const someVisibleSelected = selectedIds.size > 0 && selectedIds.size < currentList.length;
+    const currentListForSelection = statusFilter === 'All' ? filteredProposalGroups.flatMap(g => g.versions) : flatFilteredProposals;
+    const allVisibleSelected = currentListForSelection.length > 0 && selectedIds.size === currentListForSelection.length;
+    const someVisibleSelected = selectedIds.size > 0 && !allVisibleSelected;
+
 
   return (
     <div className="flex flex-col gap-4">
@@ -732,14 +744,19 @@ export default function QuotesPage() {
                 ) : statusFilter === 'All' ? (
                     // -------- GROUPED VIEW --------
                     filteredProposalGroups.length > 0 ? (
-                        filteredProposalGroups.map((group) => (
+                        filteredProposalGroups.map((group) => {
+                            const allVersionsInGroupSelected = group.versions.every(v => selectedIds.has(v.id));
+                            const someVersionsInGroupSelected = group.versions.some(v => selectedIds.has(v.id)) && !allVersionsInGroupSelected;
+
+                            return (
                             <Collapsible key={group.rootProposalId} asChild>
                                 <Card className="rounded-none shadow-none border-x-0 border-t-0 last:border-b-0">
                                     <div className="flex items-center p-3">
                                          <div className="px-2">
                                             <Checkbox
-                                                checked={selectedIds.has(group.latestProposal.id)}
-                                                onCheckedChange={(checked) => toggleSelection(group.latestProposal.id, !!checked)}
+                                                checked={allVersionsInGroupSelected}
+                                                onCheckedChange={(checked) => toggleGroupSelection(group, !!checked)}
+                                                data-state={someVersionsInGroupSelected ? 'indeterminate' : (allVersionsInGroupSelected ? 'checked' : 'unchecked')}
                                             />
                                         </div>
                                         <div className="grid grid-cols-6 gap-4 flex-1 items-center">
@@ -807,6 +824,13 @@ export default function QuotesPage() {
                                              <Table size="sm">
                                                 <TableHeader>
                                                     <TableRow>
+                                                        <TableHead className="w-12 px-4">
+                                                             <Checkbox
+                                                                checked={allVersionsInGroupSelected}
+                                                                onCheckedChange={(checked) => toggleGroupSelection(group, !!checked)}
+                                                                data-state={someVersionsInGroupSelected ? 'indeterminate' : (allVersionsInGroupSelected ? 'checked' : 'unchecked')}
+                                                            />
+                                                        </TableHead>
                                                         <TableHead className="py-1">Versiyon</TableHead>
                                                         <TableHead className="py-1">Tutar</TableHead>
                                                         <TableHead className="py-1">Durum</TableHead>
@@ -817,7 +841,13 @@ export default function QuotesPage() {
                                                 </TableHeader>
                                                 <TableBody>
                                                     {group.versions.map(v => (
-                                                        <TableRow key={v.id} className={cn("h-auto", v.id === group.latestProposal.id && "bg-blue-50/50")}>
+                                                        <TableRow key={v.id} className={cn("h-auto", v.id === group.latestProposal.id && "bg-blue-50/50")} data-state={selectedIds.has(v.id) ? 'selected' : undefined}>
+                                                            <TableCell className="px-4">
+                                                                <Checkbox
+                                                                    checked={selectedIds.has(v.id)}
+                                                                    onCheckedChange={(checked) => toggleSelection(v.id, !!checked)}
+                                                                />
+                                                            </TableCell>
                                                             <TableCell className="py-1.5"><Badge variant={v.id === group.latestProposal.id ? "default" : "secondary"}>v{v.version}</Badge></TableCell>
                                                             <TableCell className="py-1.5">{formatCurrency(v.totalAmount)}</TableCell>
                                                             <TableCell className="py-1.5">
@@ -878,8 +908,8 @@ export default function QuotesPage() {
                                     </CollapsibleContent>
                                 </Card>
                             </Collapsible>
-                        ))
-                    ) : (
+                        )}
+                    )) : (
                         <div className="text-center text-muted-foreground p-12">
                            Henüz teklif bulunmuyor veya aramanızla eşleşen sonuç yok.
                         </div>
@@ -889,10 +919,10 @@ export default function QuotesPage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                 <TableHead className="w-12">
+                                 <TableHead className="w-12 px-4">
                                      <Checkbox
                                         checked={allVisibleSelected}
-                                        onCheckedChange={toggleAllSelection}
+                                        onCheckedChange={(checked) => toggleAllSelection(!!checked)}
                                         aria-label="Tümünü seç"
                                         data-state={someVisibleSelected ? 'indeterminate' : (allVisibleSelected ? 'checked' : 'unchecked')}
                                      />
@@ -910,7 +940,7 @@ export default function QuotesPage() {
                         {flatFilteredProposals.length > 0 ? (
                             flatFilteredProposals.map(v => (
                                 <TableRow key={v.id} data-state={selectedIds.has(v.id) ? 'selected' : undefined}>
-                                    <TableCell>
+                                    <TableCell className="px-4">
                                         <Checkbox
                                             checked={selectedIds.has(v.id)}
                                             onCheckedChange={(checked) => toggleSelection(v.id, !!checked)}
@@ -950,5 +980,3 @@ export default function QuotesPage() {
     </div>
   );
 }
-
-    
