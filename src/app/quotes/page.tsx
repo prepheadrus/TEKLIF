@@ -134,6 +134,13 @@ export default function QuotesPage() {
     const groups: Record<string, Proposal[]> = {};
     
     proposals.forEach(p => {
+        if (!p.rootProposalId) {
+            // Handle legacy data that might not have a rootProposalId
+            const legacyRootId = `legacy-${p.id}`;
+            if (!groups[legacyRootId]) groups[legacyRootId] = [];
+            groups[legacyRootId].push(p);
+            return;
+        }
         if (!groups[p.rootProposalId]) {
             groups[p.rootProposalId] = [];
         }
@@ -143,7 +150,7 @@ export default function QuotesPage() {
     return Object.values(groups).map(versions => {
         versions.sort((a, b) => b.version - a.version);
         return {
-            rootProposalId: versions[0].rootProposalId,
+            rootProposalId: versions[0].rootProposalId || `legacy-${versions[0].id}`,
             latestProposal: versions[0],
             versions: versions
         };
@@ -223,11 +230,12 @@ export default function QuotesPage() {
 
         const versionsQuery = query(
             collection(firestore, 'proposals'),
-            where('rootProposalId', '==', originalData.rootProposalId),
-            orderBy('version', 'desc')
+            where('rootProposalId', '==', originalData.rootProposalId)
         );
         const versionsSnap = await getDocs(versionsQuery);
-        const latestVersion = versionsSnap.docs.length > 0 ? (versionsSnap.docs[0].data() as Proposal).version : 0;
+        
+        const existingVersions = versionsSnap.docs.map(doc => doc.data() as Proposal);
+        const latestVersion = existingVersions.reduce((max, p) => Math.max(max, p.version), 0);
         
         const batch = writeBatch(firestore);
 
@@ -568,7 +576,3 @@ export default function QuotesPage() {
     </>
   );
 }
-
-    
-
-    
