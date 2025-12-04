@@ -426,6 +426,10 @@ export default function QuotesPage() {
                                     </div>
                                     <div className="flex items-center gap-2 pl-6">
                                         {getStatusBadge(group.latestProposal.status)}
+                                        <Badge variant="secondary">
+                                            <Copy className="mr-2 h-3 w-3"/>
+                                            {group.versions.length} Revizyon
+                                        </Badge>
                                         <Button variant="outline" size="sm" onClick={() => router.push(`/quotes/${group.latestProposal.id}`)}>
                                             <Eye className="mr-2 h-4 w-4" />
                                             Görüntüle
