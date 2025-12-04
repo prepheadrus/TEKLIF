@@ -67,11 +67,26 @@
   body {
     @apply bg-background text-foreground;
   }
-   @page {
+}
+
+@media print {
+  body {
+    background-color: white;
+  }
+  .print-layout {
+    margin: 0;
+    padding: 0;
+  }
+  @page {
     size: A4;
     margin: 0;
   }
+  ::-webkit-scrollbar {
+    display: none;
+  }
+}
 
+@layer base {
   ::-webkit-scrollbar { 
       @apply w-2 h-2;
   }
