@@ -243,8 +243,26 @@ export default function QuoteDetailPage() {
 
   // --- Calculations ---
     const calculatedTotals = useMemo(() => {
-        let grandTotalSellExVAT = 0;
-        let grandTotalCost = 0;
+        const initialValue = {
+            grandTotalSellExVAT: 0,
+            grandTotalCost: 0,
+            totalsByCurrency: { TRY: 0, USD: 0, EUR: 0 }
+        };
+
+        const totals = watchedItems.reduce((acc, item) => {
+            const itemTotals = calculateItemTotals({
+                ...item,
+                exchangeRate: item.currency === 'USD' ? watchedRates.USD : item.currency === 'EUR' ? watchedRates.EUR : 1,
+            });
+            
+            const itemOriginalTotal = itemTotals.originalSellPrice * item.quantity;
+            
+            acc.grandTotalSellExVAT += itemTotals.totalTlSell;
+            acc.grandTotalCost += itemTotals.tlCost * item.quantity;
+            acc.totalsByCurrency[item.currency] += itemOriginalTotal;
+
+            return acc;
+        }, initialValue);
 
         const groupTotals = watchedItems.reduce((acc, item) => {
             const groupName = item.groupName || 'Diğer';
@@ -256,19 +274,16 @@ export default function QuoteDetailPage() {
                 };
             }
             
-            const totals = calculateItemTotals({
+            const itemTotals = calculateItemTotals({
                 ...item,
                 exchangeRate: item.currency === 'USD' ? watchedRates.USD : item.currency === 'EUR' ? watchedRates.EUR : 1,
             });
             
-            const itemOriginalTotal = totals.originalSellPrice * item.quantity;
+            const itemOriginalTotal = itemTotals.originalSellPrice * item.quantity;
             
-            acc[groupName].totalSellInTRY += totals.totalTlSell;
-            acc[groupName].totalCostInTRY += totals.tlCost * item.quantity;
+            acc[groupName].totalSellInTRY += itemTotals.totalTlSell;
+            acc[groupName].totalCostInTRY += itemTotals.tlCost * item.quantity;
             acc[groupName].totalsByCurrency[item.currency] += itemOriginalTotal;
-            
-            grandTotalSellExVAT += totals.totalTlSell;
-            grandTotalCost += totals.tlCost * item.quantity;
 
             return acc;
         }, {} as Record<string, { 
@@ -277,14 +292,14 @@ export default function QuoteDetailPage() {
             totalsByCurrency: { TRY: number; USD: number; EUR: number; };
         }>);
         
-        const grandTotalProfit = grandTotalSellExVAT - grandTotalCost;
-        const grandTotalProfitMargin = grandTotalSellExVAT > 0 ? grandTotalProfit / grandTotalSellExVAT : 0;
-        const vatAmount = grandTotalSellExVAT * VAT_RATE;
-        const grandTotalSellWithVAT = grandTotalSellExVAT + vatAmount;
+        const grandTotalProfit = totals.grandTotalSellExVAT - totals.grandTotalCost;
+        const grandTotalProfitMargin = totals.grandTotalSellExVAT > 0 ? grandTotalProfit / totals.grandTotalSellExVAT : 0;
+        const vatAmount = totals.grandTotalSellExVAT * VAT_RATE;
+        const grandTotalSellWithVAT = totals.grandTotalSellExVAT + vatAmount;
 
         return { 
             groupTotals, 
-            grandTotalSellExVAT,
+            grandTotalSellExVAT: totals.grandTotalSellExVAT,
             grandTotalSellWithVAT,
             vatAmount,
             grandTotalCost,
@@ -564,29 +579,29 @@ export default function QuoteDetailPage() {
                     return (
                      <Collapsible key={groupName} defaultOpen={true} asChild>
                       <section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center w-full">
-                            <CollapsibleTrigger asChild>
-                                <div className="flex items-center gap-3 flex-1 cursor-pointer">
+                        <CollapsibleTrigger asChild>
+                             <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center w-full cursor-pointer group">
+                                <div className="flex items-center gap-3 flex-1">
                                     <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
                                         {getGroupIcon(groupName)}
                                     </div>
                                     <div>
                                       <div className="flex items-center">
                                           {editingGroupName === groupName ? (
-                                              <Input
-                                                  ref={groupNameInputRef}
-                                                  defaultValue={groupName}
-                                                  onBlur={(e) => handleGroupNameChange(groupName, e.target.value)}
-                                                  onKeyDown={(e) => {
-                                                      if (e.key === 'Enter') {
-                                                          e.preventDefault();
-                                                          handleGroupNameChange(groupName, e.currentTarget.value);
-                                                      }
-                                                      if (e.key === 'Escape') setEditingGroupName(null);
-                                                  }}
-                                                  className="h-8 text-lg font-bold"
-                                                  onClick={(e) => e.stopPropagation()}
-                                              />
+                                             <Input
+                                                ref={groupNameInputRef}
+                                                defaultValue={groupName}
+                                                onBlur={(e) => handleGroupNameChange(groupName, e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        handleGroupNameChange(groupName, e.currentTarget.value);
+                                                    }
+                                                    if (e.key === 'Escape') setEditingGroupName(null);
+                                                }}
+                                                className="h-8 text-lg font-bold"
+                                                onClick={(e) => e.stopPropagation()}
+                                            />
                                           ) : (
                                               <h2 className="font-bold text-slate-800 text-lg">{groupName}</h2>
                                           )}
@@ -594,19 +609,19 @@ export default function QuoteDetailPage() {
                                     </div>
                                     <ChevronDown className="h-5 w-5 text-slate-400 transition-transform duration-300 group-data-[state=open]:-rotate-180" />
                                 </div>
-                            </CollapsibleTrigger>
-                             <div className="flex items-center gap-4">
-                               <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-7 w-7 text-slate-400 hover:text-slate-600"
-                                  onClick={(e) => { e.stopPropagation(); setEditingGroupName(groupName); }}
-                              >
-                                  <Edit className="h-4 w-4"/>
-                              </Button>
-                              <Badge variant="outline"><Box className="mr-2 h-3 w-3" />{itemsInGroup.length} Kalem Ürün</Badge>
+                                 <div className="flex items-center gap-4">
+                                   <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      className="h-7 w-7 text-slate-400 hover:text-slate-600"
+                                      onClick={(e) => { e.stopPropagation(); setEditingGroupName(groupName); }}
+                                  >
+                                      <Edit className="h-4 w-4"/>
+                                  </Button>
+                                  <Badge variant="outline"><Box className="mr-2 h-3 w-3" />{itemsInGroup.length} Kalem Ürün</Badge>
+                                </div>
                             </div>
-                        </div>
+                        </CollapsibleTrigger>
                         <CollapsibleContent>
                             <div className="overflow-x-auto">
                                 <Table>
