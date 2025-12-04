@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { PlusCircle, MoreHorizontal, Copy, Trash2, Loader2, Search, ChevronDown, Eye, AlertTriangle } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Copy, Trash2, Loader2, Search, ChevronDown, Eye, AlertTriangle, FileText, DollarSign, Calculator } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Badge } from '@/components/ui/badge';
@@ -46,6 +46,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 
 
 const newQuoteSchema = z.object({
@@ -125,6 +126,22 @@ const statusOptions: { label: string; value: Proposal['status'] }[] = [
     { label: 'Onaylandı', value: 'Approved' },
     { label: 'Reddedildi', value: 'Rejected' },
 ];
+
+const StatCard = ({ title, value, icon, isLoading }: { title: string, value: string, icon: React.ReactNode, isLoading: boolean }) => (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        {icon}
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <Skeleton className="h-8 w-3/4" />
+        ) : (
+          <div className="text-2xl font-bold">{value}</div>
+        )}
+      </CardContent>
+    </Card>
+);
 
 
 export default function QuotesPage() {
@@ -381,7 +398,7 @@ export default function QuotesPage() {
   }, [groupedProposals, searchTerm, statusFilter, dateFilter]);
 
   const flatFilteredProposals = useMemo(() => {
-    if (!proposals || statusFilter === 'All') return [];
+    if (!proposals) return [];
     
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30).getTime();
@@ -400,7 +417,11 @@ export default function QuotesPage() {
             if (dateFilter === 'last90days' && proposalDate < ninetyDaysAgo) return false;
         }
         
-        return p.status === statusFilter;
+        if (statusFilter !== 'All') {
+          return p.status === statusFilter;
+        }
+
+        return true;
     }).sort((a, b) => {
         const timeA = a.createdAt?.seconds ?? 0;
         const timeB = b.createdAt?.seconds ?? 0;
@@ -408,9 +429,24 @@ export default function QuotesPage() {
     });
   }, [proposals, searchTerm, statusFilter, dateFilter, sortOrder]);
 
+  const filteredStats = useMemo(() => {
+    const listToProcess = statusFilter === 'All' 
+        ? filteredProposalGroups.map(g => g.latestProposal) 
+        : flatFilteredProposals;
+
+    const count = listToProcess.length;
+    const totalAmount = listToProcess.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+    const averageAmount = count > 0 ? totalAmount / count : 0;
+
+    return {
+      count,
+      totalAmount,
+      averageAmount,
+    };
+  }, [filteredProposalGroups, flatFilteredProposals, statusFilter]);
 
   return (
-    <>
+    <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between space-y-2">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Teklif Arşivi</h2>
@@ -488,12 +524,31 @@ export default function QuotesPage() {
             </Dialog>
         </div>
       </div>
+      
+      <div className="grid gap-4 md:grid-cols-3">
+          <StatCard 
+              title="Teklif Sayısı" 
+              value={`${filteredStats.count} Adet`}
+              isLoading={isLoadingProposals}
+              icon={<FileText className="h-4 w-4 text-muted-foreground" />} 
+          />
+           <StatCard 
+              title="Toplam Tutar" 
+              value={formatCurrency(filteredStats.totalAmount)}
+              isLoading={isLoadingProposals}
+              icon={<DollarSign className="h-4 w-4 text-muted-foreground" />} 
+          />
+           <StatCard 
+              title="Ortalama Tutar" 
+              value={formatCurrency(filteredStats.averageAmount)}
+              isLoading={isLoadingProposals}
+              icon={<Calculator className="h-4 w-4 text-muted-foreground" />} 
+          />
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle>Teklifler</CardTitle>
-          <CardDescription>
-            {statusFilter === 'All' ? 'Tüm teklifleriniz gruplanmış halde listelenir.' : `'${statusFilterOptions.find(o => o.value === statusFilter)?.label}' durumundaki teklifler listeleniyor.`}
-          </CardDescription>
+          <CardTitle>Filtreler ve Arama</CardTitle>
            <div className="pt-4 space-y-4">
                 <div className="relative">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -510,7 +565,7 @@ export default function QuotesPage() {
                       {statusFilterOptions.map(option => (
                           <Button 
                               key={option.value}
-                              variant={statusFilter === option.value ? 'default' : 'outline'}
+                              variant={statusFilter === option.value ? 'secondary' : 'outline'}
                               size="sm"
                               onClick={() => setStatusFilter(option.value)}
                           >
@@ -522,7 +577,7 @@ export default function QuotesPage() {
                        {dateFilterOptions.map(option => (
                           <Button 
                               key={option.value}
-                              variant={dateFilter === option.value ? 'default' : 'outline'}
+                              variant={dateFilter === option.value ? 'secondary' : 'outline'}
                               size="sm"
                               onClick={() => setDateFilter(option.value)}
                           >
@@ -749,6 +804,6 @@ export default function QuotesPage() {
             </div>
         </CardContent>
       </Card>
-    </>
+    </div>
   );
 }
