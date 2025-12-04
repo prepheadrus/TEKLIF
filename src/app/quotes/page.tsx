@@ -76,6 +76,7 @@ type Proposal = {
     version: number;
     rootProposalId: string;
     customerId: string;
+    exchangeRates: { USD: number, EUR: number };
 };
 
 type ProposalGroup = {
@@ -226,19 +227,19 @@ export default function QuotesPage() {
         const versionsSnap = await getDocs(versionsQuery);
         const latestVersion = versionsSnap.docs.length > 0 ? (versionsSnap.docs[0].data() as Proposal).version : 0;
         
-        const exchangeRates = await fetchExchangeRates();
-
         const batch = writeBatch(firestore);
 
         const newProposalRef = doc(collection(firestore, 'proposals'));
+        // Önemli Değişiklik: Revizyonu, yeni kur çekmeden, mevcut kurla oluştur.
+        // Kur güncelleme işlemi detay sayfasında ayrıca yapılır.
         const newProposalData = {
             ...originalData,
             version: latestVersion + 1,
-            status: 'Draft',
+            status: 'Draft' as const,
             createdAt: serverTimestamp(),
             versionNote: `Revizyon (v${originalData.version}'dan kopyalandı)`,
-            totalAmount: originalData.totalAmount,
-            exchangeRates: exchangeRates,
+            totalAmount: originalData.totalAmount, // Tutarı koru
+            exchangeRates: originalData.exchangeRates, // Mevcut kurları koru
         };
         batch.set(newProposalRef, newProposalData);
 
