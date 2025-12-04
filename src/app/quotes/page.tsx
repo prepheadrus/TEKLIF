@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { addDoc, collection, doc, serverTimestamp, getDocs, query, orderBy, where, writeBatch, setDoc, updateDoc } from 'firebase/firestore';
+import Papa from 'papaparse';
 
 import {
   Card,
@@ -35,7 +36,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { PlusCircle, MoreHorizontal, Copy, Trash2, Loader2, Search, ChevronDown, Eye, AlertTriangle, FileText, DollarSign, Calculator, CheckSquare, X } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Copy, Trash2, Loader2, Search, ChevronDown, Eye, AlertTriangle, FileText, DollarSign, Calculator, CheckSquare, X, FileSpreadsheet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Badge } from '@/components/ui/badge';
@@ -527,6 +528,50 @@ export default function QuotesPage() {
     const allVisibleSelected = currentListForSelection.length > 0 && selectedIds.size === currentListForSelection.length;
     const someVisibleSelected = selectedIds.size > 0 && !allVisibleSelected;
 
+    const handleExportToCSV = () => {
+        const dataToExport = statusFilter === 'All' 
+            ? filteredProposalGroups.flatMap(g => g.versions) 
+            : flatFilteredProposals;
+
+        if (dataToExport.length === 0) {
+            toast({
+                variant: 'destructive',
+                title: 'Dışa Aktarma Hatası',
+                description: 'Dışa aktarılacak veri bulunmuyor.'
+            });
+            return;
+        }
+
+        const csvData = dataToExport.map(p => ({
+            "Teklif Numarası": p.quoteNumber,
+            "Versiyon": p.version,
+            "Müşteri": p.customerName,
+            "Proje Adı": p.projectName,
+            "Durum": p.status,
+            "Tutar": p.totalAmount,
+            "Oluşturma Tarihi": p.createdAt ? formatDate(p.createdAt) : '',
+            "Versiyon Notu": p.versionNote,
+        }));
+        
+        const csv = Papa.unparse(csvData);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "teklif_arsivi.csv");
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        toast({
+            title: 'Başarılı!',
+            description: `${dataToExport.length} teklif CSV olarak dışa aktarıldı.`
+        });
+    };
+
 
   return (
     <div className="flex flex-col gap-4">
@@ -538,6 +583,10 @@ export default function QuotesPage() {
           </p>
         </div>
         <div className="flex items-center space-x-2">
+            <Button variant="outline" onClick={handleExportToCSV}>
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              CSV Olarak Dışa Aktar
+            </Button>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button>
