@@ -45,7 +45,7 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { PlusCircle, MoreHorizontal, Copy, Trash2, Loader2, Search, ChevronDown, ChevronRight, Eye, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore, useCollection, useMemoFirebase, deleteDocumentNonBlocking } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -109,6 +109,7 @@ export default function QuotesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [openCollapsibles, setOpenCollapsibles] = useState<Record<string, boolean>>({});
+  const [isRevising, setIsRevising] = useState<string | null>(null);
 
 
   const form = useForm<NewQuoteFormValues>({
@@ -210,45 +211,36 @@ export default function QuotesPage() {
     }
   };
 
-  const handleDuplicateProposal = async (proposalId: string) => {
-    if (!firestore) return;
+  const handleDuplicateProposal = async (proposalToClone: Proposal) => {
+    if (!firestore || isRevising) return;
+    setIsRevising(proposalToClone.rootProposalId);
     toast({ title: 'Revizyon oluşturuluyor...' });
+
     try {
-        const originalProposalRef = doc(firestore, 'proposals', proposalId);
-        const originalProposalSnap = await getDoc(originalProposalRef);
-
-        if (!originalProposalSnap.exists()) {
-            throw new Error("Orijinal teklif bulunamadı.");
-        }
-        const originalData = originalProposalSnap.data() as Proposal;
-
         const versionsQuery = query(
             collection(firestore, 'proposals'),
-            where('rootProposalId', '==', originalData.rootProposalId)
+            where('rootProposalId', '==', proposalToClone.rootProposalId)
         );
         const versionsSnap = await getDocs(versionsQuery);
-        
         const existingVersions = versionsSnap.docs.map(doc => doc.data() as Proposal);
         const latestVersionNumber = existingVersions.reduce((max, p) => Math.max(max, p.version), 0);
         
         const batch = writeBatch(firestore);
-
         const newProposalRef = doc(collection(firestore, 'proposals'));
-        
-        const newRates = originalData.exchangeRates || await fetchExchangeRates();
+        const newRates = await fetchExchangeRates();
 
         const newProposalData = {
-            ...originalData,
+            ...proposalToClone,
+            id: newProposalRef.id, // Ensure we don't carry over the old id
             version: latestVersionNumber + 1,
             status: 'Draft' as const,
             createdAt: serverTimestamp(),
-            versionNote: `Revizyon (v${originalData.version}'dan kopyalandı)`,
-            totalAmount: originalData.totalAmount,
+            versionNote: `Revizyon (v${proposalToClone.version}'dan kopyalandı)`,
             exchangeRates: newRates,
         };
         batch.set(newProposalRef, newProposalData);
 
-        const itemsRef = collection(firestore, 'proposals', proposalId, 'proposal_items');
+        const itemsRef = collection(firestore, 'proposals', proposalToClone.id, 'proposal_items');
         const itemsSnap = await getDocs(itemsRef);
         itemsSnap.forEach(itemDoc => {
             const newItemRef = doc(collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'));
@@ -263,6 +255,8 @@ export default function QuotesPage() {
     } catch (error: any) {
         console.error("Teklif revizyon hatası:", error);
         toast({ variant: "destructive", title: "Hata", description: `Revizyon oluşturulamadı: ${error.message}` });
+    } finally {
+        setIsRevising(null);
     }
   }
   
@@ -425,7 +419,7 @@ export default function QuotesPage() {
                 </TableRow>
               ) : filteredProposalGroups && filteredProposalGroups.length > 0 ? (
                 filteredProposalGroups.map((group) => (
-                    <Collapsible key={group.rootProposalId} onOpenChange={(isOpen) => setOpenCollapsibles(prev => ({...prev, [group.rootProposalId]: isOpen}))}>
+                    <Collapsible asChild key={group.rootProposalId} onOpenChange={(isOpen) => setOpenCollapsibles(prev => ({...prev, [group.rootProposalId]: isOpen}))}>
                         <React.Fragment>
                             <TableRow className="font-medium bg-slate-50 hover:bg-slate-100 data-[state=open]:bg-slate-100">
                                 <TableCell>
@@ -453,14 +447,14 @@ export default function QuotesPage() {
                                     </Button>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" className="h-8 w-8 p-0">
+                                        <Button variant="ghost" className="h-8 w-8 p-0" disabled={isRevising === group.rootProposalId}>
+                                            {isRevising === group.rootProposalId ? <Loader2 className="h-4 w-4 animate-spin"/> : <MoreHorizontal className="h-4 w-4" />}
                                             <span className="sr-only">Menüyü aç</span>
-                                            <MoreHorizontal className="h-4 w-4" />
                                         </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
                                         <DropdownMenuLabel>İşlemler</DropdownMenuLabel>
-                                        <DropdownMenuItem onClick={() => handleDuplicateProposal(group.latestProposal.id)}>
+                                        <DropdownMenuItem onClick={() => handleDuplicateProposal(group.latestProposal)} disabled={isRevising === group.rootProposalId}>
                                             <Copy className="mr-2 h-4 w-4" />
                                             Yeni Revizyon Oluştur
                                         </DropdownMenuItem>
@@ -548,7 +542,7 @@ export default function QuotesPage() {
                                                                 <div className="flex items-center justify-end gap-2">
                                                                     <Button variant="ghost" size="sm" onClick={() => router.push(`/quotes/${v.id}`)}>Görüntüle</Button>
                                                                     <Button variant="ghost" size="sm" onClick={() => router.push(`/quotes/${v.id}/print?customerId=${v.customerId}`)}>Yazdır</Button>
-                                                                    <Button variant="outline" size="sm" onClick={() => handleDuplicateProposal(v.id)}><Copy className="mr-2 h-3 w-3"/>Revize Et</Button>
+                                                                    <Button variant="outline" size="sm" onClick={() => handleDuplicateProposal(v)} disabled={isRevising === group.rootProposalId}><Copy className="mr-2 h-3 w-3"/>Revize Et</Button>
                                                                 </div>
                                                             </TableCell>
                                                         </TableRow>
