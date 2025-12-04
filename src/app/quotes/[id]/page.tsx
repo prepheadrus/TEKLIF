@@ -69,8 +69,15 @@ import { fetchExchangeRates } from '@/ai/flows/fetch-exchange-rates';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 
 const proposalItemSchema = z.object({
@@ -268,9 +275,10 @@ export default function QuoteDetailPage() {
   const watchedRates = form.watch('exchangeRates');
 
   // --- Calculations ---
+  // The 'calculatedTotals' is now computed on every render, ensuring it's always up-to-date with the latest form values from 'watch'.
+  // This avoids stale state issues previously seen with useMemo.
   const calculatedTotals = calculateAllTotals(watchedItems, watchedRates);
 
-  const VAT_RATE = 0.20;
 
   // --- Effects ---
    useEffect(() => {
@@ -423,6 +431,28 @@ export default function QuoteDetailPage() {
     setEmptyGroups(prev => prev.map(g => g === oldName ? newName : g).filter(g => g !== oldName || !allGroups.some(([groupName]) => groupName === newName)));
     
     setEditingGroupName(null);
+  };
+
+    const handleDeleteGroup = (groupName: string) => {
+    const indicesToRemove: number[] = [];
+    form.getValues('items').forEach((item, index) => {
+      if (item.groupName === groupName) {
+        indicesToRemove.push(index);
+      }
+    });
+
+    if (indicesToRemove.length > 0) {
+      // It's safer to remove indices in descending order to avoid shifting issues
+      remove(indicesToRemove);
+    }
+    
+    // Also remove from empty groups if it exists there
+    setEmptyGroups(prev => prev.filter(g => g !== groupName));
+    
+    toast({
+        title: 'Grup Silindi',
+        description: `"${groupName}" grubundaki tüm kalemler silindi.`,
+    });
   };
   
   const handleSaveChanges = async (data: ProposalFormValues) => {
@@ -612,7 +642,7 @@ export default function QuoteDetailPage() {
                                     <ChevronDown className="h-5 w-5 text-slate-400 transition-transform duration-300 group-data-[state=open]:-rotate-180" />
                                 </div>
                             </CollapsibleTrigger>
-                            <div className="flex items-center gap-4 px-4">
+                            <div className="flex items-center gap-2 px-4">
                                 <Button 
                                     type="button"
                                     variant="ghost" 
@@ -622,6 +652,34 @@ export default function QuoteDetailPage() {
                                 >
                                     <Edit className="h-4 w-4"/>
                                 </Button>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 text-destructive/60 hover:text-destructive"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <Trash2 className="h-4 w-4"/>
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Grubu Silmek İstediğinize Emin misiniz?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Bu işlem geri alınamaz. "{groupName}" grubundaki tüm kalemler kalıcı olarak silinecektir.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>İptal</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDeleteGroup(groupName)} className="bg-destructive hover:bg-destructive/90">
+                                                Evet, Grubu Sil
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+
                                 <Badge variant="outline"><Box className="mr-2 h-3 w-3" />{itemsInGroup.length} Kalem Ürün</Badge>
                             </div>
                         </div>
@@ -672,7 +730,7 @@ export default function QuoteDetailPage() {
                                                 <TableCell className="py-1 font-mono">
                                                     <div className="flex items-center justify-start gap-2">
                                                         <FormField control={form.control} name={`items.${index}.listPrice`} render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7"/>} />
-                                                        <FormField control={form.control} name={`items.${index}.currency`} render={({ field: { onChange, value } }) => (
+                                                         <FormField control={form.control} name={`items.${index}.currency`} render={({ field: { onChange, value } }) => (
                                                             <Badge
                                                                 onClick={() => onChange(currencyCycle[value])}
                                                                 variant={value === 'USD' ? 'secondary' : value === 'EUR' ? 'default' : 'outline'}
@@ -688,7 +746,7 @@ export default function QuoteDetailPage() {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="py-1">
-                                                    <div className="flex items-center justify-start gap-1">
+                                                     <div className="flex items-center justify-start gap-1">
                                                         <Controller
                                                             control={form.control}
                                                             name={`items.${index}.discountRate`}
