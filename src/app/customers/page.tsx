@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -78,11 +79,11 @@ export default function CustomersPage() {
     }
   }
 
-  const filteredCustomers = customers?.filter(c => 
+  const filteredCustomers = (customers || []).filter(c => 
         c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (c.phone && c.phone.includes(searchTerm))
-  ) ?? [];
+  );
 
   return (
     <>
