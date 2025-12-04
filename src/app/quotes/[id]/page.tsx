@@ -547,7 +547,7 @@ export default function QuoteDetailPage() {
           </div>,
           subHeaderPortal
       )}
-      <main className="flex-1 overflow-y-auto px-8 py-8 space-y-8 bg-slate-100/70">
+      <main className="flex-1 overflow-y-auto px-8 py-8 space-y-6 bg-slate-100/70">
         <Form {...form}>
             <form className="space-y-6">
                 
@@ -562,7 +562,7 @@ export default function QuoteDetailPage() {
                      <Collapsible key={groupName} defaultOpen={true} asChild>
                       <section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                         <div className="flex justify-between items-center w-full group">
-                           <CollapsibleTrigger className="px-6 py-4 border-b border-slate-200 flex-1 flex items-center cursor-pointer">
+                           <CollapsibleTrigger className="px-6 py-3 flex-1 flex items-center cursor-pointer">
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
                                         {getGroupIcon(groupName)}
@@ -610,16 +610,16 @@ export default function QuoteDetailPage() {
                                 <Table>
                                     <TableHeader className="bg-slate-50">
                                     <TableRow>
-                                        <TableHead className="py-2 pl-4 text-xs uppercase text-slate-500 font-semibold tracking-wider w-[30%]">Ürün Tanımı</TableHead>
-                                        <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider w-[15%]">Marka</TableHead>
-                                        <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Miktar</TableHead>
-                                        <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Liste Fiyatı</TableHead>
-                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider w-24">İskonto</TableHead>
-                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Maliyet (Döviz)</TableHead>
-                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider w-32">Kâr</TableHead>
-                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Birim Fiyat (TL)</TableHead>
-                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Toplam (TL)</TableHead>
-                                        <TableHead className="w-10 py-2 pr-4"></TableHead>
+                                        <TableHead className="py-1 pl-4 text-xs uppercase text-slate-500 font-semibold tracking-wider w-[30%]">Ürün Tanımı</TableHead>
+                                        <TableHead className="py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider w-[15%]">Marka</TableHead>
+                                        <TableHead className="py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Miktar</TableHead>
+                                        <TableHead className="py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Liste Fiyatı</TableHead>
+                                        <TableHead className="text-right py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider w-24">İskonto</TableHead>
+                                        <TableHead className="text-right py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Maliyet (Döviz)</TableHead>
+                                        <TableHead className="text-right py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider w-32">Kâr</TableHead>
+                                        <TableHead className="text-right py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Birim Fiyat (TL)</TableHead>
+                                        <TableHead className="text-right py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Toplam (TL)</TableHead>
+                                        <TableHead className="w-10 py-1 pr-4"></TableHead>
                                     </TableRow>
                                     </TableHeader>
                                     <TableBody className="text-sm divide-y divide-slate-100">
@@ -637,29 +637,30 @@ export default function QuoteDetailPage() {
 
                                         return (
                                             <TableRow key={field.formId} className="hover:bg-slate-50/50 group/row">
-                                                <TableCell className="py-2 pl-4 font-medium text-slate-800 w-[30%]">
-                                                    <FormField control={form.control} name={`items.${index}.name`} render={({ field }) => <Input {...field} className="w-full h-8 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
+                                                <TableCell className="py-1 pl-4 font-medium text-slate-800 w-[30%]">
+                                                    <FormField control={form.control} name={`items.${index}.name`} render={({ field }) => <Input {...field} className="w-full h-7 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
                                                 </TableCell>
-                                                 <TableCell className="py-2 w-[15%]">
-                                                    <FormField control={form.control} name={`items.${index}.brand`} render={({ field }) => <Input {...field} className="w-full h-8 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
+                                                 <TableCell className="py-1 w-[15%]">
+                                                    <FormField control={form.control} name={`items.${index}.brand`} render={({ field }) => <Input {...field} className="w-full h-7 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
                                                 </TableCell>
-                                                <TableCell className="py-2 w-28">
+                                                <TableCell className="py-1 w-28">
                                                     <div className="flex items-center">
-                                                        <FormField control={form.control} name={`items.${index}.quantity`} render={({ field }) => <Input {...field} type="number" step="any" className="w-16 font-mono text-right bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-8" />} />
-                                                        <FormField control={form.control} name={`items.${index}.unit`} render={({ field }) => <Input {...field} className="w-16 h-8 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
+                                                        <FormField control={form.control} name={`items.${index}.quantity`} render={({ field }) => <Input {...field} type="number" step="any" className="w-16 font-mono text-right bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7" />} />
+                                                        <FormField control={form.control} name={`items.${index}.unit`} render={({ field }) => <Input {...field} className="w-16 h-7 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="w-40 py-2 font-mono">
+                                                <TableCell className="w-40 py-1 font-mono">
                                                     <div className="flex items-center justify-start gap-2">
                                                         <Badge variant="outline" className={cn(
+                                                            'py-0',
                                                             itemValues.currency === 'USD' && 'bg-green-100 text-green-800 border-green-200',
                                                             itemValues.currency === 'EUR' && 'bg-blue-100 text-blue-800 border-blue-200',
                                                             itemValues.currency === 'TRY' && 'bg-slate-100 text-slate-800 border-slate-200',
                                                         )}>{itemValues.currency}</Badge>
-                                                        <FormField control={form.control} name={`items.${index}.listPrice`} render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-8"/>} />
+                                                        <FormField control={form.control} name={`items.${index}.listPrice`} render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7"/>} />
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="py-2 w-24">
+                                                <TableCell className="py-1 w-24">
                                                     <div className="flex items-center justify-end gap-1">
                                                         <Controller
                                                             control={form.control}
@@ -669,14 +670,14 @@ export default function QuoteDetailPage() {
                                                                     type="number"
                                                                     value={Math.round(field.value * 100)}
                                                                     onChange={e => field.onChange(parseFloat(e.target.value) / 100)}
-                                                                    className="w-16 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-8" placeholder="15"/>
+                                                                    className="w-16 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7" placeholder="15"/>
                                                             )}
                                                         />
                                                         <span className="text-slate-400">%</span>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="text-right font-mono tabular-nums py-2">{formatNumber(itemTotals.cost)} {itemValues.currency}</TableCell>
-                                                <TableCell className="py-2 w-32 text-right">
+                                                <TableCell className="text-right font-mono tabular-nums py-1">{formatNumber(itemTotals.cost)} {itemValues.currency}</TableCell>
+                                                <TableCell className="py-1 w-32 text-right">
                                                     <div className="flex flex-col items-end">
                                                         <div className="flex items-center gap-1">
                                                              <Controller
@@ -687,7 +688,7 @@ export default function QuoteDetailPage() {
                                                                         type="number"
                                                                         value={Math.round(field.value * 100)}
                                                                         onChange={e => field.onChange(parseFloat(e.target.value) / 100)}
-                                                                        className="w-16 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-8" placeholder="20"/>
+                                                                        className="w-16 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7" placeholder="20"/>
                                                                 )}
                                                             />
                                                             <span className="text-slate-400">%</span>
@@ -695,10 +696,10 @@ export default function QuoteDetailPage() {
                                                         <span className="text-xs font-mono text-green-600 font-semibold tabular-nums">+{formatCurrency(itemTotals.totalProfit)}</span>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="text-right font-mono tabular-nums font-semibold text-slate-600 py-2">{formatCurrency(itemTotals.tlSellPrice)}</TableCell>
-                                                <TableCell className="text-right font-bold font-mono tabular-nums text-slate-800 py-2">{formatCurrency(itemTotals.totalTlSell)}</TableCell>
-                                                <TableCell className="px-2 text-center py-2">
-                                                    <Button variant="ghost" size="icon" onClick={() => remove(index)} className="h-8 w-8 text-slate-400 hover:text-red-500 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                                                <TableCell className="text-right font-mono tabular-nums font-semibold text-slate-600 py-1">{formatCurrency(itemTotals.tlSellPrice)}</TableCell>
+                                                <TableCell className="text-right font-bold font-mono tabular-nums text-slate-800 py-1">{formatCurrency(itemTotals.totalTlSell)}</TableCell>
+                                                <TableCell className="px-2 text-center py-1">
+                                                    <Button variant="ghost" size="icon" onClick={() => remove(index)} className="h-7 w-7 text-slate-400 hover:text-red-500 opacity-0 group-hover/row:opacity-100 transition-opacity">
                                                     <Trash2 className="h-4 w-4" />
                                                     </Button>
                                                 </TableCell>
@@ -708,18 +709,18 @@ export default function QuoteDetailPage() {
                                     </TableBody>
                                 </Table>
                             </div>
-                             <div className="bg-slate-50 px-6 py-3 border-t">
+                             <div className="bg-slate-50 px-6 py-2 border-t">
                                 <Button type="button" size="sm" variant="secondary" onClick={() => openProductSelectorForGroup(groupName)}>
                                     <PlusCircle className="mr-2 h-4 w-4"/>
                                     Bu Gruba Ürün Ekle
                                 </Button>
                              </div>
-                             <div className="bg-slate-900 text-white px-6 py-4 grid grid-cols-3 items-center gap-8">
+                             <div className="bg-slate-900 text-white px-6 py-3 grid grid-cols-3 items-center gap-8">
                                 <div className="col-span-1">
-                                    <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-3">{groupName} Döviz Dağılımı (KDV Hariç)</h4>
-                                    <div className="space-y-2">
+                                    <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-2">Döviz Dağılımı (KDV Hariç)</h4>
+                                    <div className="space-y-1">
                                         {groupTotals && Object.entries(groupTotals.totalsByCurrency).filter(([, val]) => val > 0).map(([currency, value]) => (
-                                            <div key={currency} className="flex justify-between items-center text-lg max-w-xs">
+                                            <div key={currency} className="flex justify-between items-center text-base max-w-xs">
                                                 <span className="text-slate-300">Toplam {currency}</span>
                                                 <span className={cn(
                                                     "font-mono font-bold",
@@ -729,21 +730,21 @@ export default function QuoteDetailPage() {
                                             </div>
                                         ))}
                                         {groupTotals && Object.values(groupTotals.totalsByCurrency).every(v => v === 0) && (
-                                            <div className="text-slate-400">Bu grupta ürün yok.</div>
+                                            <div className="text-slate-400 text-sm">Bu grupta ürün yok.</div>
                                         )}
                                     </div>
                                 </div>
                                 <div className="col-span-1 text-right">
                                     <div className="flex items-center justify-end gap-2 text-green-400">
-                                        <TrendingUp className="h-5 w-5" />
-                                        <p className="text-sm font-semibold uppercase tracking-wider">{groupName} Kârı</p>
+                                        <TrendingUp className="h-4 w-4" />
+                                        <p className="text-xs font-semibold uppercase tracking-wider">Grup Kârı</p>
                                     </div>
-                                    <p className="font-mono font-bold text-2xl text-green-400">{formatCurrency(groupProfitTRY)}</p>
-                                    <p className="font-mono text-sm text-green-500 font-semibold">({(groupProfitMargin * 100).toFixed(1)}%)</p>
+                                    <p className="font-mono font-bold text-xl text-green-400">{formatCurrency(groupProfitTRY)}</p>
+                                    <p className="font-mono text-xs text-green-500 font-semibold">({(groupProfitMargin * 100).toFixed(1)}%)</p>
                                 </div>
-                                <div className="col-span-1 bg-slate-700 text-white rounded-lg px-6 py-4 text-right">
-                                    <p className="text-sm font-semibold uppercase tracking-wider text-slate-300 mb-1">{groupName} Toplamı (KDV Hariç)</p>
-                                    <p className="font-mono font-bold text-3xl">{formatCurrency(groupSubTotalTRY)}</p>
+                                <div className="col-span-1 bg-slate-700 text-white rounded-lg px-4 py-2 text-right">
+                                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Grup Toplamı (KDV Hariç)</p>
+                                    <p className="font-mono font-bold text-2xl">{formatCurrency(groupSubTotalTRY)}</p>
                                 </div>
                              </div>
                          </CollapsibleContent>

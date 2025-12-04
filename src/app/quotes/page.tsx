@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -162,7 +161,6 @@ export default function QuotesPage() {
     }).sort((a, b) => {
         const timeA = a.latestProposal.createdAt?.seconds ?? 0;
         const timeB = b.latestProposal.createdAt?.seconds ?? 0;
-        // Handle cases where createdAt might be null (e.g., just created)
         if (timeA === 0 && timeB !== 0) return 1;
         if (timeB === 0 && timeA !== 0) return -1;
         return timeB - timeA;
@@ -241,7 +239,6 @@ export default function QuotesPage() {
         const newProposalRef = doc(collection(firestore, 'proposals'));
         const newRates = await fetchExchangeRates();
 
-        // Create a plain object without the 'id'
         const { id, ...originalData } = proposalToClone;
 
         const newProposalData = {
@@ -410,8 +407,8 @@ export default function QuotesPage() {
                 />
             </div>
         </CardHeader>
-        <CardContent>
-            <div className="space-y-4">
+        <CardContent className="p-0">
+            <div className="space-y-2">
                 {isLoadingProposals ? (
                      <div className="flex justify-center items-center h-24">
                         <Loader2 className="h-6 w-6 animate-spin" />
@@ -419,15 +416,15 @@ export default function QuotesPage() {
                 ) : filteredProposalGroups.length > 0 ? (
                     filteredProposalGroups.map((group) => (
                         <Collapsible key={group.rootProposalId} asChild>
-                            <Card>
-                                <div className="flex items-center justify-between p-4">
+                            <Card className="rounded-none shadow-none border-x-0 border-t-0 last:border-b-0">
+                                <div className="flex items-center justify-between p-3">
                                     <div className="grid grid-cols-6 gap-4 flex-1 items-center">
                                         <div className="font-semibold">{group.latestProposal.quoteNumber}</div>
                                         <div className="col-span-2 text-muted-foreground">{group.latestProposal.customerName}</div>
                                         <div className="col-span-2 font-medium">{group.latestProposal.projectName}</div>
                                         <div className="font-semibold text-right">{formatCurrency(group.latestProposal.totalAmount)}</div>
                                     </div>
-                                    <div className="flex items-center gap-4 pl-8">
+                                    <div className="flex items-center gap-2 pl-6">
                                         {getStatusBadge(group.latestProposal.status)}
                                         <Button variant="outline" size="sm" onClick={() => router.push(`/quotes/${group.latestProposal.id}`)}>
                                             <Eye className="mr-2 h-4 w-4" />
@@ -482,27 +479,27 @@ export default function QuotesPage() {
                                          <Table size="sm">
                                             <TableHeader>
                                                 <TableRow>
-                                                    <TableHead>Versiyon</TableHead>
-                                                    <TableHead>Tutar</TableHead>
-                                                    <TableHead>Durum</TableHead>
-                                                    <TableHead>Tarih</TableHead>
-                                                    <TableHead className="w-[40%]">Not</TableHead>
-                                                    <TableHead className="text-right">İşlemler</TableHead>
+                                                    <TableHead className="py-1">Versiyon</TableHead>
+                                                    <TableHead className="py-1">Tutar</TableHead>
+                                                    <TableHead className="py-1">Durum</TableHead>
+                                                    <TableHead className="py-1">Tarih</TableHead>
+                                                    <TableHead className="w-[40%] py-1">Not</TableHead>
+                                                    <TableHead className="text-right py-1">İşlemler</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
                                                 {group.versions.map(v => (
-                                                    <TableRow key={v.id} className={cn(v.id === group.latestProposal.id && "bg-blue-50/50")}>
-                                                        <TableCell><Badge variant={v.id === group.latestProposal.id ? "default" : "secondary"}>v{v.version}</Badge></TableCell>
-                                                        <TableCell>{formatCurrency(v.totalAmount)}</TableCell>
-                                                        <TableCell>{getStatusBadge(v.status)}</TableCell>
-                                                        <TableCell>{formatDate(v.createdAt)}</TableCell>
-                                                        <TableCell className="text-muted-foreground text-xs">{v.versionNote}</TableCell>
-                                                        <TableCell className="text-right">
-                                                            <div className="flex items-center justify-end gap-2">
+                                                    <TableRow key={v.id} className={cn("h-auto", v.id === group.latestProposal.id && "bg-blue-50/50")}>
+                                                        <TableCell className="py-1.5"><Badge variant={v.id === group.latestProposal.id ? "default" : "secondary"}>v{v.version}</Badge></TableCell>
+                                                        <TableCell className="py-1.5">{formatCurrency(v.totalAmount)}</TableCell>
+                                                        <TableCell className="py-1.5">{getStatusBadge(v.status)}</TableCell>
+                                                        <TableCell className="py-1.5">{formatDate(v.createdAt)}</TableCell>
+                                                        <TableCell className="text-muted-foreground text-xs py-1.5">{v.versionNote}</TableCell>
+                                                        <TableCell className="text-right py-1.5">
+                                                            <div className="flex items-center justify-end gap-1">
                                                                 <Button variant="ghost" size="sm" onClick={() => router.push(`/quotes/${v.id}`)}>Görüntüle</Button>
                                                                 <Button variant="ghost" size="sm" onClick={() => router.push(`/quotes/${v.id}/print?customerId=${v.customerId}`)}>Yazdır</Button>
-                                                                <Button variant="outline" size="sm" onClick={() => handleDuplicateProposal(v)} disabled={isRevising === group.rootProposalId}><Copy className="mr-2 h-3 w-3"/>Bu Versiyondan Revize Et</Button>
+                                                                <Button variant="outline" size="sm" onClick={() => handleDuplicateProposal(v)} disabled={isRevising === group.rootProposalId}><Copy className="mr-2 h-3 w-3"/>Revize Et</Button>
                                                             </div>
                                                         </TableCell>
                                                     </TableRow>
