@@ -243,14 +243,12 @@ export default function QuoteDetailPage() {
   // --- Calculations ---
   const calculatedTotals = useMemo(() => {
     let grandTotalSellExVAT = 0;
-    let grandTotalProfitExVat = 0;
 
     const groupTotals = watchedItems.reduce((acc, item) => {
         const groupName = item.groupName || 'Diğer';
         if (!acc[groupName]) {
             acc[groupName] = { 
               totalSellInTRY: 0, 
-              totalProfitInTRY: 0,
               totalsByCurrency: { TRY: 0, USD: 0, EUR: 0 }
             };
         }
@@ -263,37 +261,26 @@ export default function QuoteDetailPage() {
         const itemOriginalTotal = totals.originalSellPrice * item.quantity;
         
         acc[groupName].totalSellInTRY += totals.totalTlSell;
-        acc[groupName].totalProfitInTRY += totals.totalProfit;
         acc[groupName].totalsByCurrency[item.currency] += itemOriginalTotal;
         
         grandTotalSellExVAT += totals.totalTlSell;
-        grandTotalProfitExVat += totals.totalProfit;
 
         return acc;
     }, {} as Record<string, { 
         totalSellInTRY: number; 
-        totalProfitInTRY: number;
         totalsByCurrency: { TRY: number; USD: number; EUR: number; };
     }>);
     
     const vatAmount = grandTotalSellExVAT * VAT_RATE;
     const grandTotalSellWithVAT = grandTotalSellExVAT + vatAmount;
-    
-    const profitWithVat = grandTotalProfitExVat; // Profit calculation is independent of sales VAT
-    const totalProfit = includeVAT ? profitWithVat : grandTotalProfitExVat;
-
-    const profitMargin = grandTotalSellExVAT > 0 ? (totalProfit / grandTotalSellExVAT) : 0;
-
 
     return { 
         groupTotals, 
         grandTotalSellExVAT,
         grandTotalSellWithVAT,
         vatAmount,
-        totalProfit,
-        profitMargin
     };
-}, [watchedItems, watchedRates, includeVAT]);
+}, [watchedItems, watchedRates]);
 
 
   const allGroups = useMemo(() => {
@@ -372,7 +359,7 @@ export default function QuoteDetailPage() {
     setIsProductSelectorOpen(false);
     
     if (targetGroupForProductAdd) {
-        setEmptyGroups(prev => prev.filter(g => g !== targetGroupFor-product-add));
+        setEmptyGroups(prev => prev.filter(g => g !== targetGroupForProductAdd));
     }
     setTargetGroupForProductAdd(undefined);
     
@@ -561,6 +548,7 @@ export default function QuoteDetailPage() {
                     const groupSubTotalTRY = groupTotals.totalSellInTRY || 0;
                     const groupVatAmount = groupSubTotalTRY * VAT_RATE;
                     const groupTotalWithVAT = groupSubTotalTRY + groupVatAmount;
+                    const finalGroupTotal = includeVAT ? groupTotalWithVAT : groupSubTotalTRY;
 
                     return (
                      <Collapsible key={groupName} defaultOpen={true} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -628,9 +616,9 @@ export default function QuoteDetailPage() {
                                     <TableRow>
                                         <TableHead className="py-2 pl-4 text-xs uppercase text-slate-500 font-semibold tracking-wider w-[35%]">Ürün Tanımı</TableHead>
                                         <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Miktar</TableHead>
-                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Liste Fiyatı</TableHead>
+                                        <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Liste Fiyatı</TableHead>
                                         <TableHead className="text-right py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider w-24">İskonto</TableHead>
-                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Net Birim</TableHead>
+                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Net Birim (Döviz)</TableHead>
                                         <TableHead className="text-right py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider w-32">Kâr</TableHead>
                                         <TableHead className="text-right py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Birim Fiyat (Net)</TableHead>
                                         <TableHead className="text-right py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Toplam (Net)</TableHead>
@@ -648,9 +636,6 @@ export default function QuoteDetailPage() {
                                             ...itemValues,
                                             exchangeRate: itemValues.currency === 'USD' ? watchedRates.USD : itemValues.currency === 'EUR' ? watchedRates.EUR : 1,
                                         });
-                                        
-                                        const netBirimDovizli = itemTotals.cost * (1 + itemTotals.profitMargin);
-
 
                                         return (
                                             <TableRow key={item.formId} className="hover:bg-slate-50/50 group/row">
@@ -664,8 +649,8 @@ export default function QuoteDetailPage() {
                                                         <FormField control={form.control} name={`items.${originalIndex}.unit`} render={({ field }) => <Input {...field} className="w-16 h-8 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="w-40 py-2 font-mono text-right">
-                                                    <div className="flex items-center justify-end gap-2">
+                                                <TableCell className="w-40 py-2 font-mono">
+                                                    <div className="flex items-center justify-start gap-2">
                                                         <Badge variant="outline" className={cn(
                                                             itemValues.currency === 'USD' && 'bg-green-100 text-green-800 border-green-200',
                                                             itemValues.currency === 'EUR' && 'bg-blue-100 text-blue-800 border-blue-200',
@@ -690,7 +675,7 @@ export default function QuoteDetailPage() {
                                                         <span className="text-slate-400">%</span>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="text-right font-mono tabular-nums py-2 w-32">{formatNumber(netBirimDovizli)} {itemValues.currency}</TableCell>
+                                                <TableCell className="text-right font-mono tabular-nums py-2 w-32">{formatNumber(itemTotals.cost)} {itemValues.currency}</TableCell>
                                                 <TableCell className="py-2 w-32">
                                                     <div className="flex items-center justify-end gap-1">
                                                         <Controller
@@ -781,6 +766,12 @@ export default function QuoteDetailPage() {
                      <p className="font-mono text-4xl font-extrabold text-blue-700">{formatCurrency(calculatedTotals.grandTotalSellWithVAT)}</p>
                 </div>
                 <div className="flex items-center gap-3">
+                    <div className="flex items-center space-x-2">
+                        <Switch id="vat-switch" checked={includeVAT} onCheckedChange={setIncludeVAT} />
+                        <Label htmlFor="vat-switch" className="text-sm font-medium">
+                            {includeVAT ? 'KDV Dahil Göster' : 'KDV Hariç Göster'}
+                        </Label>
+                    </div>
                      <Button
                         type="button"
                         variant="outline"
