@@ -500,6 +500,29 @@ export default function QuotesPage() {
                                                                 <Button variant="ghost" size="sm" onClick={() => router.push(`/quotes/${v.id}`)}>Görüntüle</Button>
                                                                 <Button variant="ghost" size="sm" onClick={() => router.push(`/quotes/${v.id}/print?customerId=${v.customerId}`)}>Yazdır</Button>
                                                                 <Button variant="outline" size="sm" onClick={() => handleDuplicateProposal(v)} disabled={isRevising === group.rootProposalId}><Copy className="mr-2 h-3 w-3"/>Revize Et</Button>
+                                                                
+                                                                <AlertDialog>
+                                                                    <AlertDialogTrigger asChild>
+                                                                        <Button variant="destructive" size="sm" disabled={group.versions.length <= 1}>
+                                                                            <Trash2 className="mr-2 h-3 w-3" /> Sil
+                                                                        </Button>
+                                                                    </AlertDialogTrigger>
+                                                                    <AlertDialogContent>
+                                                                        <AlertDialogHeader>
+                                                                            <AlertDialogTitle>v{v.version} Versiyonunu Silmek İstediğinize Emin misiniz?</AlertDialogTitle>
+                                                                            <AlertDialogDescription>
+                                                                                Bu işlem geri alınamaz. Bu teklif versiyonu kalıcı olarak silinecektir.
+                                                                            </AlertDialogDescription>
+                                                                        </AlertDialogHeader>
+                                                                        <AlertDialogFooter>
+                                                                            <AlertDialogCancel>İptal</AlertDialogCancel>
+                                                                            <AlertDialogAction onClick={() => handleDeleteProposal(v.id, group.rootProposalId, false)} className="bg-destructive hover:bg-destructive/90">
+                                                                                Evet, Sil
+                                                                            </AlertDialogAction>
+                                                                        </AlertDialogFooter>
+                                                                    </AlertDialogContent>
+                                                                </AlertDialog>
+
                                                             </div>
                                                         </TableCell>
                                                     </TableRow>
