@@ -16,6 +16,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -37,7 +38,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { PlusCircle, MoreHorizontal, Copy, Trash2, Loader2, Search, ChevronDown, Eye, AlertTriangle, FileText, DollarSign, Calculator, CheckSquare, X, FileSpreadsheet } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Copy, Trash2, Loader2, Search, ChevronDown, Eye, AlertTriangle, FileText, DollarSign, Calculator, CheckSquare, X, FileSpreadsheet, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Badge } from '@/components/ui/badge';
@@ -146,6 +147,7 @@ const StatCard = ({ title, value, icon, isLoading }: { title: string, value: str
     </Card>
 );
 
+const ITEMS_PER_PAGE = 20;
 
 export default function QuotesPage() {
   const router = useRouter();
@@ -160,6 +162,7 @@ export default function QuotesPage() {
   const [dateFilter, setDateFilter] = useState<'all' | 'last30days' | 'last90days'>('all');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
 
 
   const form = useForm<NewQuoteFormValues>({
@@ -181,6 +184,7 @@ export default function QuotesPage() {
 
   useEffect(() => {
     setSelectedIds(new Set());
+    setCurrentPage(1); // Reset page on filter change
   }, [statusFilter, dateFilter, searchTerm, sortOrder]);
 
 
@@ -253,6 +257,8 @@ export default function QuotesPage() {
 
 
   const filteredProposalGroups = useMemo(() => {
+    if (statusFilter !== 'All') return [];
+    
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30).getTime();
     const ninetyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 90).getTime();
@@ -268,10 +274,6 @@ export default function QuotesPage() {
             const proposalDate = g.latestProposal.createdAt.seconds * 1000;
             if (dateFilter === 'last30days' && proposalDate < thirtyDaysAgo) return false;
             if (dateFilter === 'last90days' && proposalDate < ninetyDaysAgo) return false;
-        }
-        
-        if (statusFilter !== 'All') {
-            return g.versions.some(v => v.status === statusFilter);
         }
 
         return true;
@@ -294,6 +296,25 @@ export default function QuotesPage() {
       averageAmount,
     };
   }, [filteredProposalGroups, flatFilteredProposals, statusFilter]);
+
+  // Pagination Logic
+  const paginatedGroups = useMemo(() => {
+      const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+      const endIndex = startIndex + ITEMS_PER_PAGE;
+      return filteredProposalGroups.slice(startIndex, endIndex);
+  }, [filteredProposalGroups, currentPage]);
+  
+  const paginatedFlatProposals = useMemo(() => {
+      const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+      const endIndex = startIndex + ITEMS_PER_PAGE;
+      return flatFilteredProposals.slice(startIndex, endIndex);
+  }, [flatFilteredProposals, currentPage]);
+
+  const totalPages = useMemo(() => {
+      const totalItems = statusFilter === 'All' ? filteredProposalGroups.length : flatFilteredProposals.length;
+      return Math.ceil(totalItems / ITEMS_PER_PAGE);
+  }, [filteredProposalGroups, flatFilteredProposals, statusFilter]);
+
 
   const handleCreateNewQuote = async (values: NewQuoteFormValues) => {
     if (!firestore) {
@@ -526,7 +547,7 @@ export default function QuotesPage() {
     };
 
     const currentListForSelection = statusFilter === 'All' ? filteredProposalGroups.flatMap(g => g.versions) : flatFilteredProposals;
-    const allVisibleSelected = currentListForSelection.length > 0 && selectedIds.size === currentListForSelection.length;
+    const allVisibleSelected = currentListForSelection.length > 0 && selectedIds.size >= currentListForSelection.length;
     const someVisibleSelected = selectedIds.size > 0 && !allVisibleSelected;
 
     const handleExportToCSV = () => {
@@ -573,6 +594,38 @@ export default function QuotesPage() {
             description: `${dataToExport.length} teklif CSV olarak dışa aktarıldı.`
         });
     };
+
+    const PaginationControls = () => {
+        if (totalPages <= 1) return null;
+
+        return (
+            <div className="flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">
+                    Sayfa {currentPage} / {totalPages}
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                    >
+                        <ChevronLeft className="h-4 w-4 mr-2" />
+                        Önceki
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                    >
+                        Sonraki
+                        <ChevronRight className="h-4 w-4 ml-2" />
+                    </Button>
+                </div>
+            </div>
+        );
+    }
 
 
   return (
@@ -787,6 +840,9 @@ export default function QuotesPage() {
                     </div>
                 </div>
             )}
+            <div className="border-b px-4 py-3">
+                 <PaginationControls />
+            </div>
             <div className="space-y-2">
                 {isLoadingProposals ? (
                      <div className="flex justify-center items-center h-24">
@@ -794,8 +850,8 @@ export default function QuotesPage() {
                      </div>
                 ) : statusFilter === 'All' ? (
                     // -------- GROUPED VIEW --------
-                    filteredProposalGroups.length > 0 ? (
-                        filteredProposalGroups.map((group) => {
+                    paginatedGroups.length > 0 ? (
+                        paginatedGroups.map((group) => {
                             const allVersionsInGroupSelected = group.versions.every(v => selectedIds.has(v.id));
                             const someVersionsInGroupSelected = group.versions.some(v => selectedIds.has(v.id)) && !allVersionsInGroupSelected;
 
@@ -988,8 +1044,8 @@ export default function QuotesPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                        {flatFilteredProposals.length > 0 ? (
-                            flatFilteredProposals.map(v => (
+                        {paginatedFlatProposals.length > 0 ? (
+                            paginatedFlatProposals.map(v => (
                                 <TableRow key={v.id} data-state={selectedIds.has(v.id) ? 'selected' : undefined}>
                                     <TableCell className="px-4">
                                         <Checkbox
@@ -1027,9 +1083,12 @@ export default function QuotesPage() {
                 )}
             </div>
         </CardContent>
+        {totalPages > 1 && (
+            <CardFooter>
+                 <PaginationControls />
+            </CardFooter>
+        )}
       </Card>
     </div>
   );
 }
-
-    
