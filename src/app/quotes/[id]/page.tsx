@@ -542,7 +542,7 @@ export default function QuoteDetailPage() {
   const handlePrint = () => {
     if (!proposal) return;
     const url = `/quotes/${proposalId}/print?customerId=${proposal.customerId}`;
-    router.push(url);
+    window.open(url, '_blank');
   };
 
   const isLoading = isLoadingProposal || isLoadingItems || isLoadingInstallationTypes;
