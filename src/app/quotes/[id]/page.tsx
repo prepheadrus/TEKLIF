@@ -265,7 +265,6 @@ export default function QuoteDetailPage() {
   const watchedRates = form.watch('exchangeRates');
 
   // --- Calculations ---
-  // This is now calculated directly on every render, triggered by form.watch()
   const calculatedTotals = calculateAllTotals(watchedItems, watchedRates);
   const VAT_RATE = 0.20;
 
@@ -614,9 +613,9 @@ export default function QuoteDetailPage() {
                                         <TableHead className="py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider w-[15%]">Marka</TableHead>
                                         <TableHead className="py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Miktar</TableHead>
                                         <TableHead className="py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Liste Fiyatı</TableHead>
-                                        <TableHead className="text-right py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider w-24">İskonto</TableHead>
-                                        <TableHead className="text-right py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Maliyet (Döviz)</TableHead>
-                                        <TableHead className="text-right py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider w-32">Kâr</TableHead>
+                                        <TableHead className="text-right py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">İskonto</TableHead>
+                                        <TableHead className="text-right py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Maliyet</TableHead>
+                                        <TableHead className="text-right py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Kâr (%/Tutar)</TableHead>
                                         <TableHead className="text-right py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Birim Fiyat (TL)</TableHead>
                                         <TableHead className="text-right py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Toplam (TL)</TableHead>
                                         <TableHead className="w-10 py-1 pr-4"></TableHead>
@@ -626,7 +625,6 @@ export default function QuoteDetailPage() {
                                         {fields.map((field, index) => {
                                         if (field.groupName !== groupName) return null;
                                         
-                                        // Use watchedItems for calculation to get real-time values
                                         const itemValues = watchedItems?.[index];
                                         if (!itemValues) return null;
                                         
@@ -643,24 +641,32 @@ export default function QuoteDetailPage() {
                                                  <TableCell className="py-1 w-[15%]">
                                                     <FormField control={form.control} name={`items.${index}.brand`} render={({ field }) => <Input {...field} className="w-full h-7 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
                                                 </TableCell>
-                                                <TableCell className="py-1 w-28">
+                                                <TableCell className="py-1">
                                                     <div className="flex items-center">
                                                         <FormField control={form.control} name={`items.${index}.quantity`} render={({ field }) => <Input {...field} type="number" step="any" className="w-16 font-mono text-right bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7" />} />
                                                         <FormField control={form.control} name={`items.${index}.unit`} render={({ field }) => <Input {...field} className="w-16 h-7 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="w-40 py-1 font-mono">
-                                                    <div className="flex items-center justify-start gap-2">
-                                                        <Badge variant="outline" className={cn(
-                                                            'py-0',
-                                                            itemValues.currency === 'USD' && 'bg-green-100 text-green-800 border-green-200',
-                                                            itemValues.currency === 'EUR' && 'bg-blue-100 text-blue-800 border-blue-200',
-                                                            itemValues.currency === 'TRY' && 'bg-slate-100 text-slate-800 border-slate-200',
-                                                        )}>{itemValues.currency}</Badge>
+                                                <TableCell className="py-1 font-mono">
+                                                    <div className="flex items-center justify-start gap-1">
+                                                        <FormField control={form.control} name={`items.${index}.currency`} render={({ field }) => (
+                                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                                <FormControl>
+                                                                    <SelectTrigger className="w-20 h-7 text-xs bg-transparent border-0 border-b-2 border-transparent focus:ring-0 focus:border-primary">
+                                                                        <SelectValue/>
+                                                                    </SelectTrigger>
+                                                                </FormControl>
+                                                                <SelectContent>
+                                                                    <SelectItem value="TRY">TRY</SelectItem>
+                                                                    <SelectItem value="USD">USD</SelectItem>
+                                                                    <SelectItem value="EUR">EUR</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        )} />
                                                         <FormField control={form.control} name={`items.${index}.listPrice`} render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7"/>} />
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="py-1 w-24">
+                                                <TableCell className="py-1">
                                                     <div className="flex items-center justify-end gap-1">
                                                         <Controller
                                                             control={form.control}
@@ -668,7 +674,7 @@ export default function QuoteDetailPage() {
                                                             render={({ field }) => (
                                                                 <Input 
                                                                     type="number"
-                                                                    value={Math.round(field.value * 100)}
+                                                                    value={field.value * 100}
                                                                     onChange={e => field.onChange(parseFloat(e.target.value) / 100)}
                                                                     className="w-16 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7" placeholder="15"/>
                                                             )}
@@ -677,23 +683,24 @@ export default function QuoteDetailPage() {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-right font-mono tabular-nums py-1">{formatNumber(itemTotals.cost)} {itemValues.currency}</TableCell>
-                                                <TableCell className="py-1 w-32 text-right">
-                                                    <div className="flex flex-col items-end">
+                                                <TableCell className="py-1 text-right">
+                                                    <div className="flex items-center justify-end gap-2">
                                                         <div className="flex items-center gap-1">
-                                                             <Controller
+                                                            <Controller
                                                                 control={form.control}
                                                                 name={`items.${index}.profitMargin`}
                                                                 render={({ field }) => (
                                                                     <Input
                                                                         type="number"
-                                                                        value={Math.round(field.value * 100)}
+                                                                        value={field.value * 100}
                                                                         onChange={e => field.onChange(parseFloat(e.target.value) / 100)}
-                                                                        className="w-16 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7" placeholder="20"/>
+                                                                        className="w-14 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7" placeholder="20"/>
                                                                 )}
                                                             />
                                                             <span className="text-slate-400">%</span>
                                                         </div>
-                                                        <span className="text-xs font-mono text-green-600 font-semibold tabular-nums">+{formatCurrency(itemTotals.totalProfit)}</span>
+                                                        <span className="text-slate-300">|</span>
+                                                        <span className="text-xs font-mono text-green-600 font-semibold tabular-nums w-20 text-left">+{formatCurrency(itemTotals.totalProfit)}</span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-right font-mono tabular-nums font-semibold text-slate-600 py-1">{formatCurrency(itemTotals.tlSellPrice)}</TableCell>
