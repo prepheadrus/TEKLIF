@@ -233,6 +233,8 @@ export default function QuotesPage() {
 
         const newProposalRef = doc(collection(firestore, 'proposals'));
         
+        const newRates = originalData.exchangeRates || await fetchExchangeRates();
+
         const newProposalData = {
             ...originalData,
             version: latestVersion + 1,
@@ -240,7 +242,7 @@ export default function QuotesPage() {
             createdAt: serverTimestamp(),
             versionNote: `Revizyon (v${originalData.version}'dan kopyalandı)`,
             totalAmount: originalData.totalAmount,
-            exchangeRates: originalData.exchangeRates || await fetchExchangeRates(), // Use existing rates first
+            exchangeRates: newRates,
         };
         batch.set(newProposalRef, newProposalData);
 
@@ -267,21 +269,15 @@ export default function QuotesPage() {
     try {
         const batch = writeBatch(firestore);
         if (isGroupDelete) {
-            // Delete all versions in the group
             const versionsQuery = query(collection(firestore, 'proposals'), where('rootProposalId', '==', rootId));
             const versionsSnap = await getDocs(versionsQuery);
             
-            // It's important to also delete subcollections if they exist.
             for (const versionDoc of versionsSnap.docs) {
-                // Delete the proposal document itself
                 batch.delete(versionDoc.ref);
-                // Optionally, delete subcollection items. This requires another query per document.
-                // For simplicity here, we assume subcollection deletion isn't needed or handled by backend functions.
             }
             await batch.commit();
             toast({ title: "Başarılı", description: "Teklif grubu ve tüm versiyonları silindi." });
         } else {
-            // Delete a single version
             const docRef = doc(firestore, 'proposals', idToDelete);
             await deleteDoc(docRef);
             toast({ title: "Başarılı", description: "Teklif versiyonu silindi." });
@@ -294,11 +290,15 @@ export default function QuotesPage() {
 };
 
   
-  const filteredProposalGroups = groupedProposals?.filter(g => 
-        g.latestProposal.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        g.latestProposal.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        g.latestProposal.quoteNumber.toLowerCase().includes(searchTerm.toLowerCase())
-  ) ?? [];
+  const filteredProposalGroups = useMemo(() => {
+      if (!groupedProposals) return [];
+      return groupedProposals.filter(g => 
+            g.latestProposal.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            g.latestProposal.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            g.latestProposal.quoteNumber.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+  }, [groupedProposals, searchTerm]);
+
 
   return (
     <>
@@ -568,3 +568,7 @@ export default function QuotesPage() {
     </>
   );
 }
+
+    
+
+    
