@@ -286,12 +286,8 @@ export default function QuoteDetailPage() {
 
   useEffect(() => {
     if (!proposal || !initialItems) return;
+    if (form.formState.isDirty) return;
     
-    // Check if form is already populated from a previous run to avoid overwriting user changes
-    const isFormPopulated = form.getValues('items').length > 0;
-    if(isFormPopulated && form.formState.isDirty) return;
-
-
     const newItems = initialItems.map(dbItem => ({
         ...dbItem,
         id: dbItem.id,
@@ -304,12 +300,12 @@ export default function QuoteDetailPage() {
       items: newItems,
       exchangeRates: proposal.exchangeRates || { USD: 32.5, EUR: 35.0 }
     });
-
-    if (!form.formState.isDirty && !initialFetchDone.current && proposal.exchangeRates) {
+    
+     if (!initialFetchDone.current && proposal.exchangeRates) {
         handleFetchRates();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [proposal, initialItems, form]);
+  }, [proposal, initialItems, form.reset]);
 
 
   useEffect(() => {
@@ -712,21 +708,21 @@ export default function QuoteDetailPage() {
                                         return (
                                             <TableRow key={field.formId} className="hover:bg-slate-50/50 group/row odd:bg-slate-50/50">
                                                 <TableCell className="py-1.5 pl-4 font-medium text-slate-800 w-[30%]">
-                                                    <FormField control={form.control} name={`items.${index}.name`} render={({ field }) => <Input {...field} className="w-full h-8 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
+                                                    <FormField control={form.control} name={`items.${index}.name`} render={({ field }) => <Input {...field} className="w-full h-7 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
                                                 </TableCell>
                                                  <TableCell className="py-1.5 w-[15%]">
-                                                    <FormField control={form.control} name={`items.${index}.brand`} render={({ field }) => <Input {...field} className="w-full h-8 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
+                                                    <FormField control={form.control} name={`items.${index}.brand`} render={({ field }) => <Input {...field} className="w-full h-7 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
                                                 </TableCell>
                                                 <TableCell className="py-1.5">
                                                     <div className="flex items-center">
-                                                        <FormField control={form.control} name={`items.${index}.quantity`} render={({ field }) => <Input {...field} type="number" step="any" className="w-16 font-mono text-right bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-8" />} />
-                                                        <FormField control={form.control} name={`items.${index}.unit`} render={({ field }) => <Input {...field} className="w-16 h-8 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
+                                                        <FormField control={form.control} name={`items.${index}.quantity`} render={({ field }) => <Input {...field} type="number" step="any" className="w-16 font-mono text-right bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7" />} />
+                                                        <FormField control={form.control} name={`items.${index}.unit`} render={({ field }) => <Input {...field} className="w-16 h-7 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="py-1.5 font-mono">
-                                                    <div className="flex items-center justify-start gap-2">
-                                                        <FormField control={form.control} name={`items.${index}.listPrice`} render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-8"/>} />
-                                                         <FormField control={form.control} name={`items.${index}.currency`} render={({ field: { onChange, value } }) => (
+                                                     <div className="flex items-center justify-start gap-2">
+                                                        <FormField control={form.control} name={`items.${index}.listPrice`} render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7"/>} />
+                                                        <Controller control={form.control} name={`items.${index}.currency`} render={({ field: { onChange, value } }) => (
                                                             <Badge
                                                                 onClick={() => onChange(currencyCycle[value])}
                                                                 variant={value === 'USD' ? 'secondary' : value === 'EUR' ? 'default' : 'outline'}
@@ -754,7 +750,7 @@ export default function QuoteDetailPage() {
                                                                         const numValue = parseFloat(e.target.value);
                                                                         field.onChange(isNaN(numValue) ? 0 : numValue / 100);
                                                                     }}
-                                                                    className="w-16 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-8"
+                                                                    className="w-16 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7"
                                                                     placeholder="0"
                                                                 />
                                                             )}
@@ -787,7 +783,7 @@ export default function QuoteDetailPage() {
                                                                             const numValue = parseFloat(e.target.value);
                                                                             field.onChange(isNaN(numValue) ? 0 : numValue / 100);
                                                                         }}
-                                                                        className="w-14 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-8"
+                                                                        className="w-14 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7"
                                                                         placeholder="20"
                                                                     />
                                                                 )}
