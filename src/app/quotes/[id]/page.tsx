@@ -38,7 +38,6 @@ import {
   Trash2,
   PlusCircle,
   Loader2,
-  Send,
   X,
   FileDown,
   Flame,
@@ -52,6 +51,7 @@ import {
   Box,
   ChevronDown,
   TrendingUp,
+  Check,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -743,7 +743,7 @@ export default function QuoteDetailPage() {
                                                             render={({ field }) => (
                                                                 <Input 
                                                                     type="number"
-                                                                    value={(field.value || 0) * 100}
+                                                                    value={field.value !== undefined ? (field.value * 100) : ''}
                                                                     onChange={(e) => {
                                                                         const numValue = parseFloat(e.target.value);
                                                                         field.onChange(isNaN(numValue) ? 0 : numValue / 100);
@@ -776,7 +776,7 @@ export default function QuoteDetailPage() {
                                                                 render={({ field }) => (
                                                                     <Input
                                                                         type="number"
-                                                                        value={field.value ? (field.value * 100) : ''}
+                                                                        value={field.value !== undefined ? (field.value * 100) : ''}
                                                                         onChange={(e) => {
                                                                             const numValue = parseFloat(e.target.value);
                                                                             field.onChange(isNaN(numValue) ? 0 : numValue / 100);
@@ -859,9 +859,9 @@ export default function QuoteDetailPage() {
       </main>
 
        <div className="sticky bottom-0 left-0 right-0 z-20">
-          <div className="bg-white/80 backdrop-blur-md shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.05)] rounded-t-2xl max-w-7xl mx-auto px-8 py-4 flex justify-between items-center gap-x-8">
+          <div className="bg-white/80 backdrop-blur-md shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.05)] rounded-t-2xl max-w-7xl mx-auto px-6 py-3 flex justify-between items-center gap-x-8">
                 {/* Sol Taraf: Finansal Özet */}
-                <div className="flex items-end gap-x-6">
+                <div className="flex-1 flex items-end gap-x-6">
                      {!includeVAT ? (
                         <div>
                             <p className="text-sm font-semibold text-blue-600">Genel Toplam (KDV Hariç)</p>
@@ -870,15 +870,15 @@ export default function QuoteDetailPage() {
                     ) : (
                         <>
                             <div>
-                                <p className="text-sm text-slate-500">Ara Toplam</p>
-                                <p className="font-mono text-2xl font-bold text-slate-800">{formatCurrency(calculatedTotals.grandTotalSellExVAT)}</p>
+                                <p className="text-xs text-slate-500">Ara Toplam</p>
+                                <p className="font-mono text-xl font-bold text-slate-800">{formatCurrency(calculatedTotals.grandTotalSellExVAT)}</p>
                             </div>
-                            <div className="text-2xl text-slate-400">+</div>
+                            <div className="text-xl text-slate-400">+</div>
                             <div>
-                                <p className="text-sm text-slate-500">Toplam KDV (%{new Intl.NumberFormat('tr-TR').format(0.20 * 100)})</p>
-                                <p className="font-mono text-2xl font-bold text-slate-800">{formatCurrency(calculatedTotals.vatAmount)}</p>
+                                <p className="text-xs text-slate-500">Toplam KDV (%{new Intl.NumberFormat('tr-TR').format(0.20 * 100)})</p>
+                                <p className="font-mono text-xl font-bold text-slate-800">{formatCurrency(calculatedTotals.vatAmount)}</p>
                             </div>
-                             <div className="text-2xl text-slate-400">=</div>
+                             <div className="text-xl text-slate-400">=</div>
                             <div>
                                 <p className="text-sm font-semibold text-blue-600">Genel Toplam</p>
                                 <p className="font-mono text-4xl font-extrabold text-blue-700">{formatCurrency(calculatedTotals.grandTotalSellWithVAT)}</p>
@@ -916,9 +916,9 @@ export default function QuoteDetailPage() {
                             <FileDown className="mr-2 h-4 w-4" /> PDF
                         </Button>
                     </div>
-                    <Button onClick={form.handleSubmit(handleSaveChanges)} disabled={isSaving} size="lg" className="rounded-full h-16 w-48 text-base">
-                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                        Değişiklikleri Kaydet
+                    <Button onClick={form.handleSubmit(handleSaveChanges)} disabled={isSaving} size="lg" className="rounded-full h-14 w-44 text-base">
+                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-5 w-5" />}
+                        Kaydet
                     </Button>
                 </div>
           </div>
