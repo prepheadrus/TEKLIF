@@ -77,6 +77,9 @@
     margin: 0;
     padding: 0;
   }
+  .print-hidden {
+    display: none !important;
+  }
   @page {
     size: A4;
     margin: 0;
