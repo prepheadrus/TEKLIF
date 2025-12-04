@@ -359,29 +359,55 @@ export default function QuotesPage() {
     const ninetyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 90).getTime();
 
     return groupedProposals.filter(g => {
-      // Search term filter (on customer, project, or quote number)
       const searchMatch = 
           g.latestProposal.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
           g.latestProposal.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
           g.latestProposal.quoteNumber.toLowerCase().includes(searchTerm.toLowerCase());
       if (!searchMatch) return false;
 
-      // Date filter (on the latest proposal in the group)
       if (dateFilter !== 'all' && g.latestProposal.createdAt) {
           const proposalDate = g.latestProposal.createdAt.seconds * 1000;
           if (dateFilter === 'last30days' && proposalDate < thirtyDaysAgo) return false;
           if (dateFilter === 'last90days' && proposalDate < ninetyDaysAgo) return false;
       }
-
-      // Status filter (checks if *any* version in the group matches the filter)
+      
       if (statusFilter !== 'All') {
           const hasMatchingStatus = g.versions.some(v => v.status === statusFilter);
           if (!hasMatchingStatus) return false;
       }
       
-      return true; // If all filters pass
+      return true;
     });
   }, [groupedProposals, searchTerm, statusFilter, dateFilter]);
+
+  const flatFilteredProposals = useMemo(() => {
+    if (!proposals || statusFilter === 'All') return [];
+    
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30).getTime();
+    const ninetyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 90).getTime();
+
+    return proposals.filter(p => {
+        const searchMatch = 
+            p.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            p.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            p.quoteNumber.toLowerCase().includes(searchTerm.toLowerCase());
+        if (!searchMatch) return false;
+
+        if (dateFilter !== 'all' && p.createdAt) {
+            const proposalDate = p.createdAt.seconds * 1000;
+            if (dateFilter === 'last30days' && proposalDate < thirtyDaysAgo) return false;
+            if (dateFilter === 'last90days' && proposalDate < ninetyDaysAgo) return false;
+        }
+        
+        return p.status === statusFilter;
+    }).sort((a, b) => {
+        const timeA = a.createdAt?.seconds ?? 0;
+        const timeB = b.createdAt?.seconds ?? 0;
+        return sortOrder === 'newest' ? timeB - timeA : timeA - timeB;
+    });
+  }, [proposals, searchTerm, statusFilter, dateFilter, sortOrder]);
+
 
   return (
     <>
@@ -465,7 +491,9 @@ export default function QuotesPage() {
       <Card>
         <CardHeader>
           <CardTitle>Teklifler</CardTitle>
-          <CardDescription>Tüm tekliflerinizin listesi.</CardDescription>
+          <CardDescription>
+            {statusFilter === 'All' ? 'Tüm teklifleriniz gruplanmış halde listelenir.' : `'${statusFilterOptions.find(o => o.value === statusFilter)?.label}' durumundaki teklifler listeleniyor.`}
+          </CardDescription>
            <div className="pt-4 space-y-4">
                 <div className="relative">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -523,152 +551,200 @@ export default function QuotesPage() {
                      <div className="flex justify-center items-center h-24">
                         <Loader2 className="h-6 w-6 animate-spin" />
                      </div>
-                ) : filteredProposalGroups.length > 0 ? (
-                    filteredProposalGroups.map((group) => (
-                        <Collapsible key={group.rootProposalId} asChild>
-                            <Card className="rounded-none shadow-none border-x-0 border-t-0 last:border-b-0">
-                                <div className="flex items-center justify-between p-3">
-                                    <div className="grid grid-cols-6 gap-4 flex-1 items-center">
-                                        <div className="font-semibold">{group.latestProposal.quoteNumber}</div>
-                                        <div className="col-span-2 text-muted-foreground">{group.latestProposal.customerName}</div>
-                                        <div className="col-span-2 font-medium">{group.latestProposal.projectName}</div>
-                                        <div className="font-semibold text-right">{formatCurrency(group.latestProposal.totalAmount)}</div>
-                                    </div>
-                                    <div className="flex items-center gap-2 pl-6">
-                                        {getStatusBadge(group.latestProposal.status)}
-                                        <Badge variant="secondary">
-                                            <Copy className="mr-2 h-3 w-3"/>
-                                            {group.versions.length} Revizyon
-                                        </Badge>
-                                        <Button variant="outline" size="sm" onClick={() => router.push(`/quotes/${group.latestProposal.id}`)}>
-                                            <Eye className="mr-2 h-4 w-4" />
-                                            Görüntüle
-                                        </Button>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" className="h-8 w-8 p-0" disabled={isRevising === group.rootProposalId}>
-                                                    {isRevising === group.rootProposalId ? <Loader2 className="h-4 w-4 animate-spin"/> : <MoreHorizontal className="h-4 w-4" />}
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuLabel>İşlemler</DropdownMenuLabel>
-                                                <DropdownMenuItem onClick={() => handleDuplicateProposal(group.latestProposal)} disabled={isRevising === group.rootProposalId}>
-                                                    <Copy className="mr-2 h-4 w-4" />
-                                                    Yeni Revizyon Oluştur
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                 <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600 focus:bg-red-100 focus:text-red-700">
-                                                            <AlertTriangle className="mr-2 h-4 w-4" />
-                                                            Teklif Grubunu Sil
-                                                        </DropdownMenuItem>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>Tüm Teklif Grubunu Silmek Üzeresiniz!</AlertDialogTitle>
-                                                            <AlertDialogDescription>
-                                                                Bu işlem geri alınamaz. "{group.latestProposal.projectName}" projesine ait <strong>tüm {group.versions.length} versiyon</strong> kalıcı olarak silinecektir. Emin misiniz?
-                                                            </AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>İptal</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => handleDeleteProposal(group.latestProposal.id, group.rootProposalId, true)} className="bg-destructive hover:bg-destructive/90">
-                                                                Evet, Hepsini Sil
-                                                            </AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                        <CollapsibleTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                ) : statusFilter === 'All' ? (
+                    // -------- GROUPED VIEW --------
+                    filteredProposalGroups.length > 0 ? (
+                        filteredProposalGroups.map((group) => (
+                            <Collapsible key={group.rootProposalId} asChild>
+                                <Card className="rounded-none shadow-none border-x-0 border-t-0 last:border-b-0">
+                                    <div className="flex items-center justify-between p-3">
+                                        <div className="grid grid-cols-6 gap-4 flex-1 items-center">
+                                            <div className="font-semibold">{group.latestProposal.quoteNumber}</div>
+                                            <div className="col-span-2 text-muted-foreground">{group.latestProposal.customerName}</div>
+                                            <div className="col-span-2 font-medium">{group.latestProposal.projectName}</div>
+                                            <div className="font-semibold text-right">{formatCurrency(group.latestProposal.totalAmount)}</div>
+                                        </div>
+                                        <div className="flex items-center gap-2 pl-6">
+                                            {getStatusBadge(group.latestProposal.status)}
+                                            <Badge variant="secondary">
+                                                <Copy className="mr-2 h-3 w-3"/>
+                                                {group.versions.length} Revizyon
+                                            </Badge>
+                                            <Button variant="outline" size="sm" onClick={() => router.push(`/quotes/${group.latestProposal.id}`)}>
+                                                <Eye className="mr-2 h-4 w-4" />
+                                                Görüntüle
                                             </Button>
-                                        </CollapsibleTrigger>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" className="h-8 w-8 p-0" disabled={isRevising === group.rootProposalId}>
+                                                        {isRevising === group.rootProposalId ? <Loader2 className="h-4 w-4 animate-spin"/> : <MoreHorizontal className="h-4 w-4" />}
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuLabel>İşlemler</DropdownMenuLabel>
+                                                    <DropdownMenuItem onClick={() => handleDuplicateProposal(group.latestProposal)} disabled={isRevising === group.rootProposalId}>
+                                                        <Copy className="mr-2 h-4 w-4" />
+                                                        Yeni Revizyon Oluştur
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                     <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600 focus:bg-red-100 focus:text-red-700">
+                                                                <AlertTriangle className="mr-2 h-4 w-4" />
+                                                                Teklif Grubunu Sil
+                                                            </DropdownMenuItem>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>Tüm Teklif Grubunu Silmek Üzeresiniz!</AlertDialogTitle>
+                                                                <AlertDialogDescription>
+                                                                    Bu işlem geri alınamaz. "{group.latestProposal.projectName}" projesine ait <strong>tüm {group.versions.length} versiyon</strong> kalıcı olarak silinecektir. Emin misiniz?
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>İptal</AlertDialogCancel>
+                                                                <AlertDialogAction onClick={() => handleDeleteProposal(group.latestProposal.id, group.rootProposalId, true)} className="bg-destructive hover:bg-destructive/90">
+                                                                    Evet, Hepsini Sil
+                                                                </AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                            <CollapsibleTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                    <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                                                </Button>
+                                            </CollapsibleTrigger>
+                                        </div>
                                     </div>
-                                </div>
-                                <CollapsibleContent>
-                                    <div className="bg-slate-50 border-t p-2">
-                                         <Table size="sm">
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead className="py-1">Versiyon</TableHead>
-                                                    <TableHead className="py-1">Tutar</TableHead>
-                                                    <TableHead className="py-1">Durum</TableHead>
-                                                    <TableHead className="py-1">Tarih</TableHead>
-                                                    <TableHead className="w-[40%] py-1">Not</TableHead>
-                                                    <TableHead className="text-right py-1">İşlemler</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {group.versions.map(v => (
-                                                    <TableRow key={v.id} className={cn("h-auto", v.id === group.latestProposal.id && "bg-blue-50/50")}>
-                                                        <TableCell className="py-1.5"><Badge variant={v.id === group.latestProposal.id ? "default" : "secondary"}>v{v.version}</Badge></TableCell>
-                                                        <TableCell className="py-1.5">{formatCurrency(v.totalAmount)}</TableCell>
-                                                        <TableCell className="py-1.5">
-                                                            <Select onValueChange={(newStatus: Proposal['status']) => handleStatusChange(v.id, newStatus)} defaultValue={v.status}>
-                                                                <SelectTrigger className={cn("h-auto w-[120px] border-0 bg-transparent focus:ring-0", 
-                                                                    v.status === 'Approved' && 'text-green-700',
-                                                                    v.status === 'Rejected' && 'text-red-700',
-                                                                    v.status === 'Sent' && 'text-blue-700',
-                                                                    )}>
-                                                                    <SelectValue />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {statusOptions.map(opt => (
-                                                                        <SelectItem key={opt.value} value={opt.value}>
-                                                                            {opt.label}
-                                                                        </SelectItem>
-                                                                    ))}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </TableCell>
-                                                        <TableCell className="py-1.5">{formatDate(v.createdAt)}</TableCell>
-                                                        <TableCell className="text-muted-foreground text-xs py-1.5">{v.versionNote}</TableCell>
-                                                        <TableCell className="text-right py-1.5">
-                                                            <div className="flex items-center justify-end gap-1">
-                                                                <Button variant="ghost" size="sm" onClick={() => router.push(`/quotes/${v.id}`)}>Görüntüle</Button>
-                                                                <Button variant="ghost" size="sm" onClick={() => router.push(`/quotes/${v.id}/print?customerId=${v.customerId}`)}>Yazdır</Button>
-                                                                <Button variant="outline" size="sm" onClick={() => handleDuplicateProposal(v)} disabled={isRevising === group.rootProposalId}><Copy className="mr-2 h-3 w-3"/>Revize Et</Button>
-                                                                
-                                                                <AlertDialog>
-                                                                    <AlertDialogTrigger asChild>
-                                                                        <Button variant="destructive" size="sm" disabled={group.versions.length <= 1}>
-                                                                            <Trash2 className="mr-2 h-3 w-3" /> Sil
-                                                                        </Button>
-                                                                    </AlertDialogTrigger>
-                                                                    <AlertDialogContent>
-                                                                        <AlertDialogHeader>
-                                                                            <AlertDialogTitle>v{v.version} Versiyonunu Silmek İstediğinize Emin misiniz?</AlertDialogTitle>
-                                                                            <AlertDialogDescription>
-                                                                                Bu işlem geri alınamaz. Bu teklif versiyonu kalıcı olarak silinecektir.
-                                                                            </AlertDialogDescription>
-                                                                        </AlertDialogHeader>
-                                                                        <AlertDialogFooter>
-                                                                            <AlertDialogCancel>İptal</AlertDialogCancel>
-                                                                            <AlertDialogAction onClick={() => handleDeleteProposal(v.id, group.rootProposalId, false)} className="bg-destructive hover:bg-destructive/90">
-                                                                                Evet, Sil
-                                                                            </AlertDialogAction>
-                                                                        </AlertDialogFooter>
-                                                                    </AlertDialogContent>
-                                                                </AlertDialog>
-
-                                                            </div>
-                                                        </TableCell>
+                                    <CollapsibleContent>
+                                        <div className="bg-slate-50 border-t p-2">
+                                             <Table size="sm">
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead className="py-1">Versiyon</TableHead>
+                                                        <TableHead className="py-1">Tutar</TableHead>
+                                                        <TableHead className="py-1">Durum</TableHead>
+                                                        <TableHead className="py-1">Tarih</TableHead>
+                                                        <TableHead className="w-[40%] py-1">Not</TableHead>
+                                                        <TableHead className="text-right py-1">İşlemler</TableHead>
                                                     </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
-                                </CollapsibleContent>
-                            </Card>
-                        </Collapsible>
-                    ))
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {group.versions.map(v => (
+                                                        <TableRow key={v.id} className={cn("h-auto", v.id === group.latestProposal.id && "bg-blue-50/50")}>
+                                                            <TableCell className="py-1.5"><Badge variant={v.id === group.latestProposal.id ? "default" : "secondary"}>v{v.version}</Badge></TableCell>
+                                                            <TableCell className="py-1.5">{formatCurrency(v.totalAmount)}</TableCell>
+                                                            <TableCell className="py-1.5">
+                                                                <Select onValueChange={(newStatus: Proposal['status']) => handleStatusChange(v.id, newStatus)} defaultValue={v.status}>
+                                                                    <SelectTrigger className={cn("h-auto w-[120px] border-0 bg-transparent focus:ring-0", 
+                                                                        v.status === 'Approved' && 'text-green-700',
+                                                                        v.status === 'Rejected' && 'text-red-700',
+                                                                        v.status === 'Sent' && 'text-blue-700',
+                                                                        )}>
+                                                                        <SelectValue />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        {statusOptions.map(opt => (
+                                                                            <SelectItem key={opt.value} value={opt.value}>
+                                                                                {opt.label}
+                                                                            </SelectItem>
+                                                                        ))}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </TableCell>
+                                                            <TableCell className="py-1.5">{formatDate(v.createdAt)}</TableCell>
+                                                            <TableCell className="text-muted-foreground text-xs py-1.5">{v.versionNote}</TableCell>
+                                                            <TableCell className="text-right py-1.5">
+                                                                <div className="flex items-center justify-end gap-1">
+                                                                    <Button variant="ghost" size="sm" onClick={() => router.push(`/quotes/${v.id}`)}>Görüntüle</Button>
+                                                                    <Button variant="ghost" size="sm" onClick={() => router.push(`/quotes/${v.id}/print?customerId=${v.customerId}`)}>Yazdır</Button>
+                                                                    <Button variant="outline" size="sm" onClick={() => handleDuplicateProposal(v)} disabled={isRevising === group.rootProposalId}><Copy className="mr-2 h-3 w-3"/>Revize Et</Button>
+                                                                    
+                                                                    <AlertDialog>
+                                                                        <AlertDialogTrigger asChild>
+                                                                            <Button variant="destructive" size="sm" disabled={group.versions.length <= 1}>
+                                                                                <Trash2 className="mr-2 h-3 w-3" /> Sil
+                                                                            </Button>
+                                                                        </AlertDialogTrigger>
+                                                                        <AlertDialogContent>
+                                                                            <AlertDialogHeader>
+                                                                                <AlertDialogTitle>v{v.version} Versiyonunu Silmek İstediğinize Emin misiniz?</AlertDialogTitle>
+                                                                                <AlertDialogDescription>
+                                                                                    Bu işlem geri alınamaz. Bu teklif versiyonu kalıcı olarak silinecektir.
+                                                                                </AlertDialogDescription>
+                                                                            </AlertDialogHeader>
+                                                                            <AlertDialogFooter>
+                                                                                <AlertDialogCancel>İptal</AlertDialogCancel>
+                                                                                <AlertDialogAction onClick={() => handleDeleteProposal(v.id, group.rootProposalId, false)} className="bg-destructive hover:bg-destructive/90">
+                                                                                    Evet, Sil
+                                                                                </AlertDialogAction>
+                                                                            </AlertDialogFooter>
+                                                                        </AlertDialogContent>
+                                                                    </AlertDialog>
+
+                                                                </div>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </CollapsibleContent>
+                                </Card>
+                            </Collapsible>
+                        ))
+                    ) : (
+                        <div className="text-center text-muted-foreground p-12">
+                           Henüz teklif bulunmuyor veya aramanızla eşleşen sonuç yok.
+                        </div>
+                    )
                 ) : (
-                    <div className="text-center text-muted-foreground p-12">
-                        Henüz teklif bulunmuyor veya aramanızla eşleşen sonuç yok.
-                    </div>
+                    // -------- FLAT LIST VIEW --------
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Teklif No</TableHead>
+                                <TableHead>Müşteri</TableHead>
+                                <TableHead>Proje</TableHead>
+                                <TableHead>Versiyon</TableHead>
+                                <TableHead>Durum</TableHead>
+                                <TableHead className="text-right">Tutar</TableHead>
+                                <TableHead className="text-right">İşlemler</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {flatFilteredProposals.length > 0 ? (
+                            flatFilteredProposals.map(v => (
+                                <TableRow key={v.id}>
+                                    <TableCell className="font-medium">{v.quoteNumber}</TableCell>
+                                    <TableCell className="text-muted-foreground">{v.customerName}</TableCell>
+                                    <TableCell>{v.projectName}</TableCell>
+                                    <TableCell><Badge variant="secondary">v{v.version}</Badge></TableCell>
+                                    <TableCell>{getStatusBadge(v.status)}</TableCell>
+                                    <TableCell className="text-right font-semibold">{formatCurrency(v.totalAmount)}</TableCell>
+                                    <TableCell className="text-right">
+                                        <div className="flex items-center justify-end gap-1">
+                                            <Button variant="outline" size="sm" onClick={() => router.push(`/quotes/${v.id}`)}>
+                                                <Eye className="mr-2 h-4 w-4" /> Görüntüle
+                                            </Button>
+                                            <Button variant="secondary" size="sm" onClick={() => handleDuplicateProposal(v)} disabled={isRevising === v.rootProposalId}>
+                                                <Copy className="mr-2 h-3 w-3"/> Revize Et
+                                            </Button>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                             <TableRow>
+                                <TableCell colSpan={7} className="text-center text-muted-foreground p-12">
+                                    Bu filtrelerle eşleşen teklif bulunamadı.
+                                </TableCell>
+                            </TableRow>
+                        )}
+                        </TableBody>
+                    </Table>
                 )}
             </div>
         </CardContent>
