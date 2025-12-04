@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -231,16 +232,14 @@ export default function QuotesPage() {
         const batch = writeBatch(firestore);
 
         const newProposalRef = doc(collection(firestore, 'proposals'));
-        // Önemli Değişiklik: Revizyonu, yeni kur çekmeden, mevcut kurla oluştur.
-        // Kur güncelleme işlemi detay sayfasında ayrıca yapılır.
         const newProposalData = {
             ...originalData,
             version: latestVersion + 1,
             status: 'Draft' as const,
             createdAt: serverTimestamp(),
             versionNote: `Revizyon (v${originalData.version}'dan kopyalandı)`,
-            totalAmount: originalData.totalAmount, // Tutarı koru
-            exchangeRates: originalData.exchangeRates, // Mevcut kurları koru
+            totalAmount: originalData.totalAmount,
+            exchangeRates: originalData.exchangeRates,
         };
         batch.set(newProposalRef, newProposalData);
 
@@ -411,8 +410,7 @@ export default function QuotesPage() {
                 </TableRow>
               ) : filteredProposalGroups && filteredProposalGroups.length > 0 ? (
                 filteredProposalGroups.map((group) => (
-                    <Collapsible key={group.rootProposalId} asChild onOpenChange={(isOpen) => setOpenCollapsibles(prev => ({...prev, [group.rootProposalId]: isOpen}))}>
-                      <>
+                    <Collapsible key={group.rootProposalId} onOpenChange={(isOpen) => setOpenCollapsibles(prev => ({...prev, [group.rootProposalId]: isOpen}))}>
                         <TableRow className="font-medium bg-slate-50 hover:bg-slate-100 data-[state=open]:bg-slate-100">
                             <TableCell>
                                 <CollapsibleTrigger asChild>
@@ -545,7 +543,6 @@ export default function QuotesPage() {
                                 </TableCell>
                             </TableRow>
                         </CollapsibleContent>
-                      </>
                     </Collapsible>
                 ))
               ) : (
