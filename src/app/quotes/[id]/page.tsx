@@ -285,8 +285,7 @@ export default function QuoteDetailPage() {
   }, []);
 
   useEffect(() => {
-    if (!proposal || !initialItems) return;
-    if (form.formState.isDirty) return;
+    if (initialFetchDone.current || !proposal || !initialItems) return;
     
     const newItems = initialItems.map(dbItem => ({
         ...dbItem,
@@ -301,8 +300,9 @@ export default function QuoteDetailPage() {
       exchangeRates: proposal.exchangeRates || { USD: 32.5, EUR: 35.0 }
     });
     
-     if (!initialFetchDone.current && proposal.exchangeRates) {
+     if (proposal.exchangeRates) {
         handleFetchRates();
+        initialFetchDone.current = true;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proposal, initialItems, form.reset]);
@@ -518,8 +518,6 @@ export default function QuoteDetailPage() {
   };
   
   const handleFetchRates = async () => {
-    if (initialFetchDone.current) return;
-    initialFetchDone.current = true;
     setIsFetchingRates(true);
     toast({ title: 'Kurlar alınıyor...', description: 'TCMB verileri çekiliyor.' });
     try {
@@ -778,7 +776,7 @@ export default function QuoteDetailPage() {
                                                                 render={({ field }) => (
                                                                     <Input
                                                                         type="number"
-                                                                        value={(field.value || 0) * 100}
+                                                                        value={field.value ? (field.value * 100) : ''}
                                                                         onChange={(e) => {
                                                                             const numValue = parseFloat(e.target.value);
                                                                             field.onChange(isNaN(numValue) ? 0 : numValue / 100);
