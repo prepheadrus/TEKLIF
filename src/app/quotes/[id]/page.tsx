@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -199,8 +200,6 @@ export default function QuoteDetailPage() {
     keyName: "formId"
   });
   
-  // This is the crucial part: watch the entire 'items' array for changes.
-  const watchedItems = form.watch('items');
   const watchedRates = form.watch('exchangeRates');
   const VAT_RATE = 0.20;
 
@@ -240,7 +239,7 @@ export default function QuoteDetailPage() {
   }, [editingGroupName]);
 
   // --- Calculations ---
-    const calculatedTotals = useMemo(() => {
+  const calculatedTotals = useMemo(() => {
     const initialTotals = {
         grandTotalSellExVAT: 0,
         grandTotalCost: 0,
@@ -251,16 +250,17 @@ export default function QuoteDetailPage() {
         }>
     };
 
-    const totals = watchedItems.reduce((acc, item) => {
+    const totals = fields.reduce((acc, item, index) => {
+        const itemData = form.getValues(`items.${index}`);
         const itemTotals = calculateItemTotals({
-            ...item,
-            exchangeRate: item.currency === 'USD' ? watchedRates.USD : item.currency === 'EUR' ? watchedRates.EUR : 1,
+            ...itemData,
+            exchangeRate: itemData.currency === 'USD' ? watchedRates.USD : itemData.currency === 'EUR' ? watchedRates.EUR : 1,
         });
         
         acc.grandTotalSellExVAT += itemTotals.totalTlSell;
         acc.grandTotalCost += itemTotals.totalTlCost;
 
-        const groupName = item.groupName || 'Diğer';
+        const groupName = itemData.groupName || 'Diğer';
         if (!acc.groupTotals[groupName]) {
             acc.groupTotals[groupName] = { 
                 totalSellInTRY: 0,
@@ -269,45 +269,41 @@ export default function QuoteDetailPage() {
             };
         }
         
-        const itemOriginalTotal = itemTotals.originalSellPrice * item.quantity;
+        const itemOriginalTotal = itemTotals.originalSellPrice * itemData.quantity;
         
         acc.groupTotals[groupName].totalSellInTRY += itemTotals.totalTlSell;
         acc.groupTotals[groupName].totalCostInTRY += itemTotals.totalTlCost;
-        acc.groupTotals[groupName].totalsByCurrency[item.currency] += itemOriginalTotal;
+        acc.groupTotals[groupName].totalsByCurrency[itemData.currency] += itemOriginalTotal;
         
         return acc;
     }, initialTotals);
         
-        const grandTotalProfit = totals.grandTotalSellExVAT - totals.grandTotalCost;
-        const grandTotalProfitMargin = totals.grandTotalSellExVAT > 0 ? grandTotalProfit / totals.grandTotalSellExVAT : 0;
-        const vatAmount = totals.grandTotalSellExVAT * VAT_RATE;
-        const grandTotalSellWithVAT = totals.grandTotalSellExVAT + vatAmount;
+    const grandTotalProfit = totals.grandTotalSellExVAT - totals.grandTotalCost;
+    const grandTotalProfitMargin = totals.grandTotalSellExVAT > 0 ? grandTotalProfit / totals.grandTotalSellExVAT : 0;
+    const vatAmount = totals.grandTotalSellExVAT * VAT_RATE;
+    const grandTotalSellWithVAT = totals.grandTotalSellExVAT + vatAmount;
 
-        return { 
-            groupTotals: totals.groupTotals, 
-            grandTotalSellExVAT: totals.grandTotalSellExVAT,
-            grandTotalSellWithVAT,
-            vatAmount,
-            grandTotalCost: totals.grandTotalCost,
-            grandTotalProfit,
-            grandTotalProfitMargin
-        };
-    }, [watchedItems, watchedRates]);
+    return { 
+        groupTotals: totals.groupTotals, 
+        grandTotalSellExVAT: totals.grandTotalSellExVAT,
+        grandTotalSellWithVAT,
+        vatAmount,
+        grandTotalCost: totals.grandTotalCost,
+        grandTotalProfit,
+        grandTotalProfitMargin
+    };
+  }, [fields, watchedRates, form]);
 
 
   const allGroups = useMemo(() => {
-    const itemGroups = watchedItems.reduce((acc, item, index) => {
+    const itemGroups = fields.reduce((acc, item, index) => {
         const groupName = item.groupName || 'Diğer';
         if (!acc[groupName]) {
             acc[groupName] = [];
         }
-        // Use the index to find the correct field from useFieldArray's `fields`
-        const fieldItem = fields[index];
-        if (fieldItem) {
-            acc[groupName].push({ ...item, formId: fieldItem.formId });
-        }
+        acc[groupName].push({ ...item, originalIndex: index });
         return acc;
-    }, {} as Record<string, (ProposalItem & {formId: string})[]>);
+    }, {} as Record<string, (ProposalItem & {formId: string, originalIndex: number})[]>);
 
 
     emptyGroups.forEach(groupName => {
@@ -322,14 +318,12 @@ export default function QuoteDetailPage() {
       return a.localeCompare(b);
     });
 
-  }, [watchedItems, fields, emptyGroups]);
+  }, [fields, emptyGroups]);
   
   // --- Event Handlers ---
    const handleProductsSelected = (selectedProducts: ProductType[]) => {
     const currentItems = form.getValues('items');
-    let hasAddedNewProduct = false;
-    let firstNewProductName = '';
-     
+    
     selectedProducts.forEach(product => {
       let groupName = targetGroupForProductAdd || 'Diğer';
       if (!targetGroupForProductAdd && product.installationTypeId && installationTypes) {
@@ -346,21 +340,17 @@ export default function QuoteDetailPage() {
           groupName = parent?.name || 'Diğer';
       }
 
-      const existingItemIndex = currentItems.findIndex(
-          item => item.productId === product.id && item.groupName === groupName
+      const existingItemIndex = fields.findIndex(
+          field => field.productId === product.id && field.groupName === groupName
       );
 
       if (existingItemIndex !== -1) {
-          const existingItem = currentItems[existingItemIndex];
+          const existingItem = form.getValues(`items.${existingItemIndex}`);
           update(existingItemIndex, {
               ...existingItem,
               quantity: (existingItem.quantity || 0) + 1,
           });
       } else {
-          if (!hasAddedNewProduct) {
-              hasAddedNewProduct = true;
-              firstNewProductName = product.name;
-          }
           const newItem: ProposalItem = {
               productId: product.id,
               name: product.name,
@@ -624,9 +614,9 @@ export default function QuoteDetailPage() {
                                     </TableHeader>
                                     <TableBody className="text-sm divide-y divide-slate-100">
                                         {itemsInGroup.map((item) => {
-                                        const originalIndex = fields.findIndex(f => f.formId === item.formId);
+                                        const { originalIndex } = item;
                                         if (originalIndex === -1) return null;
-                                        const itemValues = watchedItems[originalIndex];
+                                        const itemValues = form.getValues(`items.${originalIndex}`);
                                         if (!itemValues) return null;
                                         
                                         const itemTotals = calculateItemTotals({
