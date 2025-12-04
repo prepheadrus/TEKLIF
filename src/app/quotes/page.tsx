@@ -290,11 +290,11 @@ export default function QuotesPage() {
     }
   }
   
-  const filteredProposalGroups = groupedProposals.filter(g => 
+  const filteredProposalGroups = groupedProposals?.filter(g => 
         g.latestProposal.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         g.latestProposal.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         g.latestProposal.quoteNumber.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ) ?? [];
 
   return (
     <>
@@ -413,7 +413,8 @@ export default function QuotesPage() {
                 </TableRow>
               ) : filteredProposalGroups && filteredProposalGroups.length > 0 ? (
                 filteredProposalGroups.map((group) => (
-                    <Collapsible key={group.rootProposalId} onOpenChange={(isOpen) => setOpenCollapsibles(prev => ({...prev, [group.rootProposalId]: isOpen}))}>
+                    <Collapsible key={group.rootProposalId} asChild onOpenChange={(isOpen) => setOpenCollapsibles(prev => ({...prev, [group.rootProposalId]: isOpen}))}>
+                      <React.Fragment>
                         <TableRow className="font-medium bg-slate-50 hover:bg-slate-100 data-[state=open]:bg-slate-100">
                             <TableCell>
                                 <CollapsibleTrigger asChild>
@@ -546,6 +547,7 @@ export default function QuotesPage() {
                                 </TableCell>
                             </TableRow>
                         </CollapsibleContent>
+                      </React.Fragment>
                     </Collapsible>
                 ))
               ) : (

@@ -82,7 +82,7 @@ export default function CustomersPage() {
         c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (c.phone && c.phone.includes(searchTerm))
-  );
+  ) ?? [];
 
   return (
     <>
