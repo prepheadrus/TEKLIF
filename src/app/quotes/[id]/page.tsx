@@ -82,9 +82,9 @@ const proposalItemSchema = z.object({
   listPrice: z.coerce.number(),
   currency: z.enum(['TRY', 'USD', 'EUR']),
   discountRate: z.coerce.number().min(0).max(1),
-  profitMargin: z.coerce.number().min(0), // No upper limit needed, can be > 100%
+  profitMargin: z.coerce.number().min(0),
   groupName: z.string().default('Diğer'),
-  basePrice: z.coerce.number().default(0),
+  basePrice: z.coerce.number().default(0), // Alış fiyatı
 });
 
 const proposalSchema = z.object({
@@ -246,7 +246,6 @@ export default function QuoteDetailPage() {
         const initialTotals = {
             grandTotalSellExVAT: 0,
             grandTotalCost: 0,
-            totalsByCurrency: { TRY: 0, USD: 0, EUR: 0 }
         };
 
         const totals = watchedItems.reduce((acc, item) => {
@@ -258,9 +257,6 @@ export default function QuoteDetailPage() {
             acc.grandTotalSellExVAT += itemTotals.totalTlSell;
             acc.grandTotalCost += itemTotals.totalTlCost;
             
-            const itemOriginalTotal = itemTotals.originalSellPrice * item.quantity;
-            acc.totalsByCurrency[item.currency] += itemOriginalTotal;
-
             return acc;
         }, initialTotals);
 
@@ -558,7 +554,7 @@ export default function QuoteDetailPage() {
       )}
       <main className="flex-1 overflow-y-auto px-8 py-8 space-y-8 bg-slate-100/70">
         <Form {...form}>
-            <form>
+            <form className="space-y-6">
                 {activeProductForAISuggestion && (
                     <AISuggestionBox 
                         productName={activeProductForAISuggestion}
@@ -577,49 +573,51 @@ export default function QuoteDetailPage() {
                     return (
                      <Collapsible key={groupName} defaultOpen={true} asChild>
                       <section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                         <CollapsibleTrigger asChild>
-                           <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center w-full cursor-pointer group">
-                                <div className="flex items-center gap-3 flex-1">
-                                    <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
-                                        {getGroupIcon(groupName)}
+                         <div className="flex justify-between items-center w-full group">
+                            <CollapsibleTrigger asChild>
+                               <div className="px-6 py-4 border-b border-slate-200 flex-1 flex items-center cursor-pointer">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
+                                            {getGroupIcon(groupName)}
+                                        </div>
+                                        <div>
+                                        <div className="flex items-center">
+                                            {editingGroupName === groupName ? (
+                                                <Input
+                                                    ref={groupNameInputRef}
+                                                    defaultValue={groupName}
+                                                    onBlur={(e) => handleGroupNameChange(groupName, e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            e.preventDefault();
+                                                            handleGroupNameChange(groupName, e.currentTarget.value);
+                                                        }
+                                                        if (e.key === 'Escape') setEditingGroupName(null);
+                                                    }}
+                                                    className="h-8 text-lg font-bold"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                />
+                                            ) : (
+                                                <h2 className="font-bold text-slate-800 text-lg">{groupName}</h2>
+                                            )}
+                                        </div>
+                                        </div>
+                                        <ChevronDown className="h-5 w-5 text-slate-400 transition-transform duration-300 group-data-[state=open]:-rotate-180" />
                                     </div>
-                                    <div>
-                                      <div className="flex items-center">
-                                          {editingGroupName === groupName ? (
-                                             <Input
-                                                ref={groupNameInputRef}
-                                                defaultValue={groupName}
-                                                onBlur={(e) => handleGroupNameChange(groupName, e.target.value)}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        handleGroupNameChange(groupName, e.currentTarget.value);
-                                                    }
-                                                    if (e.key === 'Escape') setEditingGroupName(null);
-                                                }}
-                                                className="h-8 text-lg font-bold"
-                                                onClick={(e) => e.stopPropagation()}
-                                            />
-                                          ) : (
-                                              <h2 className="font-bold text-slate-800 text-lg">{groupName}</h2>
-                                          )}
-                                      </div>
-                                    </div>
-                                    <ChevronDown className="h-5 w-5 text-slate-400 transition-transform duration-300 group-data-[state=open]:-rotate-180" />
-                                </div>
-                                <div className="flex items-center gap-4">
-                                  <Button 
-                                      variant="ghost" 
-                                      size="icon" 
-                                      className="h-7 w-7 text-slate-400 hover:text-slate-600"
-                                      onClick={(e) => { e.stopPropagation(); setEditingGroupName(groupName); }}
-                                  >
-                                      <Edit className="h-4 w-4"/>
-                                  </Button>
-                                  <Badge variant="outline"><Box className="mr-2 h-3 w-3" />{itemsInGroup.length} Kalem Ürün</Badge>
-                                </div>
+                               </div>
+                            </CollapsibleTrigger>
+                            <div className="flex items-center gap-4 px-6">
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-7 w-7 text-slate-400 hover:text-slate-600"
+                                    onClick={(e) => { e.stopPropagation(); setEditingGroupName(groupName); }}
+                                >
+                                    <Edit className="h-4 w-4"/>
+                                </Button>
+                                <Badge variant="outline"><Box className="mr-2 h-3 w-3" />{itemsInGroup.length} Kalem Ürün</Badge>
                             </div>
-                        </CollapsibleTrigger>
+                        </div>
                         <CollapsibleContent>
                             <div className="overflow-x-auto">
                                 <Table>
@@ -722,6 +720,12 @@ export default function QuoteDetailPage() {
                                     </TableBody>
                                 </Table>
                             </div>
+                             <div className="bg-slate-50 px-6 py-3 border-t">
+                                <Button size="sm" variant="secondary" onClick={() => openProductSelectorForGroup(groupName)}>
+                                    <PlusCircle className="mr-2 h-4 w-4"/>
+                                    Bu Gruba Ürün Ekle
+                                </Button>
+                             </div>
                              <div className="bg-slate-900 text-white px-6 py-4 grid grid-cols-3 items-center gap-8">
                                 <div className="col-span-1">
                                     <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-3">Grup Döviz Dağılımı (KDV Hariç)</h4>
@@ -736,6 +740,9 @@ export default function QuoteDetailPage() {
                                                 )}>{formatCurrency(value, currency as any)}</span>
                                             </div>
                                         ))}
+                                        {groupTotals && Object.values(groupTotals.totalsByCurrency).every(v => v === 0) && (
+                                            <div className="text-slate-400">Bu grupta ürün yok.</div>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="col-span-1 text-right">
@@ -756,19 +763,24 @@ export default function QuoteDetailPage() {
                      </Collapsible>
                     )
                 })}
-
-                <Button type="button" className="w-full py-6 border-2 border-dashed border-slate-300 rounded-xl text-slate-400 font-medium bg-white hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all flex-col items-center gap-1 h-auto" onClick={() => openProductSelectorForGroup('Diğer')}>
-                    <PlusCircle className="h-6 w-6" />
-                    <span>Yeni Ürün Ekle</span>
-                </Button>
+                 <div className="space-y-4">
+                    <Button type="button" variant="outline" className="w-full" onClick={handleAddNewGroup}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Yeni Grup Ekle
+                    </Button>
+                    <Button type="button" className="w-full py-6 border-2 border-dashed border-slate-300 rounded-xl text-slate-400 font-medium bg-white hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all flex-col items-center gap-1 h-auto" onClick={() => openProductSelectorForGroup('Diğer')}>
+                        <PlusCircle className="h-6 w-6" />
+                        <span>Genel Ürün Ekle (Diğer Grubuna)</span>
+                    </Button>
+                </div>
             </form>
         </Form>
       </main>
 
        <div className="sticky bottom-0 left-0 right-0 z-20">
-          <div className="bg-white/80 backdrop-blur-md shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.05)] rounded-t-2xl max-w-6xl mx-auto px-8 py-4 flex justify-between items-center gap-x-8">
+          <div className="bg-white/80 backdrop-blur-md shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.05)] rounded-t-2xl max-w-7xl mx-auto px-8 py-4 flex justify-between items-center gap-x-8">
                 {/* Sol Taraf: Finansal Özet */}
-                <div className="flex items-end gap-x-8">
+                <div className="flex items-end gap-x-6">
                      {!includeVAT ? (
                         <div>
                             <p className="text-sm font-semibold text-blue-600">Genel Toplam (KDV Hariç)</p>
@@ -777,7 +789,7 @@ export default function QuoteDetailPage() {
                     ) : (
                         <>
                             <div>
-                                <p className="text-sm text-slate-500">Genel Ara Toplam</p>
+                                <p className="text-sm text-slate-500">Ara Toplam</p>
                                 <p className="font-mono text-2xl font-bold text-slate-800">{formatCurrency(calculatedTotals.grandTotalSellExVAT)}</p>
                             </div>
                             <div className="text-2xl text-slate-400">+</div>
