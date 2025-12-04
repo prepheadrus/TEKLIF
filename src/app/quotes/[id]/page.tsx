@@ -300,7 +300,7 @@ export default function QuoteDetailPage() {
       exchangeRates: proposal.exchangeRates || { USD: 32.5, EUR: 35.0 }
     });
     
-     if (!initialFetchDone.current && proposal.exchangeRates) {
+     if (proposal.exchangeRates) {
         handleFetchRates();
         initialFetchDone.current = true;
     }
@@ -343,10 +343,11 @@ export default function QuoteDetailPage() {
   
   // --- Event Handlers ---
    const handleProductsSelected = (selectedProducts: ProductType[]) => {
+    const groupForProductAdd = targetGroupForProductAdd;
     
     selectedProducts.forEach(product => {
-      let groupName = targetGroupForProductAdd || 'Diğer';
-      if (!targetGroupForProductAdd && product.installationTypeId && installationTypes) {
+      let groupName = groupForProductAdd || 'Diğer';
+      if (!groupForProductAdd && product.installationTypeId && installationTypes) {
           let current = installationTypes.find(it => it.id === product.installationTypeId);
           let parent = current;
           while (parent?.parentId) {
@@ -393,8 +394,8 @@ export default function QuoteDetailPage() {
 
     setIsProductSelectorOpen(false);
     
-    if (targetGroupForProductAdd) {
-        setEmptyGroups(prev => prev.filter(g => g !== targetGroupForProductAdd));
+    if (groupForProductAdd) {
+        setEmptyGroups(prev => prev.filter(g => g !== groupForProductAdd));
     }
     setTargetGroupForProductAdd(undefined);
   };
@@ -434,7 +435,7 @@ export default function QuoteDetailPage() {
 
     if (indicesToRemove.length > 0) {
       // It's safer to remove indices in descending order to avoid shifting issues
-      remove(indicesToRemove);
+      remove(indicesToRemove.sort((a, b) => b - a));
     }
     
     // Also remove from empty groups if it exists there
@@ -616,10 +617,10 @@ export default function QuoteDetailPage() {
                       return (
                       <Collapsible key={groupName} defaultOpen={true} asChild>
                         <section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                          <div className="flex justify-between items-center w-full group">
+                          <div className="flex justify-between items-center w-full group bg-slate-900">
                             <CollapsibleTrigger className="px-4 py-2 flex-1 flex items-center cursor-pointer">
                                   <div className="flex items-center gap-3">
-                                      <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+                                      <div className="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center">
                                           {getGroupIcon(groupName)}
                                       </div>
                                       <div>
@@ -636,11 +637,11 @@ export default function QuoteDetailPage() {
                                                       }
                                                       if (e.key === 'Escape') setEditingGroupName(null);
                                                   }}
-                                                  className="h-8 text-lg font-bold"
+                                                  className="h-8 text-lg font-bold bg-slate-700 text-white"
                                                   onClick={(e) => e.stopPropagation()}
                                               />
                                           ) : (
-                                              <h2 className="font-bold text-slate-800 text-lg">{groupName}</h2>
+                                              <h2 className="font-bold text-white text-lg">{groupName}</h2>
                                           )}
                                       </div>
                                       </div>
@@ -652,7 +653,7 @@ export default function QuoteDetailPage() {
                                       type="button"
                                       variant="ghost" 
                                       size="icon" 
-                                      className="h-7 w-7 text-slate-400 hover:text-slate-600"
+                                      className="h-7 w-7 text-slate-400 hover:text-white"
                                       onClick={(e) => { e.stopPropagation(); setEditingGroupName(groupName); }}
                                   >
                                       <Edit className="h-4 w-4"/>
@@ -663,7 +664,7 @@ export default function QuoteDetailPage() {
                                               type="button"
                                               variant="ghost"
                                               size="icon"
-                                              className="h-7 w-7 text-destructive/60 hover:text-destructive"
+                                              className="h-7 w-7 text-red-500/70 hover:text-red-500"
                                               onClick={(e) => e.stopPropagation()}
                                           >
                                               <Trash2 className="h-4 w-4"/>
@@ -685,7 +686,7 @@ export default function QuoteDetailPage() {
                                       </AlertDialogContent>
                                   </AlertDialog>
 
-                                  <Badge variant="outline"><Box className="mr-2 h-3 w-3" />{itemsInGroup.length} Kalem Ürün</Badge>
+                                  <Badge variant="secondary"><Box className="mr-2 h-3 w-3" />{itemsInGroup.length} Kalem Ürün</Badge>
                               </div>
                           </div>
                           <CollapsibleContent>
@@ -757,7 +758,7 @@ export default function QuoteDetailPage() {
                                                               render={({ field }) => (
                                                                   <Input 
                                                                       type="number"
-                                                                      value={(field.value || 0) * 100}
+                                                                      value={((field.value || 0) * 100)}
                                                                       onChange={(e) => {
                                                                           const numValue = parseFloat(e.target.value);
                                                                           field.onChange(isNaN(numValue) ? 0 : numValue / 100);
@@ -790,7 +791,7 @@ export default function QuoteDetailPage() {
                                                                   render={({ field }) => (
                                                                       <Input
                                                                           type="number"
-                                                                          value={(field.value || 0) * 100}
+                                                                          value={((field.value || 0) * 100)}
                                                                           onChange={(e) => {
                                                                               const numValue = parseFloat(e.target.value);
                                                                               field.onChange(isNaN(numValue) ? 0 : numValue / 100);
