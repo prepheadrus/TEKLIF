@@ -1,6 +1,6 @@
 'use client';
 
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useMemo, useEffect } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
@@ -57,138 +57,155 @@ const formatCurrency = (amount: number, currency: string = 'TRY') => {
 
 const generatePrintHTML = (proposal: Proposal, customer: Customer, sortedGroups: [string, CalculatedItem[]][], totals: any) => {
     const PrintComponent = () => (
-        <div className="print-layout">
-             <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: '1px solid #e5e7eb' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/logo.png" alt="Firma Logosu" style={{ width: '80px', height: '80px', objectFit: 'contain' }} />
-                    <div>
-                        <h2 style={{ fontSize: '1rem', fontWeight: '700', color: '#1f2937' }}>İMS Mühendislik</h2>
-                        <p style={{ fontSize: '10px', fontWeight: '600', color: '#4b5563' }}>Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
-                        <p style={{ fontSize: '10px', maxWidth: '24rem', marginTop: '0.25rem' }}>Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA</p>
-                        <p style={{ fontSize: '10px', marginTop: '0.25rem' }}>ims.m.muhendislik@gmail.com | (553) 469 75 01</p>
-                    </div>
-                </div>
-                <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>TEKLİF</h2>
-                    <p style={{ marginTop: '0.25rem' }}><span style={{ fontWeight: '600' }}>Teklif No:</span> {proposal.quoteNumber}</p>
-                    <p><span style={{ fontWeight: '600' }}>Tarih:</span> {formatDate(proposal.createdAt)}</p>
-                </div>
-            </header>
-
-            <section style={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '0.75rem' }}>
-                <div style={{ border: '1px solid #e5e7eb', padding: '0.5rem', borderRadius: '0.375rem', backgroundColor: '#f9fafb' }}>
-                    <h3 style={{ fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem' }}>Müşteri Bilgileri</h3>
-                    <p style={{ fontWeight: '700', fontSize: '0.75rem' }}>{customer.name}</p>
-                    <p>{customer.address || 'Adres belirtilmemiş'}</p>
-                    <p>{customer.email} | {customer.phone || 'Telefon belirtilmemiş'}</p>
-                    {customer.taxNumber ? `<p>Vergi No/TCKN: ${customer.taxNumber}</p>` : ''}
-                </div>
-                <div style={{ border: '1px solid #e5e7eb', padding: '0.5rem', borderRadius: '0.375rem', backgroundColor: '#f9fafb' }}>
-                    <h3 style={{ fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem' }}>Proje Bilgisi</h3>
-                    <p style={{ fontWeight: '700', fontSize: '0.75rem' }}>{proposal.projectName}</p>
-                </div>
-            </section>
-
-            <section style={{ marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {sortedGroups.map(([groupName, groupItems]) => (
-                    <div key={groupName} style={{ breakInside: 'avoid' }}>
-                        <h3 style={{ fontSize: '0.875rem', fontWeight: '700', marginBottom: '0.25rem', padding: '0.25rem', backgroundColor: '#f3f4f6', borderRadius: '0.375rem 0.375rem 0 0', borderBottom: '2px solid #d1d5db' }}>{groupName}</h3>
-                        <table style={{ width: '100%', fontSize: '10px', textAlign: 'left', borderCollapse: 'collapse' }}>
-                            <thead style={{ display: 'table-header-group' }}>
-                                <tr style={{ backgroundColor: '#e5e7eb' }}>
-                                    <th style={{ padding: '4px 8px', fontWeight: 700, color: '#374151', borderBottom: '1px solid #d1d5db', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em', verticalAlign: 'middle' }}>#</th>
-                                    <th style={{ padding: '4px 8px', fontWeight: 700, color: '#374151', borderBottom: '1px solid #d1d5db', textAlign: 'left', width: '40%', textTransform: 'uppercase', letterSpacing: '0.05em', verticalAlign: 'middle' }}>Açıklama</th>
-                                    <th style={{ padding: '4px 8px', fontWeight: 700, color: '#374151', borderBottom: '1px solid #d1d5db', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em', verticalAlign: 'middle' }}>Marka</th>
-                                    <th style={{ padding: '4px 8px', fontWeight: 700, color: '#374151', borderBottom: '1px solid #d1d5db', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.05em', verticalAlign: 'middle' }}>Miktar</th>
-                                    <th style={{ padding: '4px 8px', fontWeight: 700, color: '#374151', borderBottom: '1px solid #d1d5db', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em', verticalAlign: 'middle' }}>Birim</th>
-                                    <th style={{ padding: '4px 8px', fontWeight: 700, color: '#374151', borderBottom: '1px solid #d1d5db', textAlign: 'right', textTransform: 'uppercase', letterSpacing: '0.05em', verticalAlign: 'middle' }}>Birim Fiyat</th>
-                                    <th style={{ padding: '4px 8px', fontWeight: 700, color: '#374151', borderBottom: '1px solid #d1d5db', textAlign: 'right', textTransform: 'uppercase', letterSpacing: '0.05em', verticalAlign: 'middle' }}>Toplam Tutar</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {groupItems.map((item, index) => (
-                                    <tr key={item.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                                        <td style={{ padding: '2px 8px', verticalAlign: 'top' }}>{index + 1}</td>
-                                        <td style={{ padding: '2px 8px', verticalAlign: 'top', fontWeight: 500 }}>{item.name}</td>
-                                        <td style={{ padding: '2px 8px', verticalAlign: 'top' }}>{item.brand}</td>
-                                        <td style={{ padding: '2px 8px', verticalAlign: 'top', textAlign: 'center' }}>{item.quantity}</td>
-                                        <td style={{ padding: '2px 8px', verticalAlign: 'top' }}>{item.unit}</td>
-                                        <td style={{ padding: '2px 8px', verticalAlign: 'top', textAlign: 'right' }}>{formatCurrency(item.unitPrice, 'TRY')}</td>
-                                        <td style={{ padding: '2px 8px', verticalAlign: 'top', textAlign: 'right', fontWeight: 600 }}>{formatCurrency(item.total, 'TRY')}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                            <tfoot style={{ breakInside: 'avoid' }}>
-                                <tr style={{ backgroundColor: '#f3f4f6', fontWeight: 700 }}>
-                                    <td colSpan={6} style={{ padding: '4px 8px', textAlign: 'right', borderTop: '2px solid #d1d5db' }}>Grup Toplamı (KDV Hariç):</td>
-                                    <td style={{ padding: '4px 8px', textAlign: 'right', borderTop: '2px solid #d1d5db' }}>
-                                        {formatCurrency(groupItems.reduce((sum, item) => sum + item.total, 0), 'TRY')}
-                                    </td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                ))}
-            </section>
-
-             <section style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', breakInside: 'avoid' }}>
-                <div style={{ width: '50%' }}></div>
-                <div style={{ width: '50%', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                    <div style={{ borderBottom: '1px solid #e5e7eb', paddingBottom: '0.25rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ fontWeight: 600 }}>Ara Toplam (TL):</span>
-                            <span>{formatCurrency(totals.grandTotalInTRY.subtotal, 'TRY')}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ fontWeight: 600 }}>KDV (%20) (TL):</span>
-                            <span>{formatCurrency(totals.grandTotalInTRY.vat, 'TRY')}</span>
-                        </div>
-                        <div style={{ height: '1px', backgroundColor: '#e5e7eb', margin: '2px 0' }}></div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', fontWeight: 700, color: '#2563eb' }}>
-                            <span>Genel Toplam (TL):</span>
-                            <span>{formatCurrency(totals.grandTotalInTRY.grandTotal, 'TRY')}</span>
-                        </div>
-                    </div>
+        <html>
+            <head>
+                <title>Teklif: {proposal.quoteNumber}</title>
+                <link rel="stylesheet" type="text/css" href="/globals.css" />
+                 <style dangerouslySetInnerHTML={{ __html: `
+                    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
                     
-                    {(Object.keys(totals.byCurrency).length > 1) && (
-                        <div style={{ paddingTop: '0.25rem' }}>
-                        <h4 style={{ fontWeight: 600, fontSize: '0.75rem', marginBottom: '0.25rem' }}>Para Birimi Bazında Özet (KDV Dahil)</h4>
-                        {Object.entries(totals.byCurrency).map(([currency, currencyTotals]: [string, any]) => (
-                             <div key={currency} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: currency === 'USD' ? '#166534' : currency === 'EUR' ? '#1d4ed8' : 'inherit' }}>
-                                <span>Toplam ({currency}):</span>
-                                <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{formatCurrency(currencyTotals.grandTotal, currency)}</span>
-                             </div>
-                        ))}
+                    @media print {
+                      .print-layout {
+                        padding: 1.5cm;
+                      }
+                    }
+                ` }} />
+            </head>
+            <body style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', color: '#374151', backgroundColor: '#fff' }}>
+                <div className="print-layout">
+                    <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: '1px solid #e5e7eb' }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src="/logo.png" alt="Firma Logosu" style={{ width: '80px', height: '80px', objectFit: 'contain' }} />
+                            <div>
+                                <h2 style={{ fontSize: '1rem', fontWeight: '700', color: '#1f2937' }}>İMS Mühendislik</h2>
+                                <p style={{ fontSize: '10px', fontWeight: '600', color: '#4b5563' }}>Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
+                                <p style={{ fontSize: '10px', maxWidth: '24rem', marginTop: '0.25rem' }}>Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA</p>
+                                <p style={{ fontSize: '10px', marginTop: '0.25rem' }}>ims.m.muhendislik@gmail.com | (553) 469 75 01</p>
+                            </div>
                         </div>
-                    )}
-                </div>
-            </section>
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                            <h2 style={{ fontSize: '1.25rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>TEKLİF</h2>
+                            <p style={{ marginTop: '0.25rem' }}><span style={{ fontWeight: '600' }}>Teklif No:</span> {proposal.quoteNumber}</p>
+                            <p><span style={{ fontWeight: '600' }}>Tarih:</span> {formatDate(proposal.createdAt)}</p>
+                        </div>
+                    </header>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '2rem', paddingTop: '0.5rem', borderTop: '1px solid #e5e7eb', breakInside: 'avoid' }}>
-                <footer style={{ fontSize: '9px', color: '#4b5563', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                    <p style={{ fontWeight: 600 }}>Teklif Koşulları:</p>
-                    <ul style={{ listStylePosition: 'inside', paddingLeft: 0, margin: 0 }}>
-                        <li>Teklifin geçerlilik süresi 15 gündür.</li>
-                        <li>Fiyatlarımıza KDV dahildir.</li>
-                        <li>Hesaplamada kullanılan kurlar: 1 EUR = {proposal.exchangeRates.EUR.toFixed(4)} TL, 1 USD = {proposal.exchangeRates.USD.toFixed(4)} TL</li>
-                    </ul>
-                    <p style={{ marginTop: '0.5rem', fontWeight: 600, fontSize: '0.75rem' }}>İMS Mühendislik | Teşekkür Ederiz!</p>
-                </footer>
-                <div style={{ position: 'relative', width: '10rem', height: 'auto' }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                   <img src="/kase.png" alt="Firma Kaşesi" style={{ width: '120px', height: '80px', objectFit: 'contain' }} />
+                    <section style={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '0.75rem' }}>
+                        <div style={{ border: '1px solid #e5e7eb', padding: '0.5rem', borderRadius: '0.375rem', backgroundColor: '#f9fafb' }}>
+                            <h3 style={{ fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem' }}>Müşteri Bilgileri</h3>
+                            <p style={{ fontWeight: '700', fontSize: '0.75rem' }}>{customer.name}</p>
+                            <p>{customer.address || 'Adres belirtilmemiş'}</p>
+                            <p>{customer.email} | {customer.phone || 'Telefon belirtilmemiş'}</p>
+                            {customer.taxNumber && <p>Vergi No/TCKN: {customer.taxNumber}</p>}
+                        </div>
+                        <div style={{ border: '1px solid #e5e7eb', padding: '0.5rem', borderRadius: '0.375rem', backgroundColor: '#f9fafb' }}>
+                            <h3 style={{ fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem' }}>Proje Bilgisi</h3>
+                            <p style={{ fontWeight: '700', fontSize: '0.75rem' }}>{proposal.projectName}</p>
+                        </div>
+                    </section>
+
+                    <section style={{ marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        {sortedGroups.map(([groupName, groupItems]) => (
+                            <div key={groupName}>
+                                <h3 style={{ fontSize: '0.875rem', fontWeight: '700', marginBottom: '0.25rem', padding: '0.25rem', backgroundColor: '#f3f4f6', borderRadius: '0.375rem 0.375rem 0 0', borderBottom: '2px solid #d1d5db', breakAfter: 'avoid-page' }}>{groupName}</h3>
+                                <table style={{ width: '100%', fontSize: '10px', textAlign: 'left', borderCollapse: 'collapse' }}>
+                                    <thead style={{ display: 'table-header-group', breakInside: 'avoid' }}>
+                                        <tr style={{ backgroundColor: '#e5e7eb' }}>
+                                            <th style={{ padding: '4px 8px', fontWeight: 700, color: '#374151', borderBottom: '1px solid #d1d5db', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em', verticalAlign: 'middle' }}>#</th>
+                                            <th style={{ padding: '4px 8px', fontWeight: 700, color: '#374151', borderBottom: '1px solid #d1d5db', textAlign: 'left', width: '40%', textTransform: 'uppercase', letterSpacing: '0.05em', verticalAlign: 'middle' }}>Açıklama</th>
+                                            <th style={{ padding: '4px 8px', fontWeight: 700, color: '#374151', borderBottom: '1px solid #d1d5db', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em', verticalAlign: 'middle' }}>Marka</th>
+                                            <th style={{ padding: '4px 8px', fontWeight: 700, color: '#374151', borderBottom: '1px solid #d1d5db', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.05em', verticalAlign: 'middle' }}>Miktar</th>
+                                            <th style={{ padding: '4px 8px', fontWeight: 700, color: '#374151', borderBottom: '1px solid #d1d5db', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em', verticalAlign: 'middle' }}>Birim</th>
+                                            <th style={{ padding: '4px 8px', fontWeight: 700, color: '#374151', borderBottom: '1px solid #d1d5db', textAlign: 'right', textTransform: 'uppercase', letterSpacing: '0.05em', verticalAlign: 'middle' }}>Birim Fiyat</th>
+                                            <th style={{ padding: '4px 8px', fontWeight: 700, color: '#374151', borderBottom: '1px solid #d1d5db', textAlign: 'right', textTransform: 'uppercase', letterSpacing: '0.05em', verticalAlign: 'middle' }}>Toplam Tutar</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {groupItems.map((item, index) => (
+                                            <tr key={item.id} style={{ borderBottom: '1px solid #e5e7eb', breakInside: 'avoid' }}>
+                                                <td style={{ padding: '2px 8px', verticalAlign: 'top' }}>{index + 1}</td>
+                                                <td style={{ padding: '2px 8px', verticalAlign: 'top', fontWeight: 500 }}>{item.name}</td>
+                                                <td style={{ padding: '2px 8px', verticalAlign: 'top' }}>{item.brand}</td>
+                                                <td style={{ padding: '2px 8px', verticalAlign: 'top', textAlign: 'center' }}>{item.quantity}</td>
+                                                <td style={{ padding: '2px 8px', verticalAlign: 'top' }}>{item.unit}</td>
+                                                <td style={{ padding: '2px 8px', verticalAlign: 'top', textAlign: 'right' }}>{formatCurrency(item.unitPrice, 'TRY')}</td>
+                                                <td style={{ padding: '2px 8px', verticalAlign: 'top', textAlign: 'right', fontWeight: 600 }}>{formatCurrency(item.total, 'TRY')}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                    <tfoot style={{ breakInside: 'avoid' }}>
+                                        <tr style={{ backgroundColor: '#f3f4f6', fontWeight: 700 }}>
+                                            <td colSpan={6} style={{ padding: '4px 8px', textAlign: 'right', borderTop: '2px solid #d1d5db' }}>Grup Toplamı (KDV Hariç):</td>
+                                            <td style={{ padding: '4px 8px', textAlign: 'right', borderTop: '2px solid #d1d5db' }}>
+                                                {formatCurrency(groupItems.reduce((sum, item) => sum + item.total, 0), 'TRY')}
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        ))}
+                    </section>
+
+                    <section style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', breakInside: 'avoid' }}>
+                        <div style={{ width: '50%' }}></div>
+                        <div style={{ width: '50%', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                            <div style={{ borderBottom: '1px solid #e5e7eb', paddingBottom: '0.25rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ fontWeight: 600 }}>Ara Toplam (TL):</span>
+                                    <span>{formatCurrency(totals.grandTotalInTRY.subtotal, 'TRY')}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ fontWeight: 600 }}>KDV (%20) (TL):</span>
+                                    <span>{formatCurrency(totals.grandTotalInTRY.vat, 'TRY')}</span>
+                                </div>
+                                <div style={{ height: '1px', backgroundColor: '#e5e7eb', margin: '2px 0' }}></div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', fontWeight: 700, color: '#2563eb' }}>
+                                    <span>Genel Toplam (TL):</span>
+                                    <span>{formatCurrency(totals.grandTotalInTRY.grandTotal, 'TRY')}</span>
+                                </div>
+                            </div>
+                            
+                            {(Object.keys(totals.byCurrency).length > 1) && (
+                                <div style={{ paddingTop: '0.25rem' }}>
+                                <h4 style={{ fontWeight: 600, fontSize: '0.75rem', marginBottom: '0.25rem' }}>Para Birimi Bazında Özet (KDV Dahil)</h4>
+                                {Object.entries(totals.byCurrency).map(([currency, currencyTotals]: [string, any]) => (
+                                    <div key={currency} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: currency === 'USD' ? '#166534' : currency === 'EUR' ? '#1d4ed8' : 'inherit' }}>
+                                        <span>Toplam ({currency}):</span>
+                                        <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{formatCurrency(currencyTotals.grandTotal, currency)}</span>
+                                    </div>
+                                ))}
+                                </div>
+                            )}
+                        </div>
+                    </section>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '2rem', paddingTop: '0.5rem', borderTop: '1px solid #e5e7eb', breakInside: 'avoid' }}>
+                        <footer style={{ fontSize: '9px', color: '#4b5563', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                            <p style={{ fontWeight: 600 }}>Teklif Koşulları:</p>
+                            <ul style={{ listStylePosition: 'inside', paddingLeft: 0, margin: 0 }}>
+                                <li>Teklifin geçerlilik süresi 15 gündür.</li>
+                                <li>Fiyatlarımıza KDV dahildir.</li>
+                                <li>Hesaplamada kullanılan kurlar: 1 EUR = {proposal.exchangeRates.EUR.toFixed(4)} TL, 1 USD = {proposal.exchangeRates.USD.toFixed(4)} TL</li>
+                            </ul>
+                            <p style={{ marginTop: '0.5rem', fontWeight: 600, fontSize: '0.75rem' }}>İMS Mühendislik | Teşekkür Ederiz!</p>
+                        </footer>
+                        <div style={{ position: 'relative', width: '10rem', height: 'auto' }}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                           <img src="/kase.png" alt="Firma Kaşesi" style={{ width: '120px', height: '80px', objectFit: 'contain' }} />
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
+            </body>
+        </html>
     );
-    return renderToStaticMarkup(<PrintComponent />);
+    return `<!DOCTYPE html>${renderToStaticMarkup(<PrintComponent />)}`;
 };
-
 
 export default function PrintQuotePage() {
     const params = useParams();
     const searchParams = useSearchParams();
+    const router = useRouter();
     const firestore = useFirestore();
     const proposalId = params.id as string;
     const customerId = searchParams.get('customerId');
@@ -239,6 +256,11 @@ export default function PrintQuotePage() {
         }, {} as Record<string, CalculatedItem[]>);
 
         const sortedGroups = Object.entries(itemGroups).sort(([a], [b]) => {
+            const aNum = parseInt(a.split('.')[0], 10);
+            const bNum = parseInt(b.split('.')[0], 10);
+            if (!isNaN(aNum) && !isNaN(bNum)) {
+                return aNum - bNum;
+            }
             if (a === 'Diğer') return 1;
             if (b === 'Diğer') return -1;
             return a.localeCompare(b);
@@ -284,43 +306,39 @@ export default function PrintQuotePage() {
     }, [proposal, items]);
 
     useEffect(() => {
-        if (isProposalLoading || areItemsLoading || isCustomerLoading || !proposal || !customer || !items) {
+        if (isProposalLoading || areItemsLoading || isCustomerLoading) {
+            return; 
+        }
+
+        if (!proposal || !customer || !items) {
             return;
         }
 
-        const html = generatePrintHTML(proposal, customer, sortedGroups, totals);
+        const htmlContent = generatePrintHTML(proposal, customer, sortedGroups, totals);
         const printWindow = window.open('', '_blank');
+        
         if (printWindow) {
             printWindow.document.open();
-            printWindow.document.write(`
-                <html>
-                    <head>
-                        <title>Teklif: ${proposal.quoteNumber}</title>
-                        <link rel="stylesheet" type="text/css" href="/globals.css">
-                         <style>
-                            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-                            body { 
-                                font-family: 'Inter', sans-serif; 
-                                font-size: 10px;
-                                color: #374151;
-                            }
-                             @page { 
-                                size: A4;
-                                margin: 0;
-                            }
-                             .print-layout {
-                                padding: 1.5cm;
-                             }
-                        </style>
-                    </head>
-                    <body>
-                        ${html}
-                    </body>
-                </html>
-            `);
+            printWindow.document.write(htmlContent);
             printWindow.document.close();
+            const timer = setTimeout(() => {
+                printWindow.print();
+                printWindow.close();
+            }, 1000); 
+
+             return () => clearTimeout(timer);
         }
+
     }, [isProposalLoading, areItemsLoading, isCustomerLoading, proposal, customer, items, sortedGroups, totals]);
+
+    useEffect(() => {
+        // This effect will run after the print window logic has been triggered and closed.
+        // It navigates the user back to the quote detail page.
+        if (!isProposalLoading && !areItemsLoading && !isCustomerLoading) {
+            router.push(`/quotes/${proposalId}`);
+        }
+    }, [isProposalLoading, areItemsLoading, isCustomerLoading, router, proposalId]);
+
 
     if (isProposalLoading || areItemsLoading || isCustomerLoading) {
          return (
@@ -336,7 +354,7 @@ export default function PrintQuotePage() {
     if (!proposal || !items || !customer) {
         return (
              <div className="flex h-screen w-full items-center justify-center bg-white">
-                <p className="text-red-500">Yazdırma için gerekli veriler yüklenemedi.</p>
+                <p className="text-red-500">Yazdırma için gerekli veriler yüklenemedi. Lütfen sekmeyi kapatıp tekrar deneyin.</p>
             </div>
         );
     }
