@@ -150,7 +150,7 @@ export const ExchangeRateDisplay = ({ form, onRefresh, isFetching }: { form: any
 
 // --- Helper function for calculations ---
 const calculateAllTotals = (items: ProposalItem[] | undefined, rates: { USD: number; EUR: number } | undefined) => {
-    const initialTotals = {
+   const initialTotals = {
        grandTotalSellExVAT: 0,
        grandTotalCost: 0,
        groupTotals: {} as Record<string, { 
@@ -226,6 +226,7 @@ export default function QuoteDetailPage() {
   const [targetGroupForProductAdd, setTargetGroupForProductAdd] = useState<string | undefined>(undefined);
   const [isFetchingRates, setIsFetchingRates] = useState(false);
   const [includeVAT, setIncludeVAT] = useState(false);
+  const initialFetchDone = useRef(false);
 
 
   // --- Data Fetching ---
@@ -267,13 +268,7 @@ export default function QuoteDetailPage() {
   const watchedRates = form.watch('exchangeRates');
 
   // --- Calculations ---
-  // The useMemo is re-introduced to prevent re-calculations on every render,
-  // but it's now correctly dependent on the 'watched' values which are guaranteed
-  // to trigger a re-render via react-hook-form's `watch` mechanism.
-  const calculatedTotals = useMemo(() => 
-    calculateAllTotals(watchedItems, watchedRates),
-    [watchedItems, watchedRates]
-  );
+  const calculatedTotals = calculateAllTotals(watchedItems, watchedRates);
 
   const VAT_RATE = 0.20;
 
@@ -284,37 +279,34 @@ export default function QuoteDetailPage() {
   }, []);
 
   useEffect(() => {
-    if (proposal && initialItems) {
-      // Create a map of items from the form's current state for quick lookup
-      const currentFormItemsMap = new Map((form.getValues('items') || []).map(item => [item.id, item]));
-      
-      const newItems = initialItems.map(dbItem => {
-        // If the item from DB exists in the form, use the form's version
-        // This prevents overwriting user input during a refetch
-        if (dbItem.id && currentFormItemsMap.has(dbItem.id)) {
-          return currentFormItemsMap.get(dbItem.id)!;
-        }
-        // Otherwise, use the data from the database
-        return {
-          ...dbItem,
-          id: dbItem.id,
-          productId: dbItem.productId || '',
-          groupName: dbItem.groupName || 'Diğer',
-        };
-      });
+    if (!proposal || !initialItems) return;
 
-      form.reset({
-        versionNote: proposal.versionNote || '',
-        items: newItems,
-        exchangeRates: proposal.exchangeRates || { USD: 32.5, EUR: 35.0 }
-      }, { keepDirty: true }); // keepDirty preserves user's ongoing changes
+    const currentFormItemsMap = new Map((form.getValues('items') || []).map(item => [item.id, item]));
+    
+    const newItems = initialItems.map(dbItem => {
+      if (dbItem.id && currentFormItemsMap.has(dbItem.id)) {
+        return currentFormItemsMap.get(dbItem.id)!;
+      }
+      return {
+        ...dbItem,
+        id: dbItem.id,
+        productId: dbItem.productId || '',
+        groupName: dbItem.groupName || 'Diğer',
+      };
+    });
 
-       if (!form.formState.isDirty) {
-         handleFetchRates();
-       }
+    form.reset({
+      versionNote: proposal.versionNote || '',
+      items: newItems,
+      exchangeRates: proposal.exchangeRates || { USD: 32.5, EUR: 35.0 }
+    }, { keepDirty: true });
+
+    if (!form.formState.isDirty && !initialFetchDone.current) {
+        handleFetchRates();
+        initialFetchDone.current = true;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [proposal, initialItems, form.reset]);
+  }, [proposal, initialItems]);
 
 
   useEffect(() => {
@@ -403,7 +395,7 @@ export default function QuoteDetailPage() {
     setIsProductSelectorOpen(false);
     
     if (targetGroupForProductAdd) {
-        setEmptyGroups(prev => prev.filter(g => g !== targetGroupFor-ProductAdd));
+        setEmptyGroups(prev => prev.filter(g => g !== targetGroupForProductAdd));
     }
     setTargetGroupForProductAdd(undefined);
   };
@@ -577,7 +569,7 @@ export default function QuoteDetailPage() {
       )}
       <main className="flex-1 overflow-y-auto px-8 py-8 space-y-6 bg-slate-100/70">
         <Form {...form}>
-            <form className="space-y-6">
+            <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
                 
                 {allGroups.map(([groupName, itemsInGroup]) => {
                     const groupTotals = calculatedTotals.groupTotals[groupName];
@@ -703,7 +695,7 @@ export default function QuoteDetailPage() {
                                                             render={({ field }) => (
                                                                 <Input 
                                                                     type="number"
-                                                                    value={(field.value || 0) * 100}
+                                                                    value={field.value === undefined ? '' : (field.value || 0) * 100}
                                                                     onChange={(e) => {
                                                                         const numValue = parseFloat(e.target.value);
                                                                         field.onChange(isNaN(numValue) ? 0 : numValue / 100);
@@ -736,7 +728,7 @@ export default function QuoteDetailPage() {
                                                                 render={({ field }) => (
                                                                     <Input
                                                                         type="number"
-                                                                        value={(field.value || 0) * 100}
+                                                                        value={field.value === undefined ? '' : (field.value || 0) * 100}
                                                                         onChange={(e) => {
                                                                             const numValue = parseFloat(e.target.value);
                                                                             field.onChange(isNaN(numValue) ? 0 : numValue / 100);
