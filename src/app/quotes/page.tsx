@@ -279,7 +279,7 @@ export default function QuotesPage() {
             version: latestVersionNumber + 1,
             status: 'Draft' as const,
             createdAt: serverTimestamp(),
-            versionNote: "",
+            versionNote: `Revizyon (v${proposalToClone.version}'dan kopyalandı)`,
             exchangeRates: newRates,
         };
         
@@ -352,32 +352,35 @@ export default function QuotesPage() {
   };
   
   const filteredProposalGroups = useMemo(() => {
-      if (!groupedProposals) return [];
+    if (!groupedProposals) return [];
+    
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30).getTime();
+    const ninetyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 90).getTime();
+
+    return groupedProposals.filter(g => {
+      // Search term filter (on customer, project, or quote number)
+      const searchMatch = 
+          g.latestProposal.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          g.latestProposal.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          g.latestProposal.quoteNumber.toLowerCase().includes(searchTerm.toLowerCase());
+      if (!searchMatch) return false;
+
+      // Date filter (on the latest proposal in the group)
+      if (dateFilter !== 'all' && g.latestProposal.createdAt) {
+          const proposalDate = g.latestProposal.createdAt.seconds * 1000;
+          if (dateFilter === 'last30days' && proposalDate < thirtyDaysAgo) return false;
+          if (dateFilter === 'last90days' && proposalDate < ninetyDaysAgo) return false;
+      }
+
+      // Status filter (checks if *any* version in the group matches the filter)
+      if (statusFilter !== 'All') {
+          const hasMatchingStatus = g.versions.some(v => v.status === statusFilter);
+          if (!hasMatchingStatus) return false;
+      }
       
-      const now = new Date();
-      const thirtyDaysAgo = new Date().setDate(now.getDate() - 30);
-      const ninetyDaysAgo = new Date().setDate(now.getDate() - 90);
-
-      return groupedProposals.filter(g => {
-        // Date filter
-        if (dateFilter !== 'all' && g.latestProposal.createdAt) {
-            const proposalDate = g.latestProposal.createdAt.seconds * 1000;
-            if (dateFilter === 'last30days' && proposalDate < thirtyDaysAgo) return false;
-            if (dateFilter === 'last90days' && proposalDate < ninetyDaysAgo) return false;
-        }
-
-        // Status filter
-        const statusMatch = statusFilter === 'All' || g.latestProposal.status === statusFilter;
-        if (!statusMatch) return false;
-
-        // Search term filter
-        const searchMatch = 
-            g.latestProposal.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            g.latestProposal.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            g.latestProposal.quoteNumber.toLowerCase().includes(searchTerm.toLowerCase());
-        
-        return searchMatch;
-      });
+      return true; // If all filters pass
+    });
   }, [groupedProposals, searchTerm, statusFilter, dateFilter]);
 
   return (
