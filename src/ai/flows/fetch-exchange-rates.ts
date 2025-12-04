@@ -39,12 +39,20 @@ const fetchExchangeRatesFlow = ai.defineFlow(
       
       const xmlText = await response.text();
       
-      // This function now specifically targets the 'ForexSelling' tag.
+      // This function now specifically targets the 'BanknoteSelling' tag for effective rates.
       const findRate = (currencyCode: string): string | null => {
         const currencyTag = `<Currency CrossOrder=.* CurrencyCode="${currencyCode}">`;
-        const regex = new RegExp(`${currencyTag}[\\s\\S]*?<ForexSelling>([\\d.]+)</ForexSelling>`);
+        const regex = new RegExp(`${currencyTag}[\\s\\S]*?<BanknoteSelling>([\\d.]+)</BanknoteSelling>`);
         const match = xmlText.match(regex);
-        return match ? match[1] : null;
+        // If BanknoteSelling is empty or doesn't exist, fall back to ForexSelling
+        if (match && match[1]) {
+            return match[1];
+        } else {
+            console.warn(`BanknoteSelling for ${currencyCode} not found, falling back to ForexSelling.`);
+            const fallbackRegex = new RegExp(`${currencyTag}[\\s\\S]*?<ForexSelling>([\\d.]+)</ForexSelling>`);
+            const fallbackMatch = xmlText.match(fallbackRegex);
+            return fallbackMatch ? fallbackMatch[1] : null;
+        }
       };
 
       const usdRateStr = findRate('USD');
