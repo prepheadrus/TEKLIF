@@ -73,7 +73,7 @@ type Proposal = {
     projectName: string;
     totalAmount: number;
     status: 'Draft' | 'Sent' | 'Approved' | 'Rejected';
-    createdAt: { seconds: number };
+    createdAt: { seconds: number } | null; // Allow null for serverTimestamp
     version: number;
     rootProposalId: string;
     customerId: string;
@@ -129,29 +129,36 @@ export default function QuotesPage() {
   const customersRef = useMemoFirebase(() => (firestore ? collection(firestore, 'customers') : null), [firestore]);
   const { data: customers, isLoading: isLoadingCustomers } = useCollection<Customer>(customersRef);
 
-  const groupedProposals = useMemo((): ProposalGroup[] | undefined => {
-    if (!proposals) return undefined;
+    const groupedProposals = useMemo((): ProposalGroup[] => {
+        if (!proposals) return [];
 
-    const groups: Record<string, Proposal[]> = {};
-    
-    proposals.forEach(p => {
-        const rootId = p.rootProposalId || `legacy-${p.id}`;
-        if (!groups[rootId]) {
-            groups[rootId] = [];
-        }
-        groups[rootId].push(p);
-    });
+        const groups: Record<string, Proposal[]> = {};
+        
+        proposals.forEach(p => {
+            const rootId = p.rootProposalId || `legacy-${p.id}`;
+            if (!groups[rootId]) {
+                groups[rootId] = [];
+            }
+            groups[rootId].push(p);
+        });
 
-    return Object.values(groups).map(versions => {
-        versions.sort((a, b) => b.version - a.version);
-        return {
-            rootProposalId: versions[0].rootProposalId || `legacy-${versions[0].id}`,
-            latestProposal: versions[0],
-            versions: versions
-        };
-    }).sort((a,b) => b.latestProposal.createdAt.seconds - a.latestProposal.createdAt.seconds);
+        return Object.values(groups).map(versions => {
+            // Sort versions within the group to find the latest one reliably
+            versions.sort((a, b) => b.version - a.version);
+            return {
+                rootProposalId: versions[0].rootProposalId || `legacy-${versions[0].id}`,
+                latestProposal: versions[0],
+                versions: versions
+            };
+        }).sort((a, b) => {
+            // SAFE SORTING: Handle cases where createdAt might be null (due to serverTimestamp latency)
+            const timeA = a.latestProposal.createdAt?.seconds ?? 0;
+            const timeB = b.latestProposal.createdAt?.seconds ?? 0;
+            return timeB - timeA;
+        });
 
   }, [proposals]);
+
 
   const handleCreateNewQuote = async (values: NewQuoteFormValues) => {
     if (!firestore) {
@@ -210,55 +217,54 @@ export default function QuotesPage() {
         setIsSubmitting(false);
     }
   };
+  
+    const handleDuplicateProposal = async (proposalToClone: Proposal) => {
+        if (!firestore || !proposalToClone) return;
+        setIsRevising(proposalToClone.rootProposalId);
+        toast({ title: 'Revizyon oluşturuluyor...' });
 
-  const handleDuplicateProposal = async (proposalToClone: Proposal) => {
-    if (!firestore || isRevising) return;
-    setIsRevising(proposalToClone.rootProposalId);
-    toast({ title: 'Revizyon oluşturuluyor...' });
+        try {
+            const versionsQuery = query(
+                collection(firestore, 'proposals'),
+                where('rootProposalId', '==', proposalToClone.rootProposalId)
+            );
+            const versionsSnap = await getDocs(versionsQuery);
+            const latestVersionNumber = versionsSnap.size; // simpler way to get the count for the next version
 
-    try {
-        const versionsQuery = query(
-            collection(firestore, 'proposals'),
-            where('rootProposalId', '==', proposalToClone.rootProposalId)
-        );
-        const versionsSnap = await getDocs(versionsQuery);
-        const existingVersions = versionsSnap.docs.map(doc => doc.data() as Proposal);
-        const latestVersionNumber = existingVersions.reduce((max, p) => Math.max(max, p.version), 0);
-        
-        const batch = writeBatch(firestore);
-        const newProposalRef = doc(collection(firestore, 'proposals'));
-        const newRates = await fetchExchangeRates();
+            const batch = writeBatch(firestore);
+            const newProposalRef = doc(collection(firestore, 'proposals'));
+            const newRates = await fetchExchangeRates();
 
-        const newProposalData = {
-            ...proposalToClone,
-            id: newProposalRef.id, // Ensure we don't carry over the old id
-            version: latestVersionNumber + 1,
-            status: 'Draft' as const,
-            createdAt: serverTimestamp(),
-            versionNote: `Revizyon (v${proposalToClone.version}'dan kopyalandı)`,
-            exchangeRates: newRates,
-        };
-        batch.set(newProposalRef, newProposalData);
+            const newProposalData = {
+                ...proposalToClone,
+                id: newProposalRef.id,
+                version: latestVersionNumber + 1,
+                status: 'Draft' as const,
+                createdAt: serverTimestamp(),
+                versionNote: `Revizyon (v${proposalToClone.version}'dan kopyalandı)`,
+                exchangeRates: newRates,
+            };
+            batch.set(newProposalRef, newProposalData);
 
-        const itemsRef = collection(firestore, 'proposals', proposalToClone.id, 'proposal_items');
-        const itemsSnap = await getDocs(itemsRef);
-        itemsSnap.forEach(itemDoc => {
-            const newItemRef = doc(collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'));
-            batch.set(newItemRef, itemDoc.data());
-        });
+            const itemsRef = collection(firestore, 'proposals', proposalToClone.id, 'proposal_items');
+            const itemsSnap = await getDocs(itemsRef);
+            itemsSnap.forEach(itemDoc => {
+                const newItemRef = doc(collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'));
+                batch.set(newItemRef, itemDoc.data());
+            });
 
-        await batch.commit();
+            await batch.commit();
 
-        toast({ title: "Başarılı!", description: `Teklif revize edildi. Yeni versiyon: v${latestVersionNumber + 1}` });
-        router.push(`/quotes/${newProposalRef.id}`);
+            toast({ title: "Başarılı!", description: `Teklif revize edildi. Yeni versiyon: v${latestVersionNumber + 1}` });
+            router.push(`/quotes/${newProposalRef.id}`);
 
-    } catch (error: any) {
-        console.error("Teklif revizyon hatası:", error);
-        toast({ variant: "destructive", title: "Hata", description: `Revizyon oluşturulamadı: ${error.message}` });
-    } finally {
-        setIsRevising(null);
+        } catch (error: any) {
+            console.error("Teklif revizyon hatası:", error);
+            toast({ variant: "destructive", title: "Hata", description: `Revizyon oluşturulamadı: ${error.message}` });
+        } finally {
+            setIsRevising(null);
+        }
     }
-  }
   
  const handleDeleteProposal = async (idToDelete: string, rootId: string, isGroupDelete: boolean) => {
     if (!firestore) return;
@@ -284,7 +290,7 @@ export default function QuotesPage() {
 
         await batch.commit();
         toast({ title: "Başarılı", description: "Teklif ve ilgili tüm kalemler silindi." });
-        refetchProposals();
+        await refetchProposals();
     } catch (error: any) {
         console.error("Teklif silme hatası:", error);
         toast({ variant: "destructive", title: "Hata", description: `Teklif silinemedi: ${error.message}` });
