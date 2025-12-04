@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { PlusCircle, MoreHorizontal, Copy, Trash2, Loader2, Search, ChevronDown, Eye, AlertTriangle, FileText, DollarSign, Calculator } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Copy, Trash2, Loader2, Search, ChevronDown, Eye, AlertTriangle, FileText, DollarSign, Calculator, CheckSquare, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Badge } from '@/components/ui/badge';
@@ -47,6 +47,7 @@ import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Checkbox } from '@/components/ui/checkbox';
 
 
 const newQuoteSchema = z.object({
@@ -156,6 +157,7 @@ export default function QuotesPage() {
   const [statusFilter, setStatusFilter] = useState<Proposal['status'] | 'All'>('All');
   const [dateFilter, setDateFilter] = useState<'all' | 'last30days' | 'last90days'>('all');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
 
   const form = useForm<NewQuoteFormValues>({
@@ -176,11 +178,9 @@ export default function QuotesPage() {
   const { data: customers, isLoading: isLoadingCustomers } = useCollection<Customer>(customersRef);
 
   useEffect(() => {
-    if (proposals) {
-        refetchProposals();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    setSelectedIds(new Set());
+  }, [statusFilter, dateFilter, searchTerm, sortOrder]);
+
 
   const groupedProposals = useMemo((): ProposalGroup[] => {
     if (!proposals) return [];
@@ -216,6 +216,82 @@ export default function QuotesPage() {
         }
     });
 }, [proposals, sortOrder]);
+  
+  const flatFilteredProposals = useMemo(() => {
+    if (!proposals) return [];
+    
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30).getTime();
+    const ninetyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 90).getTime();
+
+    return proposals.filter(p => {
+        const searchMatch = 
+            p.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            p.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            p.quoteNumber.toLowerCase().includes(searchTerm.toLowerCase());
+        if (!searchMatch) return false;
+
+        if (dateFilter !== 'all' && p.createdAt) {
+            const proposalDate = p.createdAt.seconds * 1000;
+            if (dateFilter === 'last30days' && proposalDate < thirtyDaysAgo) return false;
+            if (dateFilter === 'last90days' && proposalDate < ninetyDaysAgo) return false;
+        }
+        
+        if (statusFilter !== 'All') {
+          return p.status === statusFilter;
+        }
+
+        return true;
+    }).sort((a, b) => {
+        const timeA = a.createdAt?.seconds ?? 0;
+        const timeB = b.createdAt?.seconds ?? 0;
+        return sortOrder === 'newest' ? timeB - timeA : timeA - timeB;
+    });
+  }, [proposals, searchTerm, statusFilter, dateFilter, sortOrder]);
+
+
+  const filteredProposalGroups = useMemo(() => {
+    if (statusFilter !== 'All') {
+        return []; // Don't use grouped view when a specific status is filtered
+    }
+    
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30).getTime();
+    const ninetyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 90).getTime();
+
+    return groupedProposals.filter(g => {
+      const searchMatch = 
+          g.latestProposal.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          g.latestProposal.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          g.latestProposal.quoteNumber.toLowerCase().includes(searchTerm.toLowerCase());
+      if (!searchMatch) return false;
+
+      if (dateFilter !== 'all' && g.latestProposal.createdAt) {
+          const proposalDate = g.latestProposal.createdAt.seconds * 1000;
+          if (dateFilter === 'last30days' && proposalDate < thirtyDaysAgo) return false;
+          if (dateFilter === 'last90days' && proposalDate < ninetyDaysAgo) return false;
+      }
+      
+      return true;
+    });
+  }, [groupedProposals, searchTerm, statusFilter, dateFilter]);
+  
+
+  const filteredStats = useMemo(() => {
+    const listToProcess = statusFilter === 'All' 
+        ? filteredProposalGroups.map(g => g.latestProposal) 
+        : flatFilteredProposals;
+
+    const count = listToProcess.length;
+    const totalAmount = listToProcess.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+    const averageAmount = count > 0 ? totalAmount / count : 0;
+
+    return {
+      count,
+      totalAmount,
+      averageAmount,
+    };
+  }, [filteredProposalGroups, flatFilteredProposals, statusFilter]);
 
   const handleCreateNewQuote = async (values: NewQuoteFormValues) => {
     if (!firestore) {
@@ -368,82 +444,77 @@ export default function QuotesPage() {
     }
   };
   
-  const filteredProposalGroups = useMemo(() => {
-    if (!groupedProposals) return [];
-    
-    const now = new Date();
-    const thirtyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30).getTime();
-    const ninetyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 90).getTime();
-
-    return groupedProposals.filter(g => {
-      const searchMatch = 
-          g.latestProposal.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          g.latestProposal.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          g.latestProposal.quoteNumber.toLowerCase().includes(searchTerm.toLowerCase());
-      if (!searchMatch) return false;
-
-      if (dateFilter !== 'all' && g.latestProposal.createdAt) {
-          const proposalDate = g.latestProposal.createdAt.seconds * 1000;
-          if (dateFilter === 'last30days' && proposalDate < thirtyDaysAgo) return false;
-          if (dateFilter === 'last90days' && proposalDate < ninetyDaysAgo) return false;
-      }
-      
-      if (statusFilter !== 'All') {
-          const hasMatchingStatus = g.versions.some(v => v.status === statusFilter);
-          if (!hasMatchingStatus) return false;
-      }
-      
-      return true;
-    });
-  }, [groupedProposals, searchTerm, statusFilter, dateFilter]);
-
-  const flatFilteredProposals = useMemo(() => {
-    if (!proposals) return [];
-    
-    const now = new Date();
-    const thirtyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30).getTime();
-    const ninetyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 90).getTime();
-
-    return proposals.filter(p => {
-        const searchMatch = 
-            p.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.quoteNumber.toLowerCase().includes(searchTerm.toLowerCase());
-        if (!searchMatch) return false;
-
-        if (dateFilter !== 'all' && p.createdAt) {
-            const proposalDate = p.createdAt.seconds * 1000;
-            if (dateFilter === 'last30days' && proposalDate < thirtyDaysAgo) return false;
-            if (dateFilter === 'last90days' && proposalDate < ninetyDaysAgo) return false;
-        }
+    const handleBulkStatusChange = async (newStatus: Proposal['status']) => {
+        if (!firestore || selectedIds.size === 0) return;
         
-        if (statusFilter !== 'All') {
-          return p.status === statusFilter;
+        toast({title: 'Güncelleniyor...', description: `${selectedIds.size} teklifin durumu değiştiriliyor.`});
+
+        try {
+            const batch = writeBatch(firestore);
+            selectedIds.forEach(id => {
+                const docRef = doc(firestore, 'proposals', id);
+                batch.update(docRef, { status: newStatus });
+            });
+            await batch.commit();
+            toast({title: 'Başarılı!', description: 'Teklif durumları güncellendi.'});
+            setSelectedIds(new Set());
+            refetchProposals();
+        } catch (error: any) {
+            toast({variant: 'destructive', title: 'Hata', description: `Durumlar güncellenemedi: ${error.message}`});
         }
-
-        return true;
-    }).sort((a, b) => {
-        const timeA = a.createdAt?.seconds ?? 0;
-        const timeB = b.createdAt?.seconds ?? 0;
-        return sortOrder === 'newest' ? timeB - timeA : timeA - timeB;
-    });
-  }, [proposals, searchTerm, statusFilter, dateFilter, sortOrder]);
-
-  const filteredStats = useMemo(() => {
-    const listToProcess = statusFilter === 'All' 
-        ? filteredProposalGroups.map(g => g.latestProposal) 
-        : flatFilteredProposals;
-
-    const count = listToProcess.length;
-    const totalAmount = listToProcess.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
-    const averageAmount = count > 0 ? totalAmount / count : 0;
-
-    return {
-      count,
-      totalAmount,
-      averageAmount,
     };
-  }, [filteredProposalGroups, flatFilteredProposals, statusFilter]);
+
+    const handleBulkDelete = async () => {
+        if (!firestore || selectedIds.size === 0) return;
+
+        toast({title: 'Siliniyor...', description: `${selectedIds.size} teklif siliniyor.`});
+
+        try {
+            const batch = writeBatch(firestore);
+            // Need to fetch rootProposalId for each selected item to potentially delete sub-items
+            for (const id of selectedIds) {
+                const docRef = doc(firestore, 'proposals', id);
+                batch.delete(docRef);
+
+                const itemsRef = collection(firestore, 'proposals', id, 'proposal_items');
+                const itemsSnap = await getDocs(itemsRef);
+                itemsSnap.forEach(itemDoc => batch.delete(itemDoc.ref));
+            }
+            await batch.commit();
+
+            toast({title: 'Başarılı!', description: 'Seçili teklifler ve kalemleri silindi.'});
+            setSelectedIds(new Set());
+            refetchProposals();
+
+        } catch (error: any) {
+            toast({variant: 'destructive', title: 'Hata', description: `Teklifler silinemedi: ${error.message}`});
+        }
+    };
+
+    const toggleAllSelection = (isChecked: boolean) => {
+        const newSelectedIds = new Set<string>();
+        if (isChecked) {
+            const itemsToSelect = statusFilter === 'All' ? filteredProposalGroups.map(g => g.latestProposal.id) : flatFilteredProposals.map(p => p.id);
+            itemsToSelect.forEach(id => newSelectedIds.add(id));
+        }
+        setSelectedIds(newSelectedIds);
+    };
+
+    const toggleSelection = (id: string, isChecked: boolean) => {
+        setSelectedIds(prev => {
+            const newSet = new Set(prev);
+            if (isChecked) {
+                newSet.add(id);
+            } else {
+                newSet.delete(id);
+            }
+            return newSet;
+        });
+    };
+
+    const currentList = statusFilter === 'All' ? filteredProposalGroups.map(g => g.latestProposal) : flatFilteredProposals;
+    const allVisibleSelected = currentList.length > 0 && selectedIds.size === currentList.length;
+    const someVisibleSelected = selectedIds.size > 0 && selectedIds.size < currentList.length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -601,6 +672,58 @@ export default function QuotesPage() {
            </div>
         </CardHeader>
         <CardContent className="p-0">
+             {selectedIds.size > 0 && (
+                <div className="bg-primary/10 border-b border-primary/20 px-4 py-2 flex items-center justify-between">
+                    <div className="text-sm font-semibold text-primary">
+                        {selectedIds.size} teklif seçildi.
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm">
+                                    <CheckSquare className="mr-2 h-4 w-4" />
+                                    Durum Değiştir
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                {statusOptions.map(opt => (
+                                    <DropdownMenuItem key={opt.value} onClick={() => handleBulkStatusChange(opt.value)}>
+                                        {opt.label} olarak ayarla
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
+                         <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                               <Button variant="destructive" size="sm">
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Seçilenleri Sil
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Bu işlem geri alınamaz. Seçilen {selectedIds.size} teklifi ve tüm revizyonlarını kalıcı olarak silecektir.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>İptal</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90">
+                                        Evet, Sil
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+
+
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedIds(new Set())}>
+                            <X className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+            )}
             <div className="space-y-2">
                 {isLoadingProposals ? (
                      <div className="flex justify-center items-center h-24">
@@ -612,7 +735,13 @@ export default function QuotesPage() {
                         filteredProposalGroups.map((group) => (
                             <Collapsible key={group.rootProposalId} asChild>
                                 <Card className="rounded-none shadow-none border-x-0 border-t-0 last:border-b-0">
-                                    <div className="flex items-center justify-between p-3">
+                                    <div className="flex items-center p-3">
+                                         <div className="px-2">
+                                            <Checkbox
+                                                checked={selectedIds.has(group.latestProposal.id)}
+                                                onCheckedChange={(checked) => toggleSelection(group.latestProposal.id, !!checked)}
+                                            />
+                                        </div>
                                         <div className="grid grid-cols-6 gap-4 flex-1 items-center">
                                             <div className="font-semibold">{group.latestProposal.quoteNumber}</div>
                                             <div className="col-span-2 text-muted-foreground">{group.latestProposal.customerName}</div>
@@ -760,6 +889,14 @@ export default function QuotesPage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
+                                 <TableHead className="w-12">
+                                     <Checkbox
+                                        checked={allVisibleSelected}
+                                        onCheckedChange={toggleAllSelection}
+                                        aria-label="Tümünü seç"
+                                        data-state={someVisibleSelected ? 'indeterminate' : (allVisibleSelected ? 'checked' : 'unchecked')}
+                                     />
+                                 </TableHead>
                                 <TableHead>Teklif No</TableHead>
                                 <TableHead>Müşteri</TableHead>
                                 <TableHead>Proje</TableHead>
@@ -772,7 +909,13 @@ export default function QuotesPage() {
                         <TableBody>
                         {flatFilteredProposals.length > 0 ? (
                             flatFilteredProposals.map(v => (
-                                <TableRow key={v.id}>
+                                <TableRow key={v.id} data-state={selectedIds.has(v.id) ? 'selected' : undefined}>
+                                    <TableCell>
+                                        <Checkbox
+                                            checked={selectedIds.has(v.id)}
+                                            onCheckedChange={(checked) => toggleSelection(v.id, !!checked)}
+                                        />
+                                    </TableCell>
                                     <TableCell className="font-medium">{v.quoteNumber}</TableCell>
                                     <TableCell className="text-muted-foreground">{v.customerName}</TableCell>
                                     <TableCell>{v.projectName}</TableCell>
@@ -793,7 +936,7 @@ export default function QuotesPage() {
                             ))
                         ) : (
                              <TableRow>
-                                <TableCell colSpan={7} className="text-center text-muted-foreground p-12">
+                                <TableCell colSpan={8} className="text-center text-muted-foreground p-12">
                                     Bu filtrelerle eşleşen teklif bulunamadı.
                                 </TableCell>
                             </TableRow>
@@ -807,3 +950,5 @@ export default function QuotesPage() {
     </div>
   );
 }
+
+    
