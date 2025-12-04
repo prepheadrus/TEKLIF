@@ -548,10 +548,10 @@ export default function QuoteDetailPage() {
                     const groupSubTotalTRY = groupTotals.totalSellInTRY || 0;
                     const groupVatAmount = groupSubTotalTRY * VAT_RATE;
                     const groupTotalWithVAT = groupSubTotalTRY + groupVatAmount;
-                    const finalGroupTotal = includeVAT ? groupTotalWithVAT : groupSubTotalTRY;
 
                     return (
-                     <Collapsible key={groupName} defaultOpen={true} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                     <Collapsible key={groupName} defaultOpen={true} asChild>
+                      <section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                         <CollapsibleTrigger className="w-full">
                             <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center w-full hover:bg-slate-50 transition-colors">
                                 <div className="flex items-center gap-3">
@@ -618,7 +618,7 @@ export default function QuoteDetailPage() {
                                         <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Miktar</TableHead>
                                         <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Liste Fiyatı</TableHead>
                                         <TableHead className="text-right py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider w-24">İskonto</TableHead>
-                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Net Birim (Döviz)</TableHead>
+                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Maliyet (Döviz)</TableHead>
                                         <TableHead className="text-right py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider w-32">Kâr</TableHead>
                                         <TableHead className="text-right py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Birim Fiyat (Net)</TableHead>
                                         <TableHead className="text-right py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Toplam (Net)</TableHead>
@@ -675,25 +675,28 @@ export default function QuoteDetailPage() {
                                                         <span className="text-slate-400">%</span>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="text-right font-mono tabular-nums py-2 w-32">{formatNumber(itemTotals.cost)} {itemValues.currency}</TableCell>
-                                                <TableCell className="py-2 w-32">
-                                                    <div className="flex items-center justify-end gap-1">
-                                                        <Controller
-                                                            control={form.control}
-                                                            name={`items.${originalIndex}.profitMargin`}
-                                                            render={({ field }) => (
-                                                                <Input
-                                                                    type="number"
-                                                                    value={Math.round(field.value * 100)}
-                                                                    onChange={e => field.onChange(parseFloat(e.target.value) / 100)}
-                                                                    className="w-16 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-8" placeholder="20"/>
-                                                            )}
-                                                        />
-                                                        <span className="text-slate-400">%</span>
+                                                <TableCell className="text-right font-mono tabular-nums py-2">{formatNumber(itemTotals.cost)} {itemValues.currency}</TableCell>
+                                                <TableCell className="py-2 w-32 text-right">
+                                                    <div className="flex flex-col items-end">
+                                                        <div className="flex items-center gap-1">
+                                                             <Controller
+                                                                control={form.control}
+                                                                name={`items.${originalIndex}.profitMargin`}
+                                                                render={({ field }) => (
+                                                                    <Input
+                                                                        type="number"
+                                                                        value={Math.round(field.value * 100)}
+                                                                        onChange={e => field.onChange(parseFloat(e.target.value) / 100)}
+                                                                        className="w-16 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-8" placeholder="20"/>
+                                                                )}
+                                                            />
+                                                            <span className="text-slate-400">%</span>
+                                                        </div>
+                                                        <span className="text-xs font-mono text-green-600 font-semibold tabular-nums">+{formatCurrency(itemTotals.totalProfit)}</span>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="text-right font-mono tabular-nums font-semibold text-slate-600 py-2 w-32">{formatCurrency(itemTotals.tlSellPrice)}</TableCell>
-                                                <TableCell className="text-right font-bold font-mono tabular-nums text-slate-800 py-2 w-36">{formatCurrency(itemTotals.totalTlSell)}</TableCell>
+                                                <TableCell className="text-right font-mono tabular-nums font-semibold text-slate-600 py-2">{formatCurrency(itemTotals.tlSellPrice)}</TableCell>
+                                                <TableCell className="text-right font-bold font-mono tabular-nums text-slate-800 py-2">{formatCurrency(itemTotals.totalTlSell)}</TableCell>
                                                 <TableCell className="px-2 text-center py-2">
                                                     <Button variant="ghost" size="icon" onClick={() => remove(originalIndex)} className="h-8 w-8 text-slate-400 hover:text-red-500 opacity-0 group-hover/row:opacity-100 transition-opacity">
                                                     <Trash2 className="h-4 w-4" />
@@ -739,7 +742,8 @@ export default function QuoteDetailPage() {
                                 </div>
                              </div>
                          </CollapsibleContent>
-                    </Collapsible>
+                        </section>
+                     </Collapsible>
                     )
                 })}
 
@@ -865,3 +869,5 @@ function AISuggestionBox({ productName, existingItems, onClose }: { productName:
         </div>
     )
 }
+
+    
