@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -42,13 +42,15 @@ import {
 } from "@/components/ui/select";
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { PlusCircle, MoreHorizontal, Copy, Trash2, Loader2, Search } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Copy, Trash2, Loader2, Search, ChevronDown, ChevronRight, FileText, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { fetchExchangeRates } from '@/ai/flows/fetch-exchange-rates';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { cn } from '@/lib/utils';
 
 
 const newQuoteSchema = z.object({
@@ -76,10 +78,16 @@ type Proposal = {
     customerId: string;
 };
 
+type ProposalGroup = {
+    rootProposalId: string;
+    latestProposal: Proposal;
+    versions: Proposal[];
+}
+
 function getStatusBadge(status: Proposal['status']) {
   switch (status) {
     case 'Approved':
-      return <Badge variant="default" className="bg-green-500">Onaylandı</Badge>;
+      return <Badge variant="default" className="bg-green-600 hover:bg-green-600/80">Onaylandı</Badge>;
     case 'Sent':
       return <Badge variant="secondary">Gönderildi</Badge>;
     case 'Rejected':
@@ -97,6 +105,7 @@ export default function QuotesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [openCollapsibles, setOpenCollapsibles] = useState<Record<string, boolean>>({});
 
 
   const form = useForm<NewQuoteFormValues>({
@@ -115,6 +124,29 @@ export default function QuotesPage() {
   
   const customersRef = useMemoFirebase(() => (firestore ? collection(firestore, 'customers') : null), [firestore]);
   const { data: customers, isLoading: isLoadingCustomers } = useCollection<Customer>(customersRef);
+
+  const groupedProposals = useMemo((): ProposalGroup[] => {
+    if (!proposals) return [];
+
+    const groups: Record<string, Proposal[]> = {};
+    
+    proposals.forEach(p => {
+        if (!groups[p.rootProposalId]) {
+            groups[p.rootProposalId] = [];
+        }
+        groups[p.rootProposalId].push(p);
+    });
+
+    return Object.values(groups).map(versions => {
+        versions.sort((a, b) => b.version - a.version);
+        return {
+            rootProposalId: versions[0].rootProposalId,
+            latestProposal: versions[0],
+            versions: versions
+        };
+    }).sort((a,b) => b.latestProposal.createdAt.seconds - a.latestProposal.createdAt.seconds);
+
+  }, [proposals]);
 
   const handleCreateNewQuote = async (values: NewQuoteFormValues) => {
     if (!firestore) {
@@ -140,7 +172,6 @@ export default function QuotesPage() {
         const nextId = (monthProposalsSnap.size + 1).toString().padStart(3, '0');
         const quoteNumber = `${month}${year}/${nextId}`;
 
-        // Fetch latest exchange rates
         const exchangeRates = await fetchExchangeRates();
 
         const newProposalRef = doc(collection(firestore, 'proposals'));
@@ -162,7 +193,6 @@ export default function QuotesPage() {
         toast({ title: "Başarılı!", description: "Yeni teklif taslağı oluşturuldu." });
         setIsDialogOpen(false);
         form.reset();
-        refetchProposals();
         router.push(`/quotes/${newProposalRef.id}`);
 
     } catch (error: any) {
@@ -178,6 +208,7 @@ export default function QuotesPage() {
 
   const handleDuplicateProposal = async (proposalId: string) => {
     if (!firestore) return;
+    toast({ title: 'Revizyon oluşturuluyor...' });
     try {
         const originalProposalRef = doc(firestore, 'proposals', proposalId);
         const originalProposalSnap = await getDoc(originalProposalRef);
@@ -195,7 +226,6 @@ export default function QuotesPage() {
         const versionsSnap = await getDocs(versionsQuery);
         const latestVersion = versionsSnap.docs.length > 0 ? (versionsSnap.docs[0].data() as Proposal).version : 0;
         
-        // Fetch latest exchange rates for the new revision
         const exchangeRates = await fetchExchangeRates();
 
         const batch = writeBatch(firestore);
@@ -208,7 +238,7 @@ export default function QuotesPage() {
             createdAt: serverTimestamp(),
             versionNote: `Revizyon (v${originalData.version}'dan kopyalandı)`,
             totalAmount: originalData.totalAmount,
-            exchangeRates: exchangeRates, // Use fresh rates for the revision
+            exchangeRates: exchangeRates,
         };
         batch.set(newProposalRef, newProposalData);
 
@@ -222,7 +252,6 @@ export default function QuotesPage() {
         await batch.commit();
 
         toast({ title: "Başarılı!", description: `Teklif revize edildi. Yeni versiyon: v${latestVersion + 1}` });
-        refetchProposals();
         router.push(`/quotes/${newProposalRef.id}`);
 
     } catch (error: any) {
@@ -231,11 +260,20 @@ export default function QuotesPage() {
     }
   }
   
-  const handleDeleteProposal = async (proposalId: string) => {
+  const handleDeleteProposal = async (proposalId: string, rootId: string, isGroupDelete: boolean) => {
     if (!firestore) return;
     try {
-        await deleteDoc(doc(firestore, 'proposals', proposalId));
-        toast({ title: "Başarılı", description: "Teklif silindi." });
+        if(isGroupDelete){
+            const versionsQuery = query(collection(firestore, 'proposals'), where('rootProposalId', '==', rootId));
+            const versionsSnap = await getDocs(versionsQuery);
+            const batch = writeBatch(firestore);
+            versionsSnap.forEach(doc => batch.delete(doc.ref));
+            await batch.commit();
+            toast({ title: "Başarılı", description: "Teklif grubu ve tüm versiyonları silindi." });
+        } else {
+            await deleteDoc(doc(firestore, 'proposals', proposalId));
+            toast({ title: "Başarılı", description: "Teklif versiyonu silindi." });
+        }
         refetchProposals();
     } catch (error: any) {
         console.error("Teklif silme hatası:", error);
@@ -243,10 +281,10 @@ export default function QuotesPage() {
     }
   }
   
-  const filteredProposals = proposals?.filter(p => 
-        p.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.quoteNumber.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredProposalGroups = groupedProposals.filter(g => 
+        g.latestProposal.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        g.latestProposal.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        g.latestProposal.quoteNumber.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -346,88 +384,98 @@ export default function QuotesPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[120px]"></TableHead>
                 <TableHead>Teklif No</TableHead>
                 <TableHead>Müşteri</TableHead>
                 <TableHead>Proje Adı</TableHead>
-                <TableHead>Versiyon</TableHead>
-                <TableHead>Tutar</TableHead>
-                <TableHead>Durum</TableHead>
-                <TableHead>Tarih</TableHead>
-                <TableHead><span className="sr-only">İşlemler</span></TableHead>
+                <TableHead>Versiyonlar</TableHead>
+                <TableHead>Tutar (Son V.)</TableHead>
+                <TableHead>Durum (Son V.)</TableHead>
+                <TableHead>Tarih (Son V.)</TableHead>
+                <TableHead className="text-right">İşlemler</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoadingProposals ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center">
+                  <TableCell colSpan={9} className="text-center">
                     <Loader2 className="mx-auto my-4 h-6 w-6 animate-spin" />
                   </TableCell>
                 </TableRow>
-              ) : filteredProposals && filteredProposals.length > 0 ? (
-                filteredProposals.map((proposal) => (
-                  <TableRow 
-                    key={proposal.id} 
-                    className="cursor-pointer"
-                    onClick={() => router.push(`/quotes/${proposal.id}`)}
-                  >
-                    <TableCell className="font-medium">{proposal.quoteNumber}</TableCell>
-                    <TableCell>{proposal.customerName}</TableCell>
-                    <TableCell>{proposal.projectName}</TableCell>
-                     <TableCell>v{proposal.version}</TableCell>
-                    <TableCell>{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(proposal.totalAmount)}</TableCell>
-                    <TableCell>{getStatusBadge(proposal.status)}</TableCell>
-                    <TableCell>{proposal.createdAt ? new Date(proposal.createdAt.seconds * 1000).toLocaleDateString('tr-TR') : '-'}</TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenu>
-                           <DropdownMenuTrigger asChild>
-                             <Button variant="ghost" className="h-8 w-8 p-0">
-                               <span className="sr-only">Menüyü aç</span>
-                               <MoreHorizontal className="h-4 w-4" />
-                             </Button>
-                           </DropdownMenuTrigger>
-                           <DropdownMenuContent align="end">
-                             <DropdownMenuLabel>İşlemler</DropdownMenuLabel>
-                             <DropdownMenuItem onClick={() => router.push(`/quotes/${proposal.id}`)}>
-                               Görüntüle / Düzenle
-                             </DropdownMenuItem>
-                             <DropdownMenuItem onClick={() => router.push(`/quotes/${proposal.id}/print?customerId=${proposal.customerId}`)}>
-                               Yazdır / İndir
-                             </DropdownMenuItem>
-                             <DropdownMenuItem onClick={() => handleDuplicateProposal(proposal.id)}>
-                                <Copy className="mr-2 h-4 w-4" />
-                               Revize Et
-                             </DropdownMenuItem>
-                             <DropdownMenuSeparator />
-                             <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    Sil
-                                  </DropdownMenuItem>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            Bu işlem geri alınamaz. Bu teklifi kalıcı olarak silecektir.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>İptal</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleDeleteProposal(proposal.id)} className="bg-destructive hover:bg-destructive/90">
-                                            Evet, Sil
-                                        </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                           </DropdownMenuContent>
-                        </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
+              ) : filteredProposalGroups && filteredProposalGroups.length > 0 ? (
+                filteredProposalGroups.map((group) => (
+                    <Collapsible asChild key={group.rootProposalId} onOpenChange={(isOpen) => setOpenCollapsibles(prev => ({...prev, [group.rootProposalId]: isOpen}))}>
+                        <>
+                            <TableRow className="font-medium bg-slate-50 hover:bg-slate-100 data-[state=open]:bg-slate-100">
+                                <TableCell>
+                                    <CollapsibleTrigger asChild>
+                                        <Button variant="ghost" size="sm">
+                                            {openCollapsibles[group.rootProposalId] ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                            <span className="ml-2">Detaylar</span>
+                                        </Button>
+                                    </CollapsibleTrigger>
+                                </TableCell>
+                                <TableCell>{group.latestProposal.quoteNumber}</TableCell>
+                                <TableCell>{group.latestProposal.customerName}</TableCell>
+                                <TableCell>{group.latestProposal.projectName}</TableCell>
+                                <TableCell>
+                                    <Badge variant="default">{group.versions.length} Versiyon</Badge>
+                                </TableCell>
+                                <TableCell>{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(group.latestProposal.totalAmount)}</TableCell>
+                                <TableCell>{getStatusBadge(group.latestProposal.status)}</TableCell>
+                                <TableCell>{group.latestProposal.createdAt ? new Date(group.latestProposal.createdAt.seconds * 1000).toLocaleDateString('tr-TR') : '-'}</TableCell>
+                                <TableCell className="text-right">
+                                    <Button variant="outline" size="sm" onClick={() => router.push(`/quotes/${group.latestProposal.id}`)}>
+                                        <Eye className="mr-2 h-4 w-4" />
+                                        Son Versiyonu Görüntüle
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                            <CollapsibleContent asChild>
+                                <TableRow>
+                                    <TableCell colSpan={9} className="p-0">
+                                        <div className="bg-white p-4 border-t-4 border-blue-200">
+                                             <h4 className="font-semibold mb-2 px-4">Teklif Versiyonları ({group.latestProposal.projectName})</h4>
+                                             <Table>
+                                                 <TableHeader>
+                                                     <TableRow>
+                                                         <TableHead>Versiyon</TableHead>
+                                                         <TableHead>Tutar</TableHead>
+                                                         <TableHead>Durum</TableHead>
+                                                         <TableHead>Tarih</TableHead>
+                                                          <TableHead>Not</TableHead>
+                                                         <TableHead className="text-right">İşlemler</TableHead>
+                                                     </TableRow>
+                                                 </TableHeader>
+                                                 <TableBody>
+                                                     {group.versions.map(v => (
+                                                         <TableRow key={v.id} className="hover:bg-slate-50">
+                                                             <TableCell><Badge variant="secondary">v{v.version}</Badge></TableCell>
+                                                             <TableCell>{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(v.totalAmount)}</TableCell>
+                                                             <TableCell>{getStatusBadge(v.status)}</TableCell>
+                                                             <TableCell>{v.createdAt ? new Date(v.createdAt.seconds * 1000).toLocaleDateString('tr-TR') : '-'}</TableCell>
+                                                             <TableCell className="text-muted-foreground text-xs">{v.versionNote}</TableCell>
+                                                             <TableCell className="text-right">
+                                                                <div className="flex items-center justify-end gap-2">
+                                                                    <Button variant="ghost" size="sm" onClick={() => router.push(`/quotes/${v.id}`)}>Görüntüle</Button>
+                                                                    <Button variant="ghost" size="sm" onClick={() => router.push(`/quotes/${v.id}/print?customerId=${v.customerId}`)}>Yazdır</Button>
+                                                                    <Button variant="outline" size="sm" onClick={() => handleDuplicateProposal(v.id)}><Copy className="mr-2 h-3 w-3"/>Revize Et</Button>
+                                                                </div>
+                                                             </TableCell>
+                                                         </TableRow>
+                                                     ))}
+                                                 </TableBody>
+                                             </Table>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            </CollapsibleContent>
+                        </>
+                    </Collapsible>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-24 text-center">
+                  <TableCell colSpan={9} className="h-24 text-center">
                     Henüz teklif bulunmuyor.
                   </TableCell>
                 </TableRow>
