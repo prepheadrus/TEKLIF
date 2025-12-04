@@ -60,34 +60,44 @@ const generatePrintHTML = (proposal: Proposal, customer: Customer, sortedGroups:
         <html>
             <head>
                 <title>Teklif: {proposal.quoteNumber}</title>
-                <link rel="stylesheet" type="text/css" href="/globals.css" />
                  <style dangerouslySetInnerHTML={{ __html: `
                     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
                     
-                    @media print {
-                      .print-layout {
-                        padding: 1.5cm;
-                      }
+                    @page {
+                      size: A4;
+                      margin: 0;
+                    }
+
+                    body {
+                      -webkit-print-color-adjust: exact;
+                      font-family: 'Inter', sans-serif;
+                      font-size: 10px;
+                      color: #374151;
+                      background-color: #fff;
+                    }
+
+                    .print-layout {
+                       padding: 1.5cm;
                     }
                 ` }} />
             </head>
-            <body style={{ fontFamily: "'Inter', sans-serif", fontSize: '10px', color: '#374151', backgroundColor: '#fff' }}>
+            <body>
                 <div className="print-layout">
                     <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: '1px solid #e5e7eb' }}>
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src="/logo.png" alt="Firma Logosu" style={{ width: '80px', height: '80px', objectFit: 'contain' }} />
                             <div>
-                                <h2 style={{ fontSize: '1rem', fontWeight: '700', color: '#1f2937' }}>İMS Mühendislik</h2>
-                                <p style={{ fontSize: '10px', fontWeight: '600', color: '#4b5563' }}>Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
-                                <p style={{ fontSize: '10px', maxWidth: '24rem', marginTop: '0.25rem' }}>Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA</p>
-                                <p style={{ fontSize: '10px', marginTop: '0.25rem' }}>ims.m.muhendislik@gmail.com | (553) 469 75 01</p>
+                                <h2 style={{ fontSize: '1rem', fontWeight: '700', color: '#1f2937', margin: 0 }}>İMS Mühendislik</h2>
+                                <p style={{ fontSize: '10px', fontWeight: '600', color: '#4b5563', margin: '2px 0 0 0' }}>Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
+                                <p style={{ fontSize: '10px', maxWidth: '24rem', marginTop: '0.25rem', margin: '2px 0 0 0' }}>Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA</p>
+                                <p style={{ fontSize: '10px', marginTop: '0.25rem', margin: '2px 0 0 0' }}>ims.m.muhendislik@gmail.com | (553) 469 75 01</p>
                             </div>
                         </div>
                         <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                            <h2 style={{ fontSize: '1.25rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>TEKLİF</h2>
-                            <p style={{ marginTop: '0.25rem' }}><span style={{ fontWeight: '600' }}>Teklif No:</span> {proposal.quoteNumber}</p>
-                            <p><span style={{ fontWeight: '600' }}>Tarih:</span> {formatDate(proposal.createdAt)}</p>
+                            <h2 style={{ fontSize: '1.25rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>TEKLİF</h2>
+                            <p style={{ marginTop: '0.25rem', margin: '2px 0 0 0' }}><span style={{ fontWeight: '600' }}>Teklif No:</span> {proposal.quoteNumber}</p>
+                            <p style={{ margin: '2px 0 0 0' }}><span style={{ fontWeight: '600' }}>Tarih:</span> {formatDate(proposal.createdAt)}</p>
                         </div>
                     </header>
 
@@ -108,9 +118,9 @@ const generatePrintHTML = (proposal: Proposal, customer: Customer, sortedGroups:
                     <section style={{ marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                         {sortedGroups.map(([groupName, groupItems]) => (
                             <div key={groupName}>
-                                <h3 style={{ fontSize: '0.875rem', fontWeight: '700', marginBottom: '0.25rem', padding: '0.25rem', backgroundColor: '#f3f4f6', borderRadius: '0.375rem 0.375rem 0 0', borderBottom: '2px solid #d1d5db', breakAfter: 'avoid-page' }}>{groupName}</h3>
+                                <h3 style={{ fontSize: '0.875rem', fontWeight: '700', marginBottom: '0.25rem', padding: '0.25rem', backgroundColor: '#f3f4f6', borderRadius: '0.375rem 0.375rem 0 0', borderBottom: '2px solid #d1d5db' }}>{groupName}</h3>
                                 <table style={{ width: '100%', fontSize: '10px', textAlign: 'left', borderCollapse: 'collapse' }}>
-                                    <thead style={{ display: 'table-header-group', breakInside: 'avoid' }}>
+                                    <thead style={{ display: 'table-header-group' }}>
                                         <tr style={{ backgroundColor: '#e5e7eb' }}>
                                             <th style={{ padding: '4px 8px', fontWeight: 700, color: '#374151', borderBottom: '1px solid #d1d5db', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em', verticalAlign: 'middle' }}>#</th>
                                             <th style={{ padding: '4px 8px', fontWeight: 700, color: '#374151', borderBottom: '1px solid #d1d5db', textAlign: 'left', width: '40%', textTransform: 'uppercase', letterSpacing: '0.05em', verticalAlign: 'middle' }}>Açıklama</th>
@@ -123,14 +133,14 @@ const generatePrintHTML = (proposal: Proposal, customer: Customer, sortedGroups:
                                     </thead>
                                     <tbody>
                                         {groupItems.map((item, index) => (
-                                            <tr key={item.id} style={{ borderBottom: '1px solid #e5e7eb', breakInside: 'avoid' }}>
-                                                <td style={{ padding: '2px 8px', verticalAlign: 'top' }}>{index + 1}</td>
-                                                <td style={{ padding: '2px 8px', verticalAlign: 'top', fontWeight: 500 }}>{item.name}</td>
-                                                <td style={{ padding: '2px 8px', verticalAlign: 'top' }}>{item.brand}</td>
-                                                <td style={{ padding: '2px 8px', verticalAlign: 'top', textAlign: 'center' }}>{item.quantity}</td>
-                                                <td style={{ padding: '2px 8px', verticalAlign: 'top' }}>{item.unit}</td>
-                                                <td style={{ padding: '2px 8px', verticalAlign: 'top', textAlign: 'right' }}>{formatCurrency(item.unitPrice, 'TRY')}</td>
-                                                <td style={{ padding: '2px 8px', verticalAlign: 'top', textAlign: 'right', fontWeight: 600 }}>{formatCurrency(item.total, 'TRY')}</td>
+                                            <tr key={item.id} style={{ breakInside: 'avoid' }}>
+                                                <td style={{ padding: '2px 8px', verticalAlign: 'top', borderBottom: '1px solid #e5e7eb' }}>{index + 1}</td>
+                                                <td style={{ padding: '2px 8px', verticalAlign: 'top', fontWeight: 500, borderBottom: '1px solid #e5e7eb' }}>{item.name}</td>
+                                                <td style={{ padding: '2px 8px', verticalAlign: 'top', borderBottom: '1px solid #e5e7eb' }}>{item.brand}</td>
+                                                <td style={{ padding: '2px 8px', verticalAlign: 'top', textAlign: 'center', borderBottom: '1px solid #e5e7eb' }}>{item.quantity}</td>
+                                                <td style={{ padding: '2px 8px', verticalAlign: 'top', borderBottom: '1px solid #e5e7eb' }}>{item.unit}</td>
+                                                <td style={{ padding: '2px 8px', verticalAlign: 'top', textAlign: 'right', borderBottom: '1px solid #e5e7eb' }}>{formatCurrency(item.unitPrice, 'TRY')}</td>
+                                                <td style={{ padding: '2px 8px', verticalAlign: 'top', textAlign: 'right', fontWeight: 600, borderBottom: '1px solid #e5e7eb' }}>{formatCurrency(item.total, 'TRY')}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -182,13 +192,13 @@ const generatePrintHTML = (proposal: Proposal, customer: Customer, sortedGroups:
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '2rem', paddingTop: '0.5rem', borderTop: '1px solid #e5e7eb', breakInside: 'avoid' }}>
                         <footer style={{ fontSize: '9px', color: '#4b5563', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                            <p style={{ fontWeight: 600 }}>Teklif Koşulları:</p>
+                            <p style={{ fontWeight: 600, margin: 0 }}>Teklif Koşulları:</p>
                             <ul style={{ listStylePosition: 'inside', paddingLeft: 0, margin: 0 }}>
                                 <li>Teklifin geçerlilik süresi 15 gündür.</li>
                                 <li>Fiyatlarımıza KDV dahildir.</li>
                                 <li>Hesaplamada kullanılan kurlar: 1 EUR = {proposal.exchangeRates.EUR.toFixed(4)} TL, 1 USD = {proposal.exchangeRates.USD.toFixed(4)} TL</li>
                             </ul>
-                            <p style={{ marginTop: '0.5rem', fontWeight: 600, fontSize: '0.75rem' }}>İMS Mühendislik | Teşekkür Ederiz!</p>
+                            <p style={{ marginTop: '0.5rem', fontWeight: 600, fontSize: '0.75rem', margin: '8px 0 0 0' }}>İMS Mühendislik | Teşekkür Ederiz!</p>
                         </footer>
                         <div style={{ position: 'relative', width: '10rem', height: 'auto' }}>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
