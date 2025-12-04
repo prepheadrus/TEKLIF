@@ -275,8 +275,6 @@ export default function QuoteDetailPage() {
   const watchedRates = form.watch('exchangeRates');
 
   // --- Calculations ---
-  // The 'calculatedTotals' is now computed on every render, ensuring it's always up-to-date with the latest form values from 'watch'.
-  // This avoids stale state issues previously seen with useMemo.
   const calculatedTotals = calculateAllTotals(watchedItems, watchedRates);
 
 
@@ -288,33 +286,30 @@ export default function QuoteDetailPage() {
 
   useEffect(() => {
     if (!proposal || !initialItems) return;
-
-    const currentFormItemsMap = new Map((form.getValues('items') || []).map(item => [item.id, item]));
     
-    const newItems = initialItems.map(dbItem => {
-      if (dbItem.id && currentFormItemsMap.has(dbItem.id)) {
-        return currentFormItemsMap.get(dbItem.id)!;
-      }
-      return {
+    // Check if form is already populated from a previous run to avoid overwriting user changes
+    const isFormPopulated = form.getValues('items').length > 0;
+    if(isFormPopulated && form.formState.isDirty) return;
+
+
+    const newItems = initialItems.map(dbItem => ({
         ...dbItem,
         id: dbItem.id,
         productId: dbItem.productId || '',
         groupName: dbItem.groupName || 'Diğer',
-      };
-    });
+      }));
 
     form.reset({
       versionNote: proposal.versionNote || '',
       items: newItems,
       exchangeRates: proposal.exchangeRates || { USD: 32.5, EUR: 35.0 }
-    }, { keepDirty: true });
+    });
 
-    if (!form.formState.isDirty && !initialFetchDone.current) {
+    if (!form.formState.isDirty && !initialFetchDone.current && proposal.exchangeRates) {
         handleFetchRates();
-        initialFetchDone.current = true;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [proposal, initialItems]);
+  }, [proposal, initialItems, form]);
 
 
   useEffect(() => {
@@ -527,6 +522,8 @@ export default function QuoteDetailPage() {
   };
   
   const handleFetchRates = async () => {
+    if (initialFetchDone.current) return;
+    initialFetchDone.current = true;
     setIsFetchingRates(true);
     toast({ title: 'Kurlar alınıyor...', description: 'TCMB verileri çekiliyor.' });
     try {
@@ -688,25 +685,24 @@ export default function QuoteDetailPage() {
                                 <Table>
                                     <TableHeader className="bg-slate-50">
                                     <TableRow>
-                                        <TableHead className="py-1 pl-4 text-xs uppercase text-slate-500 font-semibold tracking-wider w-[30%]">Ürün Tanımı</TableHead>
-                                        <TableHead className="py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider w-[15%]">Marka</TableHead>
-                                        <TableHead className="py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Miktar</TableHead>
-                                        <TableHead className="py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Liste Fiyatı</TableHead>
-                                        <TableHead className="py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">İskonto</TableHead>
-                                        <TableHead className="py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Maliyet</TableHead>
-                                        <TableHead className="py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Kâr (% / Tutar)</TableHead>
-                                        <TableHead className="text-right py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Birim Fiyat (TL)</TableHead>
-                                        <TableHead className="text-right py-1 text-xs uppercase text-slate-500 font-semibold tracking-wider">Toplam (TL)</TableHead>
-                                        <TableHead className="w-10 py-1 pr-4"></TableHead>
+                                        <TableHead className="py-2 pl-4 text-xs uppercase text-slate-500 font-semibold tracking-wider w-[30%]">Ürün Tanımı</TableHead>
+                                        <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider w-[15%]">Marka</TableHead>
+                                        <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Miktar</TableHead>
+                                        <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Liste Fiyatı</TableHead>
+                                        <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">İskonto</TableHead>
+                                        <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Maliyet</TableHead>
+                                        <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Kâr (% / Tutar)</TableHead>
+                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Birim Fiyat (TL)</TableHead>
+                                        <TableHead className="text-right py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Toplam (TL)</TableHead>
+                                        <TableHead className="w-10 py-2 pr-4"></TableHead>
                                     </TableRow>
                                     </TableHeader>
                                     <TableBody className="text-sm divide-y divide-slate-100">
                                         {fields.map((field, index) => {
                                             if (field.groupName !== groupName) return null;
                                             
-                                            // Get the most up-to-date item data from watchedItems
                                             const currentItem = watchedItems?.[index];
-                                            if (!currentItem) return null; // Or some fallback UI
+                                            if (!currentItem) return null; 
 
                                             const itemTotals = calculateItemTotals({
                                                 ...currentItem,
@@ -714,22 +710,22 @@ export default function QuoteDetailPage() {
                                             });
 
                                         return (
-                                            <TableRow key={field.formId} className="hover:bg-slate-50/50 group/row">
-                                                <TableCell className="py-1 pl-4 font-medium text-slate-800 w-[30%]">
-                                                    <FormField control={form.control} name={`items.${index}.name`} render={({ field }) => <Input {...field} className="w-full h-7 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
+                                            <TableRow key={field.formId} className="hover:bg-slate-50/50 group/row odd:bg-slate-50/50">
+                                                <TableCell className="py-1.5 pl-4 font-medium text-slate-800 w-[30%]">
+                                                    <FormField control={form.control} name={`items.${index}.name`} render={({ field }) => <Input {...field} className="w-full h-8 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
                                                 </TableCell>
-                                                 <TableCell className="py-1 w-[15%]">
-                                                    <FormField control={form.control} name={`items.${index}.brand`} render={({ field }) => <Input {...field} className="w-full h-7 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
+                                                 <TableCell className="py-1.5 w-[15%]">
+                                                    <FormField control={form.control} name={`items.${index}.brand`} render={({ field }) => <Input {...field} className="w-full h-8 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
                                                 </TableCell>
-                                                <TableCell className="py-1">
+                                                <TableCell className="py-1.5">
                                                     <div className="flex items-center">
-                                                        <FormField control={form.control} name={`items.${index}.quantity`} render={({ field }) => <Input {...field} type="number" step="any" className="w-16 font-mono text-right bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7" />} />
-                                                        <FormField control={form.control} name={`items.${index}.unit`} render={({ field }) => <Input {...field} className="w-16 h-7 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
+                                                        <FormField control={form.control} name={`items.${index}.quantity`} render={({ field }) => <Input {...field} type="number" step="any" className="w-16 font-mono text-right bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-8" />} />
+                                                        <FormField control={form.control} name={`items.${index}.unit`} render={({ field }) => <Input {...field} className="w-16 h-8 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="py-1 font-mono">
+                                                <TableCell className="py-1.5 font-mono">
                                                     <div className="flex items-center justify-start gap-2">
-                                                        <FormField control={form.control} name={`items.${index}.listPrice`} render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7"/>} />
+                                                        <FormField control={form.control} name={`items.${index}.listPrice`} render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-8"/>} />
                                                          <FormField control={form.control} name={`items.${index}.currency`} render={({ field: { onChange, value } }) => (
                                                             <Badge
                                                                 onClick={() => onChange(currencyCycle[value])}
@@ -745,7 +741,7 @@ export default function QuoteDetailPage() {
                                                         )} />
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="py-1">
+                                                <TableCell className="py-1.5">
                                                      <div className="flex items-center justify-start gap-1">
                                                         <Controller
                                                             control={form.control}
@@ -753,12 +749,12 @@ export default function QuoteDetailPage() {
                                                             render={({ field }) => (
                                                                 <Input 
                                                                     type="number"
-                                                                    value={field.value === undefined ? '' : (field.value || 0) * 100}
+                                                                    value={(field.value || 0) * 100}
                                                                     onChange={(e) => {
                                                                         const numValue = parseFloat(e.target.value);
                                                                         field.onChange(isNaN(numValue) ? 0 : numValue / 100);
                                                                     }}
-                                                                    className="w-16 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7"
+                                                                    className="w-16 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-8"
                                                                     placeholder="0"
                                                                 />
                                                             )}
@@ -766,7 +762,7 @@ export default function QuoteDetailPage() {
                                                         <span className="text-slate-400">%</span>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="py-1 font-mono">
+                                                <TableCell className="py-1.5 font-mono">
                                                     <div className="flex items-center justify-end gap-2">
                                                         <span>{formatNumber(itemTotals.cost)}</span>
                                                         <span className={cn(
@@ -777,7 +773,7 @@ export default function QuoteDetailPage() {
                                                         )}>{currentItem.currency}</span>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="py-1 text-right">
+                                                <TableCell className="py-1.5 text-right">
                                                     <div className="flex items-center justify-end gap-2">
                                                         <div className="flex items-center gap-1">
                                                             <Controller
@@ -786,12 +782,12 @@ export default function QuoteDetailPage() {
                                                                 render={({ field }) => (
                                                                     <Input
                                                                         type="number"
-                                                                        value={field.value === undefined ? '' : (field.value || 0) * 100}
+                                                                        value={(field.value || 0) * 100}
                                                                         onChange={(e) => {
                                                                             const numValue = parseFloat(e.target.value);
                                                                             field.onChange(isNaN(numValue) ? 0 : numValue / 100);
                                                                         }}
-                                                                        className="w-14 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7"
+                                                                        className="w-14 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-8"
                                                                         placeholder="20"
                                                                     />
                                                                 )}
@@ -802,9 +798,9 @@ export default function QuoteDetailPage() {
                                                         <span className="text-xs font-mono text-green-600 font-semibold tabular-nums w-20 text-left">+{formatCurrency(itemTotals.totalProfit)}</span>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="text-right font-mono tabular-nums font-semibold text-slate-600 py-1">{formatCurrency(itemTotals.tlSellPrice)}</TableCell>
-                                                <TableCell className="text-right font-bold font-mono tabular-nums text-slate-800 py-1">{formatCurrency(itemTotals.totalTlSell)}</TableCell>
-                                                <TableCell className="px-2 text-center py-1">
+                                                <TableCell className="text-right font-mono tabular-nums font-semibold text-slate-600 py-1.5">{formatCurrency(itemTotals.tlSellPrice)}</TableCell>
+                                                <TableCell className="text-right font-bold font-mono tabular-nums text-slate-800 py-1.5">{formatCurrency(itemTotals.totalTlSell)}</TableCell>
+                                                <TableCell className="px-2 text-center py-1.5">
                                                     <Button variant="ghost" size="icon" onClick={() => remove(index)} className="h-7 w-7 text-slate-400 hover:text-red-500 opacity-0 group-hover/row:opacity-100 transition-opacity">
                                                     <Trash2 className="h-4 w-4" />
                                                     </Button>
@@ -885,7 +881,7 @@ export default function QuoteDetailPage() {
                             </div>
                             <div className="text-2xl text-slate-400">+</div>
                             <div>
-                                <p className="text-sm text-slate-500">Toplam KDV (%{VAT_RATE * 100})</p>
+                                <p className="text-sm text-slate-500">Toplam KDV (%{new Intl.NumberFormat('tr-TR').format(0.20 * 100)})</p>
                                 <p className="font-mono text-2xl font-bold text-slate-800">{formatCurrency(calculatedTotals.vatAmount)}</p>
                             </div>
                              <div className="text-2xl text-slate-400">=</div>
