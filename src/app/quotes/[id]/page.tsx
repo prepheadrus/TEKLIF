@@ -33,13 +33,6 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import {
   Trash2,
   PlusCircle,
   Loader2,
@@ -683,13 +676,21 @@ export default function QuoteDetailPage() {
                                                         <Controller
                                                             control={form.control}
                                                             name={`items.${index}.discountRate`}
-                                                            render={({ field }) => (
-                                                                <Input 
-                                                                    type="number"
-                                                                    value={field.value * 100}
-                                                                    onChange={e => field.onChange(parseFloat(e.target.value) / 100)}
-                                                                    className="w-16 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7" placeholder="15"/>
-                                                            )}
+                                                            render={({ field }) => {
+                                                                const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+                                                                    const numValue = parseFloat(e.target.value);
+                                                                    field.onChange(isNaN(numValue) ? 0 : numValue / 100);
+                                                                };
+                                                                return (
+                                                                    <Input 
+                                                                        type="number"
+                                                                        value={(field.value || 0) * 100}
+                                                                        onChange={handleInputChange}
+                                                                        className="w-16 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7"
+                                                                        placeholder="15"
+                                                                    />
+                                                                );
+                                                            }}
                                                         />
                                                         <span className="text-slate-400">%</span>
                                                     </div>
@@ -711,13 +712,21 @@ export default function QuoteDetailPage() {
                                                             <Controller
                                                                 control={form.control}
                                                                 name={`items.${index}.profitMargin`}
-                                                                render={({ field }) => (
-                                                                    <Input
-                                                                        type="number"
-                                                                        value={field.value * 100}
-                                                                        onChange={e => field.onChange(parseFloat(e.target.value) / 100)}
-                                                                        className="w-14 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7" placeholder="20"/>
-                                                                )}
+                                                                render={({ field }) => {
+                                                                    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+                                                                        const numValue = parseFloat(e.target.value);
+                                                                        field.onChange(isNaN(numValue) ? 0 : numValue / 100);
+                                                                    };
+                                                                    return (
+                                                                        <Input
+                                                                            type="number"
+                                                                            value={(field.value || 0) * 100}
+                                                                            onChange={handleInputChange}
+                                                                            className="w-14 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7"
+                                                                            placeholder="20"
+                                                                        />
+                                                                    );
+                                                                }}
                                                             />
                                                             <span className="text-slate-400">%</span>
                                                         </div>
