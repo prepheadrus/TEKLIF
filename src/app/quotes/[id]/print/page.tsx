@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useEffect, useCallback } from 'react';
 import { useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
@@ -64,6 +64,7 @@ const formatCurrency = (amount: number, currency: string = 'TRY') => {
 export default function PrintQuotePage() {
     const params = useParams();
     const searchParams = useSearchParams();
+    const router = useRouter();
     const firestore = useFirestore();
     const proposalId = params.id as string;
     const customerId = searchParams.get('customerId');
@@ -157,7 +158,7 @@ export default function PrintQuotePage() {
 
         // --- HTML Generation using JSX and renderToStaticMarkup ---
         const PrintDocument = (
-            <div className="bg-white text-black min-h-screen text-xs p-8 font-body">
+            <div className="print-layout bg-white text-black min-h-screen text-xs p-8 font-body">
                  <header className="flex justify-between items-start mb-6 pb-4 border-b">
                     <div className="flex items-start gap-4">
                         <img src="/logo.png" alt="Firma Logosu" style={{width: '100px', height: '100px', objectFit: 'contain'}} />
@@ -324,11 +325,6 @@ export default function PrintQuotePage() {
                         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
                         body { font-family: 'Inter', sans-serif; }
                         @page { size: A4; margin: 0; }
-                        @media print {
-                            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                            .print-layout { margin: 0; padding: 0; }
-                            /* Add any print-specific overrides here */
-                        }
                     </style>
                 </head>
                 <body>
@@ -337,19 +333,20 @@ export default function PrintQuotePage() {
                 </html>
             `);
             printWindow.document.close();
-
-            // Use a timeout to ensure CSS is loaded before printing
+            
             const timer = setTimeout(() => {
                 printWindow.print();
                 printWindow.close();
-            }, 1000); // 1-second delay might be necessary for CSS to apply
-
-            // Go back to the previous page in the main window
-            window.history.back();
-
+                router.back();
+            }, 1000); 
+            
+            return () => clearTimeout(timer);
+        } else {
+             alert('Lütfen bu site için açılır pencerelere izin verin.');
+             router.back();
         }
 
-    }, [isProposalLoading, areItemsLoading, isCustomerLoading, proposal, items, customer, generatePrintHTML]);
+    }, [isProposalLoading, areItemsLoading, isCustomerLoading, proposal, items, customer, generatePrintHTML, router]);
     
 
     // This component now shows a loading state in the main window while the print window is being prepared.
@@ -362,4 +359,3 @@ export default function PrintQuotePage() {
     );
 }
 
-    
