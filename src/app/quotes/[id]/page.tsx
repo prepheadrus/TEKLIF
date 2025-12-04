@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -13,6 +12,9 @@ import {
   getDocs,
   query,
   serverTimestamp,
+  type DocumentReference,
+  type CollectionReference,
+  type DocumentData,
 } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
@@ -237,7 +239,7 @@ export default function QuoteDetailPage() {
     () => (firestore && proposalId ? collection(firestore, 'proposals', proposalId, 'proposal_items') : null),
     [firestore, proposalId]
   );
-  const { data: initialItems, isLoading: isLoadingItems, refetch: refetchItems } = useCollection<ProposalItem>(proposalItemsRef);
+  const { data: initialItems, isLoading: isLoadingItems, refetch: refetchItems } = useCollection<ProposalItem>(proposalItemsRef as CollectionReference<DocumentData> | null | undefined);
 
   const installationTypesRef = useMemoFirebase(
     () => (firestore ? collection(firestore, 'installation_types') : null),
@@ -265,7 +267,14 @@ export default function QuoteDetailPage() {
   const watchedRates = form.watch('exchangeRates');
 
   // --- Calculations ---
-  const calculatedTotals = calculateAllTotals(watchedItems, watchedRates);
+  // The useMemo is re-introduced to prevent re-calculations on every render,
+  // but it's now correctly dependent on the 'watched' values which are guaranteed
+  // to trigger a re-render via react-hook-form's `watch` mechanism.
+  const calculatedTotals = useMemo(() => 
+    calculateAllTotals(watchedItems, watchedRates),
+    [watchedItems, watchedRates]
+  );
+
   const VAT_RATE = 0.20;
 
   // --- Effects ---
@@ -276,16 +285,30 @@ export default function QuoteDetailPage() {
 
   useEffect(() => {
     if (proposal && initialItems) {
+      // Create a map of items from the form's current state for quick lookup
+      const currentFormItemsMap = new Map((form.getValues('items') || []).map(item => [item.id, item]));
+      
+      const newItems = initialItems.map(dbItem => {
+        // If the item from DB exists in the form, use the form's version
+        // This prevents overwriting user input during a refetch
+        if (dbItem.id && currentFormItemsMap.has(dbItem.id)) {
+          return currentFormItemsMap.get(dbItem.id)!;
+        }
+        // Otherwise, use the data from the database
+        return {
+          ...dbItem,
+          id: dbItem.id,
+          productId: dbItem.productId || '',
+          groupName: dbItem.groupName || 'Diğer',
+        };
+      });
+
       form.reset({
         versionNote: proposal.versionNote || '',
-        items: initialItems.map((item) => ({
-          ...item,
-          id: item.id,
-          productId: item.productId || '',
-          groupName: item.groupName || 'Diğer',
-        })),
+        items: newItems,
         exchangeRates: proposal.exchangeRates || { USD: 32.5, EUR: 35.0 }
-      });
+      }, { keepDirty: true }); // keepDirty preserves user's ongoing changes
+
        if (!form.formState.isDirty) {
          handleFetchRates();
        }
@@ -380,7 +403,7 @@ export default function QuoteDetailPage() {
     setIsProductSelectorOpen(false);
     
     if (targetGroupForProductAdd) {
-        setEmptyGroups(prev => prev.filter(g => g !== targetGroupForProductAdd));
+        setEmptyGroups(prev => prev.filter(g => g !== targetGroupFor-ProductAdd));
     }
     setTargetGroupForProductAdd(undefined);
   };
@@ -629,15 +652,16 @@ export default function QuoteDetailPage() {
                                     </TableHeader>
                                     <TableBody className="text-sm divide-y divide-slate-100">
                                         {fields.map((field, index) => {
-                                        if (field.groupName !== groupName) return null;
-                                        
-                                        const currentItem = watchedItems?.[index];
-                                        if (!currentItem) return null;
-                                        
-                                        const itemTotals = calculateItemTotals({
-                                            ...currentItem,
-                                            exchangeRate: currentItem.currency === 'USD' ? watchedRates.USD : currentItem.currency === 'EUR' ? watchedRates.EUR : 1,
-                                        });
+                                            if (field.groupName !== groupName) return null;
+                                            
+                                            // Get the most up-to-date item data from watchedItems
+                                            const currentItem = watchedItems?.[index];
+                                            if (!currentItem) return null; // Or some fallback UI
+
+                                            const itemTotals = calculateItemTotals({
+                                                ...currentItem,
+                                                exchangeRate: currentItem.currency === 'USD' ? watchedRates.USD : currentItem.currency === 'EUR' ? watchedRates.EUR : 1,
+                                            });
 
                                         return (
                                             <TableRow key={field.formId} className="hover:bg-slate-50/50 group/row">
@@ -655,7 +679,7 @@ export default function QuoteDetailPage() {
                                                 </TableCell>
                                                 <TableCell className="py-1 font-mono">
                                                     <div className="flex items-center justify-start gap-2">
-                                                      <FormField control={form.control} name={`items.${index}.listPrice`} render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7"/>} />
+                                                        <FormField control={form.control} name={`items.${index}.listPrice`} render={({ field }) => <Input {...field} type="number" step="any" className="w-24 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7"/>} />
                                                         <FormField control={form.control} name={`items.${index}.currency`} render={({ field: { onChange, value } }) => (
                                                             <Badge
                                                                 onClick={() => onChange(currencyCycle[value])}
@@ -676,35 +700,32 @@ export default function QuoteDetailPage() {
                                                         <Controller
                                                             control={form.control}
                                                             name={`items.${index}.discountRate`}
-                                                            render={({ field }) => {
-                                                                const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-                                                                    const numValue = parseFloat(e.target.value);
-                                                                    field.onChange(isNaN(numValue) ? 0 : numValue / 100);
-                                                                };
-                                                                return (
-                                                                    <Input 
-                                                                        type="number"
-                                                                        value={(field.value || 0) * 100}
-                                                                        onChange={handleInputChange}
-                                                                        className="w-16 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7"
-                                                                        placeholder="15"
-                                                                    />
-                                                                );
-                                                            }}
+                                                            render={({ field }) => (
+                                                                <Input 
+                                                                    type="number"
+                                                                    value={(field.value || 0) * 100}
+                                                                    onChange={(e) => {
+                                                                        const numValue = parseFloat(e.target.value);
+                                                                        field.onChange(isNaN(numValue) ? 0 : numValue / 100);
+                                                                    }}
+                                                                    className="w-16 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7"
+                                                                    placeholder="0"
+                                                                />
+                                                            )}
                                                         />
                                                         <span className="text-slate-400">%</span>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="text-right font-mono tabular-nums py-1">
-                                                  <div className="flex items-center justify-end gap-2">
-                                                    <span>{formatNumber(itemTotals.cost)}</span>
-                                                    <span className={cn(
-                                                      "font-semibold text-xs",
-                                                      currentItem.currency === 'USD' && "text-green-600",
-                                                      currentItem.currency === 'EUR' && "text-blue-600",
-                                                      currentItem.currency === 'TRY' && "text-slate-500",
-                                                    )}>{currentItem.currency}</span>
-                                                  </div>
+                                                <TableCell className="py-1 font-mono">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <span>{formatNumber(itemTotals.cost)}</span>
+                                                        <span className={cn(
+                                                        "font-semibold text-xs",
+                                                        currentItem.currency === 'USD' && "text-green-600",
+                                                        currentItem.currency === 'EUR' && "text-blue-600",
+                                                        currentItem.currency === 'TRY' && "text-slate-500",
+                                                        )}>{currentItem.currency}</span>
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell className="py-1 text-right">
                                                     <div className="flex items-center justify-end gap-2">
@@ -712,21 +733,18 @@ export default function QuoteDetailPage() {
                                                             <Controller
                                                                 control={form.control}
                                                                 name={`items.${index}.profitMargin`}
-                                                                render={({ field }) => {
-                                                                    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-                                                                        const numValue = parseFloat(e.target.value);
-                                                                        field.onChange(isNaN(numValue) ? 0 : numValue / 100);
-                                                                    };
-                                                                    return (
-                                                                        <Input
-                                                                            type="number"
-                                                                            value={(field.value || 0) * 100}
-                                                                            onChange={handleInputChange}
-                                                                            className="w-14 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7"
-                                                                            placeholder="20"
-                                                                        />
-                                                                    );
-                                                                }}
+                                                                render={({ field }) => (
+                                                                    <Input
+                                                                        type="number"
+                                                                        value={(field.value || 0) * 100}
+                                                                        onChange={(e) => {
+                                                                            const numValue = parseFloat(e.target.value);
+                                                                            field.onChange(isNaN(numValue) ? 0 : numValue / 100);
+                                                                        }}
+                                                                        className="w-14 text-right font-mono bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary h-7"
+                                                                        placeholder="20"
+                                                                    />
+                                                                )}
                                                             />
                                                             <span className="text-slate-400">%</span>
                                                         </div>
@@ -794,10 +812,6 @@ export default function QuoteDetailPage() {
                     <Button type="button" variant="outline" className="w-full" onClick={handleAddNewGroup}>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Yeni Grup Ekle
-                    </Button>
-                    <Button type="button" className="w-full py-6 border-2 border-dashed border-slate-300 rounded-xl text-slate-400 font-medium bg-white hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all flex-col items-center gap-1 h-auto" onClick={() => openProductSelectorForGroup('Diğer')}>
-                        <PlusCircle className="h-6 w-6" />
-                        <span>Genel Ürün Ekle (Diğer Grubuna)</span>
                     </Button>
                 </div>
             </form>
@@ -879,5 +893,3 @@ export default function QuoteDetailPage() {
     </div>
   );
 }
-
-    
