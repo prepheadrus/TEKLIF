@@ -134,17 +134,11 @@ export default function QuotesPage() {
     const groups: Record<string, Proposal[]> = {};
     
     proposals.forEach(p => {
-        if (!p.rootProposalId) {
-            // Handle legacy data that might not have a rootProposalId
-            const legacyRootId = `legacy-${p.id}`;
-            if (!groups[legacyRootId]) groups[legacyRootId] = [];
-            groups[legacyRootId].push(p);
-            return;
+        const rootId = p.rootProposalId || `legacy-${p.id}`;
+        if (!groups[rootId]) {
+            groups[rootId] = [];
         }
-        if (!groups[p.rootProposalId]) {
-            groups[p.rootProposalId] = [];
-        }
-        groups[p.rootProposalId].push(p);
+        groups[rootId].push(p);
     });
 
     return Object.values(groups).map(versions => {
@@ -235,17 +229,19 @@ export default function QuotesPage() {
         const versionsSnap = await getDocs(versionsQuery);
         
         const existingVersions = versionsSnap.docs.map(doc => doc.data() as Proposal);
-        const latestVersion = existingVersions.reduce((max, p) => Math.max(max, p.version), 0);
+        const latestVersionNumber = existingVersions.reduce((max, p) => Math.max(max, p.version), 0);
         
         const batch = writeBatch(firestore);
 
         const newProposalRef = doc(collection(firestore, 'proposals'));
         
+        // Use existing rates from the duplicated proposal first.
+        // The detail page will handle fetching fresh rates if needed.
         const newRates = originalData.exchangeRates || await fetchExchangeRates();
 
         const newProposalData = {
             ...originalData,
-            version: latestVersion + 1,
+            version: latestVersionNumber + 1,
             status: 'Draft' as const,
             createdAt: serverTimestamp(),
             versionNote: `Revizyon (v${originalData.version}'dan kopyalandı)`,
@@ -263,7 +259,7 @@ export default function QuotesPage() {
 
         await batch.commit();
 
-        toast({ title: "Başarılı!", description: `Teklif revize edildi. Yeni versiyon: v${latestVersion + 1}` });
+        toast({ title: "Başarılı!", description: `Teklif revize edildi. Yeni versiyon: v${latestVersionNumber + 1}` });
         router.push(`/quotes/${newProposalRef.id}`);
 
     } catch (error: any) {
@@ -282,14 +278,22 @@ export default function QuotesPage() {
             
             for (const versionDoc of versionsSnap.docs) {
                 batch.delete(versionDoc.ref);
+                // Also delete subcollection
+                const itemsRef = collection(firestore, 'proposals', versionDoc.id, 'proposal_items');
+                const itemsSnap = await getDocs(itemsRef);
+                itemsSnap.forEach(itemDoc => batch.delete(itemDoc.ref));
             }
-            await batch.commit();
-            toast({ title: "Başarılı", description: "Teklif grubu ve tüm versiyonları silindi." });
         } else {
             const docRef = doc(firestore, 'proposals', idToDelete);
-            await deleteDoc(docRef);
-            toast({ title: "Başarılı", description: "Teklif versiyonu silindi." });
+            batch.delete(docRef);
+             // Also delete subcollection
+            const itemsRef = collection(firestore, 'proposals', idToDelete, 'proposal_items');
+            const itemsSnap = await getDocs(itemsRef);
+            itemsSnap.forEach(itemDoc => batch.delete(itemDoc.ref));
         }
+
+        await batch.commit();
+        toast({ title: "Başarılı", description: "Teklif ve ilgili tüm kalemler silindi." });
         refetchProposals();
     } catch (error: any) {
         console.error("Teklif silme hatası:", error);
@@ -299,8 +303,7 @@ export default function QuotesPage() {
 
   
   const filteredProposalGroups = useMemo(() => {
-      if (!groupedProposals) return [];
-      return groupedProposals.filter(g => 
+      return (groupedProposals || []).filter(g => 
             g.latestProposal.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
             g.latestProposal.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
             g.latestProposal.quoteNumber.toLowerCase().includes(searchTerm.toLowerCase())
@@ -423,149 +426,149 @@ export default function QuotesPage() {
                     <Loader2 className="mx-auto my-4 h-6 w-6 animate-spin" />
                   </TableCell>
                 </TableRow>
-              ) : filteredProposalGroups && filteredProposalGroups.length > 0 ? (
+              ) : filteredProposalGroups.length > 0 ? (
                 filteredProposalGroups.map((group) => (
-                    <Collapsible asChild key={group.rootProposalId} onOpenChange={(isOpen) => setOpenCollapsibles(prev => ({...prev, [group.rootProposalId]: isOpen}))}>
-                        <React.Fragment>
-                            <TableRow className="font-medium bg-slate-50 hover:bg-slate-100 data-[state=open]:bg-slate-100">
-                                <TableCell>
-                                    <CollapsibleTrigger asChild>
-                                        <Button variant="ghost" size="sm">
-                                            {openCollapsibles[group.rootProposalId] ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                                            <span className="ml-2">Detaylar</span>
-                                        </Button>
-                                    </CollapsibleTrigger>
-                                </TableCell>
-                                <TableCell>{group.latestProposal.quoteNumber}</TableCell>
-                                <TableCell>{group.latestProposal.customerName}</TableCell>
-                                <TableCell>{group.latestProposal.projectName}</TableCell>
-                                <TableCell>
-                                    <Badge variant="default">{group.versions.length} Versiyon</Badge>
-                                </TableCell>
-                                <TableCell>{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(group.latestProposal.totalAmount)}</TableCell>
-                                <TableCell>{getStatusBadge(group.latestProposal.status)}</TableCell>
-                                <TableCell>{group.latestProposal.createdAt ? new Date(group.latestProposal.createdAt.seconds * 1000).toLocaleDateString('tr-TR') : '-'}</TableCell>
-                                <TableCell className="text-right">
-                                <div className="flex items-center justify-end gap-2">
-                                    <Button variant="outline" size="sm" onClick={() => router.push(`/quotes/${group.latestProposal.id}`)}>
-                                        <Eye className="mr-2 h-4 w-4" />
-                                        Son Versiyonu Görüntüle
-                                    </Button>
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" className="h-8 w-8 p-0">
-                                            <span className="sr-only">Menüyü aç</span>
-                                            <MoreHorizontal className="h-4 w-4" />
-                                        </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                        <DropdownMenuLabel>İşlemler</DropdownMenuLabel>
-                                        <DropdownMenuItem onClick={() => handleDuplicateProposal(group.latestProposal.id)}>
-                                            <Copy className="mr-2 h-4 w-4" />
-                                            Yeni Revizyon Oluştur
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <DropdownMenuItem
-                                                    onSelect={(e) => e.preventDefault()}
-                                                    className="text-red-600 focus:bg-red-100 focus:text-red-700"
-                                                    >
-                                                    <AlertTriangle className="mr-2 h-4 w-4" />
-                                                    Teklif Grubunu Sil
-                                                    </DropdownMenuItem>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Tüm Teklif Grubunu Silmek Üzeresiniz!</AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                            Bu işlem geri alınamaz. "{group.latestProposal.projectName}" projesine ait <strong>tüm {group.versions.length} versiyon</strong> kalıcı olarak silinecektir. Emin misiniz?
-                                                        </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>İptal</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleDeleteProposal(group.latestProposal.id, group.rootProposalId, true)} className="bg-destructive hover:bg-destructive/90">
-                                                            Evet, Hepsini Sil
-                                                        </AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
+                  <Collapsible asChild key={group.rootProposalId} onOpenChange={(isOpen) => setOpenCollapsibles(prev => ({...prev, [group.rootProposalId]: isOpen}))}>
+                    <React.Fragment>
+                      <TableRow className="font-medium bg-slate-50 hover:bg-slate-100 data-[state=open]:bg-slate-100">
+                        <TableCell>
+                          <CollapsibleTrigger asChild>
+                            <Button variant="ghost" size="sm" className="w-full justify-start">
+                              {openCollapsibles[group.rootProposalId] ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                              <span className="ml-2">Detaylar</span>
+                            </Button>
+                          </CollapsibleTrigger>
+                        </TableCell>
+                        <TableCell>{group.latestProposal.quoteNumber}</TableCell>
+                        <TableCell>{group.latestProposal.customerName}</TableCell>
+                        <TableCell>{group.latestProposal.projectName}</TableCell>
+                        <TableCell>
+                            <Badge variant="default">{group.versions.length} Versiyon</Badge>
+                        </TableCell>
+                        <TableCell>{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(group.latestProposal.totalAmount)}</TableCell>
+                        <TableCell>{getStatusBadge(group.latestProposal.status)}</TableCell>
+                        <TableCell>{group.latestProposal.createdAt ? new Date(group.latestProposal.createdAt.seconds * 1000).toLocaleDateString('tr-TR') : '-'}</TableCell>
+                        <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                            <Button variant="outline" size="sm" onClick={() => router.push(`/quotes/${group.latestProposal.id}`)}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                Son Versiyonu Görüntüle
+                            </Button>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                    <span className="sr-only">Menüyü aç</span>
+                                    <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>İşlemler</DropdownMenuLabel>
+                                <DropdownMenuItem onClick={() => handleDuplicateProposal(group.latestProposal.id)}>
+                                    <Copy className="mr-2 h-4 w-4" />
+                                    Yeni Revizyon Oluştur
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <DropdownMenuItem
+                                            onSelect={(e) => e.preventDefault()}
+                                            className="text-red-600 focus:bg-red-100 focus:text-red-700"
+                                            >
+                                            <AlertTriangle className="mr-2 h-4 w-4" />
+                                            Teklif Grubunu Sil
+                                            </DropdownMenuItem>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Tüm Teklif Grubunu Silmek Üzeresiniz!</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    Bu işlem geri alınamaz. "{group.latestProposal.projectName}" projesine ait <strong>tüm {group.versions.length} versiyon</strong> kalıcı olarak silinecektir. Emin misiniz?
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>İptal</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleDeleteProposal(group.latestProposal.id, group.rootProposalId, true)} className="bg-destructive hover:bg-destructive/90">
+                                                    Evet, Hepsini Sil
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
 
-                                        {group.versions.length > 1 && (
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive-foreground-focus">
-                                                        <Trash2 className="mr-2 h-4 w-4" />
-                                                        Son Versiyonu Sil (v{group.latestProposal.version})
-                                                    </DropdownMenuItem>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Son Versiyonu Silmek İstediğinizden Emin misiniz?</AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                            Bu işlem geri alınamaz. Sadece <strong>v{group.latestProposal.version}</strong> versiyonu silinecektir. Grubun önceki versiyonları korunacaktır.
-                                                        </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>İptal</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleDeleteProposal(group.latestProposal.id, group.rootProposalId, false)} className="bg-destructive hover:bg-destructive/90">
-                                                            Evet, Sadece Son Versiyonu Sil
-                                                        </AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        )}
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                                {group.versions.length > 1 && (
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                           <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
+                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                Son Versiyonu Sil (v{group.latestProposal.version})
+                                            </DropdownMenuItem>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Son Versiyonu Silmek İstediğinizden Emin misiniz?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    Bu işlem geri alınamaz. Sadece <strong>v{group.latestProposal.version}</strong> versiyonu silinecektir. Grubun önceki versiyonları korunacaktır.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>İptal</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleDeleteProposal(group.latestProposal.id, group.rootProposalId, false)} className="bg-destructive hover:bg-destructive/90">
+                                                    Evet, Sadece Son Versiyonu Sil
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                )}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+                        </TableCell>
+                      </TableRow>
+                      <CollapsibleContent asChild>
+                        <TableRow>
+                            <TableCell colSpan={9} className="p-0">
+                                <div className="bg-white p-4 border-t-4 border-blue-200">
+                                    <h4 className="font-semibold mb-2 px-4">Teklif Versiyonları ({group.latestProposal.projectName})</h4>
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Versiyon</TableHead>
+                                                <TableHead>Tutar</TableHead>
+                                                <TableHead>Durum</TableHead>
+                                                <TableHead>Tarih</TableHead>
+                                                <TableHead>Not</TableHead>
+                                                <TableHead className="text-right">İşlemler</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {group.versions.map(v => (
+                                                <TableRow key={v.id} className="hover:bg-slate-50">
+                                                    <TableCell><Badge variant="secondary">v{v.version}</Badge></TableCell>
+                                                    <TableCell>{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(v.totalAmount)}</TableCell>
+                                                    <TableCell>{getStatusBadge(v.status)}</TableCell>
+                                                    <TableCell>{v.createdAt ? new Date(v.createdAt.seconds * 1000).toLocaleDateString('tr-TR') : '-'}</TableCell>
+                                                    <TableCell className="text-muted-foreground text-xs">{v.versionNote}</TableCell>
+                                                    <TableCell className="text-right">
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            <Button variant="ghost" size="sm" onClick={() => router.push(`/quotes/${v.id}`)}>Görüntüle</Button>
+                                                            <Button variant="ghost" size="sm" onClick={() => router.push(`/quotes/${v.id}/print?customerId=${v.customerId}`)}>Yazdır</Button>
+                                                            <Button variant="outline" size="sm" onClick={() => handleDuplicateProposal(v.id)}><Copy className="mr-2 h-3 w-3"/>Revize Et</Button>
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
                                 </div>
-                                </TableCell>
-                            </TableRow>
-                            <CollapsibleContent asChild>
-                                <TableRow>
-                                    <TableCell colSpan={9} className="p-0">
-                                        <div className="bg-white p-4 border-t-4 border-blue-200">
-                                            <h4 className="font-semibold mb-2 px-4">Teklif Versiyonları ({group.latestProposal.projectName})</h4>
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead>Versiyon</TableHead>
-                                                        <TableHead>Tutar</TableHead>
-                                                        <TableHead>Durum</TableHead>
-                                                        <TableHead>Tarih</TableHead>
-                                                        <TableHead>Not</TableHead>
-                                                        <TableHead className="text-right">İşlemler</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {group.versions.map(v => (
-                                                        <TableRow key={v.id} className="hover:bg-slate-50">
-                                                            <TableCell><Badge variant="secondary">v{v.version}</Badge></TableCell>
-                                                            <TableCell>{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(v.totalAmount)}</TableCell>
-                                                            <TableCell>{getStatusBadge(v.status)}</TableCell>
-                                                            <TableCell>{v.createdAt ? new Date(v.createdAt.seconds * 1000).toLocaleDateString('tr-TR') : '-'}</TableCell>
-                                                            <TableCell className="text-muted-foreground text-xs">{v.versionNote}</TableCell>
-                                                            <TableCell className="text-right">
-                                                                <div className="flex items-center justify-end gap-2">
-                                                                    <Button variant="ghost" size="sm" onClick={() => router.push(`/quotes/${v.id}`)}>Görüntüle</Button>
-                                                                    <Button variant="ghost" size="sm" onClick={() => router.push(`/quotes/${v.id}/print?customerId=${v.customerId}`)}>Yazdır</Button>
-                                                                    <Button variant="outline" size="sm" onClick={() => handleDuplicateProposal(v.id)}><Copy className="mr-2 h-3 w-3"/>Revize Et</Button>
-                                                                </div>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    ))}
-                                                </TableBody>
-                                            </Table>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            </CollapsibleContent>
-                        </React.Fragment>
-                    </Collapsible>
+                            </TableCell>
+                        </TableRow>
+                      </CollapsibleContent>
+                    </React.Fragment>
+                  </Collapsible>
                 ))
               ) : (
                 <TableRow>
                   <TableCell colSpan={9} className="h-24 text-center">
-                    Henüz teklif bulunmuyor.
+                    Henüz teklif bulunmuyor veya aramanızla eşleşen sonuç yok.
                   </TableCell>
                 </TableRow>
               )}
