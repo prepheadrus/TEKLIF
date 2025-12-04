@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -548,7 +549,7 @@ export default function QuotesPage() {
             "Müşteri": p.customerName,
             "Proje Adı": p.projectName,
             "Durum": p.status,
-            "Tutar": p.totalAmount,
+            "Tutar": `=${JSON.stringify(formatCurrency(p.totalAmount))}`,
             "Oluşturma Tarihi": p.createdAt ? formatDate(p.createdAt) : '',
             "Versiyon Notu": p.versionNote,
         }));
