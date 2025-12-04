@@ -738,8 +738,8 @@ export default function QuoteDetailPage() {
                                         ))}
                                     </div>
                                 </div>
-                                <div className="col-span-2 flex justify-between items-center">
-                                    <div className="flex items-center gap-6 font-mono text-2xl">
+                                <div className="col-span-2 flex justify-between items-start">
+                                     <div className="flex items-center gap-6 font-mono text-2xl">
                                         <div>
                                             <p className="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-1">Grup Ara Toplamı (TL)</p>
                                             <p className="font-bold">{formatCurrency(groupSubTotalTRY)}</p>
@@ -751,18 +751,22 @@ export default function QuoteDetailPage() {
                                         </div>
                                         <p className="text-slate-500">=</p>
                                     </div>
-                                     <div className="text-right">
-                                        <div className="flex items-center justify-end gap-2 text-green-400">
-                                            <TrendingUp className="h-5 w-5" />
-                                            <p className="text-sm font-semibold uppercase tracking-wider">Grup Kârı</p>
+
+                                    <div className="flex items-center gap-8">
+                                        <div className="text-right">
+                                            <div className="flex items-center justify-end gap-2 text-green-400">
+                                                <TrendingUp className="h-5 w-5" />
+                                                <p className="text-sm font-semibold uppercase tracking-wider">Grup Kârı</p>
+                                            </div>
+                                            <p className="font-mono font-bold text-xl text-green-400">{formatCurrency(groupProfitTRY)}</p>
+                                            <p className="font-mono text-sm text-green-500 font-semibold">({(groupProfitMargin * 100).toFixed(1)}%)</p>
                                         </div>
-                                        <p className="font-mono font-bold text-xl text-green-400">{formatCurrency(groupProfitTRY)}</p>
-                                        <p className="font-mono text-sm text-green-500 font-semibold">({(groupProfitMargin * 100).toFixed(1)}%)</p>
+                                        <div className="bg-blue-600 text-white rounded-lg px-6 py-4 text-right">
+                                            <p className="text-sm font-semibold uppercase tracking-wider text-blue-200 mb-1">Grup Genel Toplamı</p>
+                                            <p className="font-mono font-bold text-3xl">{formatCurrency(groupTotalWithVAT)}</p>
+                                        </div>
                                     </div>
-                                    <div className="bg-blue-600 text-white rounded-lg px-6 py-4 text-right">
-                                        <p className="text-sm font-semibold uppercase tracking-wider text-blue-200 mb-1">Grup Genel Toplamı</p>
-                                        <p className="font-mono font-bold text-3xl">{formatCurrency(groupTotalWithVAT)}</p>
-                                    </div>
+
                                 </div>
                              </div>
                          </CollapsibleContent>
@@ -780,7 +784,7 @@ export default function QuoteDetailPage() {
       </main>
 
        <div className="sticky bottom-0 left-0 right-0 z-20">
-          <div className="bg-white/80 backdrop-blur-md shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.05)] rounded-t-2xl max-w-6xl mx-auto px-8 py-4 grid grid-cols-4 items-center gap-6">
+          <div className="bg-white/80 backdrop-blur-md shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.05)] rounded-t-2xl max-w-6xl mx-auto px-8 py-4 grid grid-cols-5 items-center gap-8">
                 <div className="col-span-1">
                      <p className="text-sm text-slate-500">Genel Ara Toplam</p>
                      <p className="font-mono text-2xl font-bold text-slate-800">{formatCurrency(calculatedTotals.grandTotalSellExVAT)}</p>
@@ -797,31 +801,29 @@ export default function QuoteDetailPage() {
                     <p className="font-mono font-bold text-2xl">{formatCurrency(calculatedTotals.grandTotalProfit)}</p>
                     <p className="font-mono text-sm text-green-700 font-semibold">({(calculatedTotals.grandTotalProfitMargin * 100).toFixed(1)}%)</p>
                 </div>
-                 <div className="col-span-1 flex items-center justify-end gap-4">
-                    <div className="text-right">
-                         <p className="text-sm font-semibold text-blue-600">Genel Toplam</p>
-                         <p className="font-mono text-4xl font-extrabold text-blue-700">{formatCurrency(calculatedTotals.grandTotalSellWithVAT)}</p>
+                 <div className="col-span-1 text-right">
+                     <p className="text-sm font-semibold text-blue-600">Genel Toplam</p>
+                     <p className="font-mono text-4xl font-extrabold text-blue-700">{formatCurrency(calculatedTotals.grandTotalSellWithVAT)}</p>
+                </div>
+                 <div className="col-span-1 flex flex-col gap-2 items-center justify-self-end">
+                    <div className="flex items-center space-x-2">
+                        <Switch id="vat-switch" checked={includeVAT} onCheckedChange={setIncludeVAT} />
+                        <Label htmlFor="vat-switch" className="text-sm font-medium">
+                            KDV Dahil
+                        </Label>
                     </div>
-                    <div className="flex flex-col gap-2 items-center">
-                        <div className="flex items-center space-x-2">
-                            <Switch id="vat-switch" checked={includeVAT} onCheckedChange={setIncludeVAT} />
-                            <Label htmlFor="vat-switch" className="text-sm font-medium">
-                                KDV Dahil
-                            </Label>
-                        </div>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            className="w-full"
-                            onClick={() => router.push(`/quotes/${proposalId}/print?customerId=${proposal.customerId}`)}
-                        >
-                            <FileDown className="mr-2 h-4 w-4" /> PDF
-                        </Button>
-                        <Button onClick={form.handleSubmit(handleSaveChanges)} disabled={isSaving} size="lg" className="rounded-full w-full">
-                            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                            Değişiklikleri Kaydet
-                        </Button>
-                    </div>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => router.push(`/quotes/${proposalId}/print?customerId=${proposal.customerId}`)}
+                    >
+                        <FileDown className="mr-2 h-4 w-4" /> PDF
+                    </Button>
+                    <Button onClick={form.handleSubmit(handleSaveChanges)} disabled={isSaving} size="lg" className="rounded-full w-full">
+                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                        Değişiklikleri Kaydet
+                    </Button>
                 </div>
           </div>
        </div>
