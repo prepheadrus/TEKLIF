@@ -238,8 +238,10 @@ export default function QuoteDetailPage() {
   }, [editingGroupName]);
 
   // --- Calculations ---
-  const calculatedTotals = useMemo(() => {
-    const initialTotals = {
+  // IMPORTANT: This is now calculated directly in the render function.
+  // No useMemo to avoid stale state issues.
+  const calculateAllTotals = (items: ProposalItem[], rates: { USD: number; EUR: number }) => {
+     const initialTotals = {
         grandTotalSellExVAT: 0,
         grandTotalCost: 0,
         groupTotals: {} as Record<string, { 
@@ -249,11 +251,13 @@ export default function QuoteDetailPage() {
         }>
     };
 
-    const totals = (watchedItems || []).reduce((acc, item) => {
+    if (!items || !rates) return initialTotals;
+
+    const totals = items.reduce((acc, item) => {
         if (!item || !item.quantity || !item.listPrice) return acc;
         const itemTotals = calculateItemTotals({
             ...item,
-            exchangeRate: item.currency === 'USD' ? watchedRates.USD : item.currency === 'EUR' ? watchedRates.EUR : 1,
+            exchangeRate: item.currency === 'USD' ? rates.USD : item.currency === 'EUR' ? rates.EUR : 1,
         });
         
         acc.grandTotalSellExVAT += itemTotals.totalTlSell;
@@ -291,8 +295,10 @@ export default function QuoteDetailPage() {
         grandTotalProfit,
         grandTotalProfitMargin
     };
-  }, [watchedItems, watchedRates]);
+  }
 
+  // Calculate totals on every render. This is the key to ensure UI is always in sync.
+  const calculatedTotals = calculateAllTotals(watchedItems, watchedRates);
 
   const allGroups = useMemo(() => {
     const itemGroups = fields.reduce((acc, item, index) => {
@@ -614,9 +620,10 @@ export default function QuoteDetailPage() {
                                     </TableRow>
                                     </TableHeader>
                                     <TableBody className="text-sm divide-y divide-slate-100">
-                                        {fields.map((item, index) => {
-                                        if (item.groupName !== groupName) return null;
+                                        {fields.map((field, index) => {
+                                        if (field.groupName !== groupName) return null;
                                         
+                                        // Use watchedItems for calculation to get real-time values
                                         const itemValues = watchedItems?.[index];
                                         if (!itemValues) return null;
                                         
@@ -626,7 +633,7 @@ export default function QuoteDetailPage() {
                                         });
 
                                         return (
-                                            <TableRow key={item.formId} className="hover:bg-slate-50/50 group/row">
+                                            <TableRow key={field.formId} className="hover:bg-slate-50/50 group/row">
                                                 <TableCell className="py-2 pl-4 font-medium text-slate-800 w-[30%]">
                                                     <FormField control={form.control} name={`items.${index}.name`} render={({ field }) => <Input {...field} className="w-full h-8 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
                                                 </TableCell>
@@ -831,4 +838,3 @@ export default function QuoteDetailPage() {
   );
 }
 
-    
