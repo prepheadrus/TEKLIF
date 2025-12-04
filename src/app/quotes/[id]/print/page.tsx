@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams, useSearchParams } from 'next/navigation';
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
@@ -21,7 +21,7 @@ type Proposal = {
 };
 
 type ProposalItem = {
-    id: string;
+    id:string;
     name: string;
     brand: string;
     quantity: number;
@@ -63,6 +63,14 @@ export default function PrintQuotePage() {
     const proposalId = params.id as string;
     const customerId = searchParams.get('customerId');
 
+    useEffect(() => {
+        // Automatically trigger print dialog after a short delay
+        const timer = setTimeout(() => {
+           // window.print();
+        }, 500);
+        return () => clearTimeout(timer);
+    }, []);
+
     const proposalRef = useMemoFirebase(
         () => (firestore && proposalId ? doc(firestore, 'proposals', proposalId) : null),
         [firestore, proposalId]
@@ -81,9 +89,9 @@ export default function PrintQuotePage() {
     );
     const { data: customer, isLoading: isCustomerLoading } = useDoc<Customer>(customerRef);
 
-    const { calculatedItems, sortedGroups, totals } = useMemo(() => {
+    const { sortedGroups, totals } = useMemo(() => {
         if (!proposal || !items) {
-            return { calculatedItems: [], sortedGroups: [], totals: null };
+            return { sortedGroups: [], totals: null };
         }
         
         const calculatedItems: CalculatedItem[] = items.map(item => {
@@ -150,7 +158,7 @@ export default function PrintQuotePage() {
             }
         };
 
-        return { calculatedItems, sortedGroups, totals: calculatedTotals };
+        return { sortedGroups, totals: calculatedTotals };
     }, [proposal, items]);
 
 
@@ -167,21 +175,21 @@ export default function PrintQuotePage() {
     }
 
     return (
-        <div className="print-layout bg-white text-black min-h-screen text-xs p-8 font-body">
-            <header className="flex justify-between items-start mb-6 pb-4 border-b">
-                <div className="flex items-start gap-4">
-                    <Image src="/logo.png" alt="Firma Logosu" width={100} height={100} style={{objectFit: 'contain'}} />
+        <div className="print-layout bg-white text-black min-h-screen text-[10px] font-body">
+            <header className="flex justify-between items-start mb-4 pb-3 border-b">
+                <div className="flex items-start gap-3">
+                    <Image src="/logo.png" alt="Firma Logosu" width={80} height={80} style={{objectFit: 'contain'}} />
                     <div>
-                        <h2 className="text-xl font-bold text-slate-800">İMS Mühendislik</h2>
-                        <p className="text-xs font-semibold text-gray-600">Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
-                        <p className="text-xs max-w-xs mt-2">
+                        <h2 className="text-lg font-bold text-slate-800">İMS Mühendislik</h2>
+                        <p className="text-[10px] font-semibold text-gray-600">Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
+                        <p className="text-[10px] max-w-xs mt-1">
                             Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA
                         </p>
-                        <p className="text-xs mt-1">ims.m.muhendislik@gmail.com | (553) 469 75 01</p>
+                        <p className="text-[10px] mt-1">ims.m.muhendislik@gmail.com | (553) 469 75 01</p>
                     </div>
                 </div>
                 <div className="text-right flex-shrink-0">
-                    <h2 className="text-xl font-bold uppercase tracking-wider">TEKLİF</h2>
+                    <h2 className="text-lg font-bold uppercase tracking-wider">TEKLİF</h2>
                     <p className="mt-1">
                         <span className="font-semibold">Teklif No:</span> {proposal.quoteNumber}
                     </p>
@@ -191,53 +199,53 @@ export default function PrintQuotePage() {
                 </div>
             </header>
 
-            <section className="mb-6 grid grid-cols-2 gap-4">
-                <div className="border p-3 rounded-md bg-gray-50">
-                    <h3 className="text-base font-semibold mb-1">Müşteri Bilgileri</h3>
-                    <p className="font-bold text-sm">{customer.name}</p>
+            <section className="mb-4 grid grid-cols-2 gap-3">
+                <div className="border p-2 rounded-md bg-gray-50">
+                    <h3 className="text-sm font-semibold mb-1">Müşteri Bilgileri</h3>
+                    <p className="font-bold text-xs">{customer.name}</p>
                     <p>{customer.address || 'Adres belirtilmemiş'}</p>
                     <p>{customer.email} | {customer.phone || 'Telefon belirtilmemiş'}</p>
                     {customer.taxNumber && <p>Vergi No/TCKN: {customer.taxNumber}</p>}
                 </div>
-                 <div className="border p-3 rounded-md bg-gray-50">
-                     <h3 className="text-base font-semibold mb-1">Proje Bilgisi</h3>
-                    <p className="font-bold text-sm">{proposal.projectName}</p>
+                 <div className="border p-2 rounded-md bg-gray-50">
+                     <h3 className="text-sm font-semibold mb-1">Proje Bilgisi</h3>
+                    <p className="font-bold text-xs">{proposal.projectName}</p>
                 </div>
             </section>
             
-             <section className="mb-6 space-y-6">
+             <section className="mb-4 space-y-4">
                 {sortedGroups.map(([groupName, groupItems]) => (
                     <div key={groupName} className="break-inside-avoid">
-                        <h3 className="text-base font-bold mb-2 p-2 bg-gray-100 rounded-t-md border-b-2 border-gray-300">{groupName}</h3>
-                        <table className="w-full text-xs text-left" style={{ borderCollapse: 'collapse', width: '100%'}}>
+                        <h3 className="text-sm font-bold mb-1 p-1 bg-gray-100 rounded-t-md border-b-2 border-gray-300">{groupName}</h3>
+                        <table className="w-full text-[10px] text-left" style={{ borderCollapse: 'collapse', width: '100%'}}>
                             <thead className="bg-gray-50">
                                 <tr>
-                                    <th className="p-2 font-semibold">#</th>
-                                    <th className="p-2 font-semibold w-2/5">Açıklama</th>
-                                    <th className="p-2 font-semibold">Marka</th>
-                                    <th className="p-2 text-center font-semibold">Miktar</th>
-                                    <th className="p-2 font-semibold">Birim</th>
-                                    <th className="p-2 text-right font-semibold">Birim Fiyat</th>
-                                    <th className="p-2 text-right font-semibold">Toplam Tutar</th>
+                                    <th className="p-1 font-semibold">#</th>
+                                    <th className="p-1 font-semibold w-2/5">Açıklama</th>
+                                    <th className="p-1 font-semibold">Marka</th>
+                                    <th className="p-1 text-center font-semibold">Miktar</th>
+                                    <th className="p-1 font-semibold">Birim</th>
+                                    <th className="p-1 text-right font-semibold">Birim Fiyat</th>
+                                    <th className="p-1 text-right font-semibold">Toplam Tutar</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {groupItems.map((item, index) => (
                                     <tr key={item.id} className="border-b">
-                                        <td className="p-2">{index + 1}</td>
-                                        <td className="p-2 font-medium">{item.name}</td>
-                                        <td className="p-2">{item.brand}</td>
-                                        <td className="p-2 text-center">{item.quantity}</td>
-                                        <td className="p-2">{item.unit}</td>
-                                        <td className="p-2 text-right">{formatCurrency(item.unitPrice, 'TRY')}</td>
-                                        <td className="p-2 text-right font-semibold">{formatCurrency(item.total, 'TRY')}</td>
+                                        <td className="p-1">{index + 1}</td>
+                                        <td className="p-1 font-medium">{item.name}</td>
+                                        <td className="p-1">{item.brand}</td>
+                                        <td className="p-1 text-center">{item.quantity}</td>
+                                        <td className="p-1">{item.unit}</td>
+                                        <td className="p-1 text-right">{formatCurrency(item.unitPrice, 'TRY')}</td>
+                                        <td className="p-1 text-right font-semibold">{formatCurrency(item.total, 'TRY')}</td>
                                     </tr>
                                 ))}
                             </tbody>
                              <tfoot>
                                 <tr className="bg-gray-100 font-bold">
-                                    <td colSpan={6} className="p-2 text-right">Grup Toplamı (KDV Hariç):</td>
-                                    <td className="p-2 text-right">
+                                    <td colSpan={6} className="p-1 text-right">Grup Toplamı (KDV Hariç):</td>
+                                    <td className="p-1 text-right">
                                         {formatCurrency(groupItems.reduce((sum, item) => sum + item.total, 0), 'TRY')}
                                     </td>
                                 </tr>
@@ -247,10 +255,10 @@ export default function PrintQuotePage() {
                 ))}
             </section>
 
-            <section className="flex justify-between items-start mb-6 break-inside-avoid">
+            <section className="flex justify-between items-start mb-4 break-inside-avoid">
                 <div className="w-full sm:w-1/3 lg:w-1/2"></div>
-                <div className="w-full sm:w-2/3 lg:w-1/2 space-y-4">
-                    <div className="border-b pb-2">
+                <div className="w-full sm:w-2/3 lg:w-1/2 space-y-2">
+                    <div className="border-b pb-1">
                         <div className="flex justify-between">
                             <span className="font-semibold">Ara Toplam (TL):</span>
                             <span>{formatCurrency(totals.grandTotalInTRY.subtotal, 'TRY')}</span>
@@ -259,19 +267,19 @@ export default function PrintQuotePage() {
                             <span className="font-semibold">KDV (%20) (TL):</span>
                             <span>{formatCurrency(totals.grandTotalInTRY.vat, 'TRY')}</span>
                         </div>
-                        <div style={{height: '1px', backgroundColor: '#e2e8f0', margin: '4px 0'}} />
-                        <div className="flex justify-between text-base font-bold text-blue-700">
+                        <div style={{height: '1px', backgroundColor: '#e2e8f0', margin: '2px 0'}} />
+                        <div className="flex justify-between text-sm font-bold text-blue-700">
                             <span>Genel Toplam (TL):</span>
                             <span>{formatCurrency(totals.grandTotalInTRY.grandTotal, 'TRY')}</span>
                         </div>
                     </div>
                     
                     {(Object.keys(totals.byCurrency).length > 0) && (
-                        <div className="pt-2">
-                        <h4 className="font-semibold text-sm mb-1">Para Birimi Bazında Özet (KDV Dahil)</h4>
+                        <div className="pt-1">
+                        <h4 className="font-semibold text-xs mb-1">Para Birimi Bazında Özet (KDV Dahil)</h4>
                         {Object.entries(totals.byCurrency).map(([currency, currencyTotals]) => (
                              <div className={cn(
-                                "flex justify-between text-sm",
+                                "flex justify-between text-xs",
                                 currency === 'USD' && 'text-green-600',
                                 currency === 'EUR' && 'text-blue-600'
                              )} key={currency}>
@@ -284,18 +292,18 @@ export default function PrintQuotePage() {
                 </div>
             </section>
             
-            <div className="flex justify-between items-end mt-16 pt-4 border-t break-inside-avoid">
-                <footer className="text-xs text-gray-500 space-y-2">
+            <div className="flex justify-between items-end mt-8 pt-2 border-t break-inside-avoid">
+                <footer className="text-[9px] text-gray-600 space-y-1">
                     <p className='font-semibold'>Teklif Koşulları:</p>
                     <ul className="list-disc list-inside">
                         <li>Teklifin geçerlilik süresi 15 gündür.</li>
                         <li>Fiyatlarımıza KDV dahildir.</li>
                         <li>Hesaplamada kullanılan kurlar: 1 EUR = {proposal.exchangeRates.EUR.toFixed(4)} TL, 1 USD = {proposal.exchangeRates.USD.toFixed(4)} TL</li>
                     </ul>
-                    <p className="mt-4 font-semibold text-sm">İMS Mühendislik | Teşekkür Ederiz!</p>
+                    <p className="mt-2 font-semibold text-xs">İMS Mühendislik | Teşekkür Ederiz!</p>
                 </footer>
-                <div style={{ position: 'relative', width: '12rem', height: 'auto' }}>
-                   <Image src="/kase.png" alt="Firma Kaşesi" width={150} height={100} style={{ objectFit: 'contain' }} />
+                <div style={{ position: 'relative', width: '10rem', height: 'auto' }}>
+                   <Image src="/kase.png" alt="Firma Kaşesi" width={120} height={80} style={{ objectFit: 'contain' }} />
                 </div>
             </div>
 
