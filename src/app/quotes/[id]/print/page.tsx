@@ -1,6 +1,6 @@
 'use client';
 
-import { useParams, useSearchParams, useRouter } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { useMemo, useEffect } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
@@ -68,6 +68,8 @@ const generatePrintHTML = (proposal: Proposal, customer: Customer, sortedGroups:
                       margin: 1.5cm;
                       @top-center {
                         content: element(pageHeader);
+                        border-bottom: 1px solid #e5e7eb;
+                        padding-bottom: 1rem;
                       }
                        @bottom-center {
                         content: element(pageFooter);
@@ -84,15 +86,32 @@ const generatePrintHTML = (proposal: Proposal, customer: Customer, sortedGroups:
                     
                     .page-header {
                         position: running(pageHeader);
-                        padding-bottom: 1rem;
                     }
-                    
+
                     .page-footer {
                         position: running(pageFooter);
                         padding-top: 0.5rem;
                         border-top: 1px solid #e5e7eb;
+                        font-size: 9px;
+                        color: #6b7280;
                     }
 
+                    .cover-page {
+                        page-break-after: always;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: space-between;
+                        height: calc(100vh - 3cm);
+                    }
+
+                    .cover-page .page-header {
+                        position: static; /* Do not repeat header on cover page */
+                    }
+
+                    .content-page {
+                        /* Styles for pages after the cover */
+                    }
+                    
                     tr {
                         break-inside: avoid;
                     }
@@ -104,74 +123,102 @@ const generatePrintHTML = (proposal: Proposal, customer: Customer, sortedGroups:
                     tfoot {
                         display: table-footer-group;
                     }
-
-                    .no-break {
-                       break-inside: avoid;
-                    }
-
                 ` }} />
             </head>
             <body>
-                <header className="page-header">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.75rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src="/logo.png" alt="Firma Logosu" style={{ width: '80px', height: '80px', objectFit: 'contain' }} />
-                            <div>
-                                <h2 style={{ fontSize: '1rem', fontWeight: '700', color: '#1f2937', margin: 0 }}>İMS Mühendislik</h2>
-                                <p style={{ fontSize: '10px', fontWeight: '600', color: '#4b5563', margin: '2px 0 0 0' }}>Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
-                                <p style={{ fontSize: '10px', maxWidth: '24rem', marginTop: '0.25rem', margin: '2px 0 0 0' }}>Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA</p>
-                                <p style={{ fontSize: '10px', marginTop: '0.25rem', margin: '2px 0 0 0' }}>ims.m.muhendislik@gmail.com | (553) 469 75 01</p>
+                {/* --- Cover Page Section --- */}
+                <div className="cover-page">
+                    <div>
+                        <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: '0.75rem' }}>
+                           <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src="/logo.png" alt="Firma Logosu" style={{ width: '100px', height: '100px', objectFit: 'contain' }} />
+                                <div>
+                                    <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1f2937', margin: 0 }}>İMS Mühendislik</h1>
+                                    <p style={{ fontSize: '0.875rem', fontWeight: '600', color: '#4b5563', margin: '4px 0 0 0' }}>Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
+                                    <p style={{ fontSize: '0.75rem', marginTop: '0.5rem', margin: '8px 0 0 0' }}>Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA</p>
+                                    <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', margin: '4px 0 0 0' }}>ims.m.muhendislik@gmail.com | (553) 469 75 01</p>
+                                </div>
+                            </div>
+                            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                <h2 style={{ fontSize: '1.875rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0, color: '#111827' }}>TEKLİF</h2>
+                                <p style={{ marginTop: '0.5rem', margin: '8px 0 0 0' }}><span style={{ fontWeight: '600' }}>Teklif No:</span> {proposal.quoteNumber}</p>
+                                <p style={{ margin: '4px 0 0 0' }}><span style={{ fontWeight: '600' }}>Tarih:</span> {formatDate(proposal.createdAt)}</p>
                             </div>
                         </div>
-                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                            <h2 style={{ fontSize: '1.25rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>TEKLİF</h2>
-                            <p style={{ marginTop: '0.25rem', margin: '2px 0 0 0' }}><span style={{ fontWeight: '600' }}>Teklif No:</span> {proposal.quoteNumber}</p>
-                            <p style={{ margin: '2px 0 0 0' }}><span style={{ fontWeight: '600' }}>Tarih:</span> {formatDate(proposal.createdAt)}</p>
+
+                         <div style={{ marginTop: '2rem', display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '1rem' }}>
+                            <div style={{ border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem', backgroundColor: '#f9fafb' }}>
+                                <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem', borderBottom: '1px solid #d1d5db', paddingBottom: '0.5rem' }}>Müşteri Bilgileri</h3>
+                                <p style={{ fontWeight: '700', fontSize: '0.875rem', color: '#111827' }}>{customer.name}</p>
+                                <p style={{ marginTop: '0.25rem' }}>{customer.address || 'Adres belirtilmemiş'}</p>
+                                <p style={{ marginTop: '0.25rem' }}>{customer.email} | {customer.phone || 'Telefon belirtilmemiş'}</p>
+                                {customer.taxNumber && <p style={{marginTop: '0.25rem' }}>Vergi No/TCKN: {customer.taxNumber}</p>}
+                            </div>
+                            <div style={{ border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem', backgroundColor: '#f9fafb' }}>
+                                <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem', borderBottom: '1px solid #d1d5db', paddingBottom: '0.5rem' }}>Proje Bilgisi</h3>
+                                <p style={{ fontWeight: '700', fontSize: '0.875rem', color: '#111827' }}>{proposal.projectName}</p>
+                            </div>
+                        </div>
+
+                        <div style={{ marginTop: '3rem', padding: '1rem' }}>
+                            <h3 style={{ fontSize: '1rem', fontWeight: '600', color: '#111827' }}>Sayın {customer.name},</h3>
+                            <p style={{ marginTop: '0.75rem', lineHeight: '1.6', fontSize: '11px' }}>
+                                Firmanızın ihtiyaçları doğrultusunda, en güncel teknoloji ve mühendislik standartları göz önünde bulundurularak hazırlanan mekanik tesisat teklifimiz ekte sunulmuştur. Projenizin her aşamasında kalite, verimlilik ve zamanında teslimat ilkeleriyle çalışmayı taahhüt ederiz. Detaylı keşif ve projelendirme sonrası oluşturulan bu teklifin, projenizin başarısına önemli katkı sağlayacağına inanıyoruz.
+                            </p>
+                            <p style={{ marginTop: '1rem', fontWeight: '600' }}>İMS Mühendislik | Teşekkür Ederiz!</p>
                         </div>
                     </div>
+
+                    <div className="page-footer">
+                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end'}}>
+                             <div>
+                                <p style={{ fontWeight: 600, margin: 0, marginBottom: '4px' }}>Teklif Koşulları:</p>
+                                <ul style={{ listStylePosition: 'inside', paddingLeft: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                    <li>Teklifin geçerlilik süresi 15 gündür.</li>
+                                    <li>Fiyatlarımıza KDV dahildir.</li>
+                                    <li>Hesaplamada kullanılan kurlar: 1 EUR = {proposal.exchangeRates.EUR.toFixed(4)} TL, 1 USD = {proposal.exchangeRates.USD.toFixed(4)} TL</li>
+                                </ul>
+                            </div>
+                            <div style={{ position: 'relative', width: '10rem', height: 'auto', textAlign: 'right' }}>
+                                 {/* eslint-disable-next-line @next/next/no-img-element */}
+                               <img src="/kase.png" alt="Firma Kaşesi" style={{ width: '120px', height: '80px', objectFit: 'contain' }} />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* --- Repeating Header for Content Pages --- */}
+                <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src="/logo.png" alt="Firma Logosu" style={{ width: '60px', height: '60px', objectFit: 'contain' }} />
+                        <div>
+                            <h2 style={{ fontSize: '1rem', fontWeight: '700', color: '#1f2937', margin: 0 }}>İMS Mühendislik</h2>
+                            <p style={{ fontSize: '10px', marginTop: '2px', margin: '2px 0 0 0' }}>Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA</p>
+                        </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                        <p style={{ margin: 0 }}><span style={{ fontWeight: '600' }}>Teklif No:</span> {proposal.quoteNumber}</p>
+                        <p style={{ margin: '2px 0 0 0' }}><span style={{ fontWeight: '600' }}>Tarih:</span> {formatDate(proposal.createdAt)}</p>
+                    </div>
                 </header>
-                
-                 <footer className="page-footer">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end'}}>
-                        <div style={{ fontSize: '9px', color: '#4b5563', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                            <p style={{ fontWeight: 600, margin: 0 }}>Teklif Koşulları:</p>
-                            <ul style={{ listStylePosition: 'inside', paddingLeft: 0, margin: 0 }}>
-                                <li>Teklifin geçerlilik süresi 15 gündür.</li>
-                                <li>Fiyatlarımıza KDV dahildir.</li>
-                                <li>Hesaplamada kullanılan kurlar: 1 EUR = {proposal.exchangeRates.EUR.toFixed(4)} TL, 1 USD = {proposal.exchangeRates.USD.toFixed(4)} TL</li>
-                            </ul>
-                            <p style={{ marginTop: '0.5rem', fontWeight: 600, fontSize: '0.75rem', margin: '8px 0 0 0' }}>İMS Mühendislik | Teşekkür Ederiz!</p>
-                        </div>
-                        <div style={{ position: 'relative', width: '10rem', height: 'auto' }}>
-                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                           <img src="/kase.png" alt="Firma Kaşesi" style={{ width: '120px', height: '80px', objectFit: 'contain' }} />
-                        </div>
+
+                <footer className="page-footer">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                         <p style={{ margin: 0 }}>İMS Mühendislik | Teşekkür Ederiz!</p>
+                        <p style={{ margin: 0 }}>Sayfa <span className="pageNumber"></span> / <span className="totalPages"></span></p>
                     </div>
                 </footer>
 
-
-                <main className="print-layout">
-                    <section style={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '0.75rem' }} className="no-break">
-                        <div style={{ border: '1px solid #e5e7eb', padding: '0.5rem', borderRadius: '0.375rem', backgroundColor: '#f9fafb' }}>
-                            <h3 style={{ fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem' }}>Müşteri Bilgileri</h3>
-                            <p style={{ fontWeight: '700', fontSize: '0.75rem' }}>{customer.name}</p>
-                            <p>{customer.address || 'Adres belirtilmemiş'}</p>
-                            <p>{customer.email} | {customer.phone || 'Telefon belirtilmemiş'}</p>
-                            {customer.taxNumber && <p>Vergi No/TCKN: {customer.taxNumber}</p>}
-                        </div>
-                        <div style={{ border: '1px solid #e5e7eb', padding: '0.5rem', borderRadius: '0.375rem', backgroundColor: '#f9fafb' }}>
-                            <h3 style={{ fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem' }}>Proje Bilgisi</h3>
-                            <p style={{ fontWeight: '700', fontSize: '0.75rem' }}>{proposal.projectName}</p>
-                        </div>
-                    </section>
-
+                {/* --- Main Content Section --- */}
+                <main className="content-page">
                     <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                         {sortedGroups.map(([groupName, groupItems]) => (
-                            <div key={groupName} className="no-break">
-                                <h3 style={{ fontSize: '0.875rem', fontWeight: '700', marginBottom: '0.25rem', padding: '0.25rem', backgroundColor: '#f3f4f6', borderRadius: '0.375rem 0.375rem 0 0', borderBottom: '2px solid #d1d5db' }}>{groupName}</h3>
+                            <div key={groupName} style={{breakInside: 'avoid-page'}}>
+                                <h3 style={{ fontSize: '0.875rem', fontWeight: '700', marginBottom: '0.25rem', padding: '0.25rem 0.5rem', backgroundColor: '#f3f4f6', borderRadius: '0.375rem 0.375rem 0 0', borderBottom: '2px solid #d1d5db' }}>{groupName}</h3>
                                 <table style={{ width: '100%', fontSize: '10px', textAlign: 'left', borderCollapse: 'collapse' }}>
-                                    <thead>
+                                     <thead>
                                         <tr style={{ backgroundColor: '#e5e7eb' }}>
                                             <th style={{ padding: '4px 8px', fontWeight: 700, color: '#374151', borderBottom: '1px solid #d1d5db', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em', verticalAlign: 'middle' }}>#</th>
                                             <th style={{ padding: '4px 8px', fontWeight: 700, color: '#374151', borderBottom: '1px solid #d1d5db', textAlign: 'left', width: '40%', textTransform: 'uppercase', letterSpacing: '0.05em', verticalAlign: 'middle' }}>Açıklama</th>
@@ -184,7 +231,7 @@ const generatePrintHTML = (proposal: Proposal, customer: Customer, sortedGroups:
                                     </thead>
                                     <tbody>
                                         {groupItems.map((item, index) => (
-                                            <tr key={item.id}>
+                                            <tr key={item.id} style={{ breakInside: 'avoid' }}>
                                                 <td style={{ padding: '2px 8px', verticalAlign: 'top', borderBottom: '1px solid #e5e7eb' }}>{index + 1}</td>
                                                 <td style={{ padding: '2px 8px', verticalAlign: 'top', fontWeight: 500, borderBottom: '1px solid #e5e7eb' }}>{item.name}</td>
                                                 <td style={{ padding: '2px 8px', verticalAlign: 'top', borderBottom: '1px solid #e5e7eb' }}>{item.brand}</td>
@@ -196,7 +243,7 @@ const generatePrintHTML = (proposal: Proposal, customer: Customer, sortedGroups:
                                         ))}
                                     </tbody>
                                     <tfoot>
-                                        <tr style={{ backgroundColor: '#f3f4f6', fontWeight: 700 }}>
+                                        <tr style={{ backgroundColor: '#f3f4f6', fontWeight: 700, breakInside: 'avoid' }}>
                                             <td colSpan={6} style={{ padding: '4px 8px', textAlign: 'right', borderTop: '2px solid #d1d5db' }}>Grup Toplamı (KDV Hariç):</td>
                                             <td style={{ padding: '4px 8px', textAlign: 'right', borderTop: '2px solid #d1d5db' }}>
                                                 {formatCurrency(groupItems.reduce((sum, item) => sum + item.total, 0), 'TRY')}
@@ -208,7 +255,7 @@ const generatePrintHTML = (proposal: Proposal, customer: Customer, sortedGroups:
                         ))}
                     </section>
 
-                    <section style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '1rem' }} className="no-break">
+                     <section style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '1rem', breakInside: 'avoid' }}>
                         <div style={{ width: '50%' }}></div>
                         <div style={{ width: '50%', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                             <div style={{ borderBottom: '1px solid #e5e7eb', paddingBottom: '0.25rem' }}>
@@ -250,7 +297,6 @@ const generatePrintHTML = (proposal: Proposal, customer: Customer, sortedGroups:
 export default function PrintQuotePage() {
     const params = useParams();
     const searchParams = useSearchParams();
-    const router = useRouter();
     const firestore = useFirestore();
     const proposalId = params.id as string;
     const customerId = searchParams.get('customerId');
@@ -351,20 +397,8 @@ export default function PrintQuotePage() {
     }, [proposal, items]);
 
     useEffect(() => {
-        if (isProposalLoading || areItemsLoading || isCustomerLoading) {
-            return; 
-        }
-
-        if (!proposal || !customer || !items) {
-            // Data is not ready, or there was an error.
-            // Maybe show an error message before redirecting.
-            const errorTimer = setTimeout(() => {
-                 if (!proposal) console.error("Print Error: Proposal data is missing.");
-                 if (!customer) console.error("Print Error: Customer data is missing.");
-                 if (!items) console.error("Print Error: Items data is missing.");
-                 // router.push(`/quotes/${proposalId}`);
-            }, 3000);
-            return () => clearTimeout(errorTimer);
+        if (isProposalLoading || areItemsLoading || isCustomerLoading || !proposal || !customer || !items) {
+            return;
         }
 
         const htmlContent = generatePrintHTML(proposal, customer, sortedGroups, totals);
@@ -374,24 +408,10 @@ export default function PrintQuotePage() {
             printWindow.document.open();
             printWindow.document.write(htmlContent);
             printWindow.document.close();
-            
-            const timer = setTimeout(() => {
-                try {
-                    printWindow.print();
-                } catch (e) {
-                    console.error("Print failed:", e);
-                } finally {
-                   // printWindow.close();
-                }
-            }, 1000); 
-
-             return () => clearTimeout(timer);
         } else {
             alert("Lütfen bu site için pop-up'ları etkinleştirin.");
         }
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isProposalLoading, areItemsLoading, isCustomerLoading, proposal, customer, items]);
+    }, [isProposalLoading, areItemsLoading, isCustomerLoading, proposal, customer, items, sortedGroups, totals]);
 
 
     if (isProposalLoading || areItemsLoading || isCustomerLoading) {
@@ -413,19 +433,13 @@ export default function PrintQuotePage() {
         );
     }
 
-
-    // This component now primarily orchestrates the print process.
-    // The user will briefly see this before the print dialog opens.
-    // The "useEffect" handles closing the window/tab.
     return (
          <div className="flex h-screen w-full items-center justify-center bg-white">
             <div className="flex flex-col items-center gap-4">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                <p className="text-muted-foreground">Yazdırma penceresi hazırlanıyor...</p>
-                <p className="text-sm text-gray-400">Eğer yeni bir pencere açılmadıysa, lütfen pop-up engelleyicinizi kontrol edin.</p>
+                <p className="text-muted-foreground">Yazdırma sayfası yeni sekmede açılıyor...</p>
+                <p className="text-sm text-gray-400">Sayfa açılmazsa, lütfen pop-up engelleyicinizi kontrol edin.</p>
             </div>
         </div>
     );
 }
-
-    
