@@ -1,17 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { useAuth, initiateAnonymousSignIn, useUser } from '@/firebase';
-import { Building, Home, Users, Package, FileText, Layers, BookCopy, Menu, X } from 'lucide-react';
+import { Building, Home, Users, Package, FileText, Layers, BookCopy, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { NoSsr } from '@/components/no-ssr';
+import { useEffect } from 'react';
 
 
 const navItems = [
@@ -139,10 +140,10 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <FirebaseClientProvider>
-          <AppInitializer>{children}</AppInitializer>
-        </FirebaseClientProvider>
         <NoSsr>
+          <FirebaseClientProvider>
+            <AppInitializer>{children}</AppInitializer>
+          </FirebaseClientProvider>
           <Toaster />
         </NoSsr>
       </body>
