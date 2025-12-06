@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import './globals.css';
@@ -12,8 +12,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { NoSsr } from '@/components/no-ssr';
-import { useEffect } from 'react';
-
+import { useTabStore } from '@/hooks/use-tab-store';
 
 const navItems = [
     { href: '/', label: 'Anasayfa', icon: Home },
@@ -27,6 +26,7 @@ const navItems = [
 function AppInitializer({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
+  const { isQuoting } = useTabStore();
 
   useEffect(() => {
     if (!isUserLoading && !user && auth) {
@@ -35,8 +35,8 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
   }, [isUserLoading, user, auth]);
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-30 flex-shrink-0 bg-white/95 backdrop-blur-sm border-b border-slate-200 print-hidden-on-print-page">
+    <div className={cn("flex flex-col min-h-screen bg-slate-50", { 'print-hidden-on-print-page': isQuoting })}>
+      <header className="sticky top-0 z-30 flex-shrink-0 bg-white/95 backdrop-blur-sm border-b border-slate-200">
         <div className="mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
                 <div className="flex items-center gap-8">
@@ -62,7 +62,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
         {/* This is the portal target for the secondary, sticky header in the quote detail page. */}
         <div id="sub-header-portal"></div>
       </header>
-       <main className="flex-1 flex flex-col p-8">
+       <main className="flex-1 flex flex-col">
             {children}
         </main>
     </div>
@@ -71,48 +71,71 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
 
 const NavItem = ({ href, label }: { href: string, label: string }) => {
     const pathname = usePathname();
-    const isActive = (pathname === '/' && href === '/') || (href !== '/' && pathname.startsWith(href));
+    const { addTab, setActiveTab, activeTab } = useTabStore();
+    const isActive = activeTab === href;
+
+    const handleClick = (e: React.MouseEvent) => {
+        if (href === '/') {
+            setActiveTab('/');
+            return;
+        }
+        e.preventDefault();
+        addTab({ href, label });
+    }
 
     return (
-        <Link 
+        <a 
             href={href}
+            onClick={handleClick}
             className={cn(
-                "px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                "px-3 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer",
                 isActive 
                     ? "text-primary bg-primary/10" 
                     : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
             )}
         >
             {label}
-        </Link>
+        </a>
     )
 }
 
 const MobileNav = () => {
     const [open, setOpen] = useState(false);
+    const { addTab, setActiveTab } = useTabStore();
+
+    const handleLinkClick = (e: React.MouseEvent, href: string, label: string) => {
+        e.preventDefault();
+        if (href === '/') {
+            setActiveTab('/');
+        } else {
+            addTab({ href, label });
+        }
+        setOpen(false);
+    }
+    
     return (
         <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="print-hidden-on-print-page">
+                <Button variant="ghost" size="icon">
                     <Menu className="h-6 w-6" />
                     <span className="sr-only">Menüyü aç</span>
                 </Button>
             </SheetTrigger>
             <SheetContent side="left">
-                 <Link href="/" className="flex items-center gap-2 font-bold text-slate-800 mb-8">
+                 <Link href="/" className="flex items-center gap-2 font-bold text-slate-800 mb-8" onClick={() => setOpen(false)}>
                     <Building className="h-6 w-6 text-primary" />
                     <span className="text-lg">MechQuote</span>
                 </Link>
                 <nav className="flex flex-col gap-2">
                     {navItems.map((item) => (
-                        <Link 
+                        <a 
                             key={item.href}
                             href={item.href}
-                            onClick={() => setOpen(false)}
+                            onClick={(e) => handleLinkClick(e, item.href, item.label)}
                             className="text-lg text-slate-700 hover:text-primary"
                         >
                             {item.label}
-                        </Link>
+                        </a>
                     ))}
                 </nav>
             </SheetContent>
