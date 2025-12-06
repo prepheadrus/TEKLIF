@@ -85,36 +85,16 @@
    PRINT STYLES
    ============================================ */
 
+/* Hide navbar on print page even on screen view */
+body:has([data-print-page]) .print-hidden-on-print-page {
+  display: none !important;
+}
+
 @media print {
   /* ===== YAZDIRMADA GİZLENECEKLER ===== */
-  
-  /* Ana navbar/header */
-  nav,
-  .navbar,
-  header:not(.print-header),
-  .app-header,
-  .site-header,
-  .main-nav,
-  .no-print {
-    display: none !important;
-  }
-
-  /* Sidebar */
-  aside,
-  .sidebar {
-    display: none !important;
-  }
-
-  /* Butonlar ve aksiyonlar */
-  button:not(.print-include),
-  .btn,
-  .actions,
-  .toolbar {
-    display: none !important;
-  }
-
-  /* Tailwind print:hidden class'ı */
-  .print\:hidden {
+  .print-hidden,
+  .no-print,
+  .print-hidden-on-print-page {
     display: none !important;
   }
 
@@ -124,19 +104,6 @@
     margin: 10mm;
   }
 
-  @page :first {
-    margin-top: 10mm;
-  }
-
-  @page :left {
-    margin-left: 12mm;
-  }
-
-  @page :right {
-    margin-right: 12mm;
-  }
-
-  /* Body sıfırla */
   html, body {
     margin: 0 !important;
     padding: 0 !important;
@@ -145,11 +112,7 @@
     print-color-adjust: exact !important;
   }
 
-  /* Container genişliği */
-  .container,
   main {
-    max-width: 100% !important;
-    width: 100% !important;
     padding: 0 !important;
     margin: 0 !important;
   }

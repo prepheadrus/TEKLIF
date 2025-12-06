@@ -165,7 +165,7 @@ export default function PrintQuotePage() {
     };
 
     return (
-        <>
+        <div data-print-page>
             <div className="fixed top-4 right-4 z-50 print:hidden no-print">
                 <Button onClick={handlePrint} className="shadow-lg">
                     <Printer className="mr-2 h-4 w-4" />
@@ -179,6 +179,6 @@ export default function PrintQuotePage() {
                 customer={customer}
                 firma={firmaData}
             />
-        </>
+        </div>
     );
 }
