@@ -232,11 +232,20 @@ export default function PrintQuotePage() {
                             margin: 0 !important;
                             
                             @top-left { content: none; }
-                            @top-center { content: none; }
+                            @top-center { content: element(pageHeader); }
                             @top-right { content: none; }
+                            
                             @bottom-left { content: none; }
-                            @bottom-center { content: none; }
+                            @bottom-center { 
+                                content: "Sayfa " counter(page);
+                                font-size: 9px;
+                                color: #666;
+                            }
                             @bottom-right { content: none; }
+                        }
+                        @page :first {
+                             @top-center { content: none; }
+                             @bottom-center { content: none; }
                         }
                         
                          @media print {
@@ -247,6 +256,7 @@ export default function PrintQuotePage() {
                                 color: #000000 !important;
                                 background-color: #fff;
                                 padding: 1.5cm 1cm 1cm 1.5cm;
+                                counter-reset: page;
                             }
                             
                             div, section, main, header, footer, article {
@@ -266,11 +276,15 @@ export default function PrintQuotePage() {
                                 justify-content: center;
                                 align-items: center;
                                 text-align: center;
-                                break-after: always; page-break-after: always;
+                                break-after: always;
                             }
                             
                             .content-start {
-                                break-before: page; page-break-before: always;
+                                break-before: page;
+                            }
+                            
+                            .print-header {
+                                position: running(pageHeader);
                             }
 
                             .summary-wrapper, h3, .info-cards {
@@ -293,7 +307,7 @@ export default function PrintQuotePage() {
                 <body>
                     <!-- Cover Page -->
                     <div class="cover-page">
-                        <header style="padding-bottom: 1.5rem; border-bottom: 1px solid #e5e7eb; width: 80%;">
+                        <header style="width: 80%;">
                             <div style="display: table; width: 100%;">
                                 <div style="display: table-cell; vertical-align: middle; width: 70%; text-align: left;">
                                     <img src="/logo.png" alt="Firma Logosu" style="width: 120px; height: 120px; object-fit: contain; vertical-align: middle; display: inline-block; margin-right: 1.5rem;" />
@@ -321,25 +335,24 @@ export default function PrintQuotePage() {
 
                     <!-- Main Content Section -->
                     <div class="content-start">
-                        <header style="padding-bottom: 1rem; border-bottom: 1px solid #e5e7eb;">
-                            <div style="display: table; width: 100%;">
-                                <div style="display: table-cell; vertical-align: middle;">
-                                    <img src="/logo.png" alt="Firma Logosu" style="width: 70px; height: 70px; object-fit: contain; vertical-align: middle; display: inline-block; margin-right: 1rem;" />
-                                    <div style="display: inline-block; vertical-align: middle;">
-                                        <h2 style="font-size: 1.125rem; font-weight: 700; margin: 0; color: #000000;">İMS Mühendislik</h2>
-                                        <p style="font-size: 10px; margin: 2px 0 0 0; color: #000000;">Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA</p>
-                                    </div>
-                                </div>
-                                <div style="display: table-cell; text-align: right; vertical-align: middle;">
-                                    <p style="margin: 0; font-size: 12px; color: #000000;"><span style="font-weight: 600;">Teklif No:</span> ${proposal.quoteNumber}</p>
-                                    <p style="margin: 2px 0 0 0; font-size: 12px; color: #000000;"><span style="font-weight: 600;">Tarih:</span> ${formatDate(proposal.createdAt)}</p>
+                        <div class="print-header" style="display: table; width: 100%; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.5rem;">
+                             <div style="display: table-cell; vertical-align: middle;">
+                                <img src="/logo.png" alt="Firma Logosu" style="width: 50px; height: 50px; object-fit: contain; vertical-align: middle; display: inline-block; margin-right: 1rem;" />
+                                <div style="display: inline-block; vertical-align: middle;">
+                                    <h2 style="font-size: 1rem; font-weight: 700; margin: 0; color: #000000;">İMS Mühendislik</h2>
+                                    <p style="font-size: 9px; margin: 2px 0 0 0; color: #000000;">Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
                                 </div>
                             </div>
-                        </header>
-                         <div class="info-cards" style="margin-top: 1.5rem; display: table; width: 100%; border-spacing: 1rem 0; margin-left: -1rem;">
+                            <div style="display: table-cell; text-align: right; vertical-align: middle;">
+                                <p style="margin: 0; font-size: 11px; color: #000000;"><span style="font-weight: 600;">Teklif No:</span> ${proposal.quoteNumber}</p>
+                                <p style="margin: 2px 0 0 0; font-size: 11px; color: #000000;"><span style="font-weight: 600;">Tarih:</span> ${formatDate(proposal.createdAt)}</p>
+                            </div>
+                        </div>
+                        
+                         <div class="info-cards" style="margin-top: 1.5rem; display: table; width: 100%; border-spacing: 1rem 0; margin-left: -1rem; break-inside: avoid;">
                                 <div style="display: table-cell; width: 50%; padding-left: 1rem;">
                                     <div style="padding: 0.5rem; background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 0.5rem;">
-                                        <h3 style="font-size: 0.8rem; font-weight: 600; margin: 0; padding-bottom: 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #d1d5db; text-transform: uppercase; letter-spacing: 0.05em; color: #000000;">Müşteri Bilgileri</h3>
+                                        <h3 style="font-size: 0.8rem; font-weight: 600; margin: 0 0 0.5rem 0; padding-bottom: 0.5rem; border-bottom: 1px solid #d1d5db; text-transform: uppercase; letter-spacing: 0.05em; color: #000000;">Müşteri Bilgileri</h3>
                                         <div style="line-height: 1.5; font-size: 0.75rem;">
                                             <p style="font-weight: 700; color: #111827; margin: 2px 0;">${customer.name}</p>
                                             <p style="margin: 2px 0; color: #000000;">${customer.address || 'Adres belirtilmemiş'}</p>
@@ -350,7 +363,7 @@ export default function PrintQuotePage() {
                                 </div>
                                 <div style="display: table-cell; width: 50%; padding-left: 1rem;">
                                     <div style="padding: 0.5rem; background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 0.5rem;">
-                                        <h3 style="font-size: 0.8rem; font-weight: 600; margin: 0; padding-bottom: 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #d1d5db; text-transform: uppercase; letter-spacing: 0.05em; color: #000000;">Proje Bilgisi</h3>
+                                        <h3 style="font-size: 0.8rem; font-weight: 600; margin: 0 0 0.5rem 0; padding-bottom: 0.5rem; border-bottom: 1px solid #d1d5db; text-transform: uppercase; letter-spacing: 0.05em; color: #000000;">Proje Bilgisi</h3>
                                         <div style="line-height: 1.5; font-size: 0.75rem;">
                                             <p style="font-weight: 700; color: #111827; margin: 2px 0;">${proposal.projectName}</p>
                                         </div>
@@ -361,7 +374,7 @@ export default function PrintQuotePage() {
                             <section style="margin-top: 1rem;">
                                 ${mainContentHTML}
                             </section>
-                            <div class="summary-wrapper" style="margin-top: 1rem;">
+                            <div class="summary-wrapper" style="margin-top: 1rem; break-inside: avoid;">
                                 <div style="display: table; width: 100%;">
                                     <div style="display: table-cell; width: 55%; vertical-align: top; font-size: 9px; line-height: 1.5; white-space: pre-wrap; color: #000000; padding-right: 1rem;">
                                        <h4 style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.5rem; color: #000000;">Teklif Koşulları</h4>
@@ -436,5 +449,3 @@ export default function PrintQuotePage() {
         </div>
     );
 }
-
-    
