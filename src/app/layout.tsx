@@ -76,8 +76,6 @@ const NavItem = ({ href, label }: { href: string, label: string }) => {
     return (
         <Link 
             href={href}
-            target="_blank"
-            rel="noopener noreferrer"
             className={cn(
                 "px-3 py-2 rounded-md text-sm font-medium transition-colors",
                 isActive 
@@ -110,8 +108,6 @@ const MobileNav = () => {
                         <Link 
                             key={item.href}
                             href={item.href}
-                            target="_blank"
-                            rel="noopener noreferrer"
                             onClick={() => setOpen(false)}
                             className="text-lg text-slate-700 hover:text-primary"
                         >
