@@ -1,19 +1,16 @@
-
-
 'use client';
 
 import React, { useMemo, useCallback } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
-import { Loader2, Printer, FileDown, Image, ChevronDown } from 'lucide-react';
+import { Loader2, Printer, FileDown, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PrintDocument } from '@/components/app/print-document';
 import { calculateItemTotals } from '@/lib/pricing';
 import { usePrintQuote } from '@/hooks/use-print-quote';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import * as XLSX from 'xlsx';
-import * as htmlToImage from 'html-to-image';
 
 
 // --- Type Definitions ---
@@ -176,29 +173,6 @@ export default function PrintQuotePage() {
         XLSX.writeFile(wb, `Teklif-${calculatedData.quoteNumber}.xlsx`);
 
     }, [calculatedData, customer]);
-    
-    const handleExportToImage = useCallback(() => {
-        if (printRef.current === null) {
-            return;
-        }
-
-        htmlToImage.toJpeg(printRef.current, { 
-            quality: 0.95,
-            // CORS hatalarını önlemek için dış kaynakları getirme seçeneğini kapatıyoruz.
-            fetchRequestInit: { mode: 'no-cors' },
-            // Bu seçenek, fontları gömmeye çalışmasını engeller ve güvenlik hatasını çözer.
-            skipFonts: true,
-        })
-            .then((dataUrl) => {
-                const link = document.createElement('a');
-                link.download = `Teklif-${proposal?.quoteNumber}.jpeg`;
-                link.href = dataUrl;
-                link.click();
-            })
-            .catch((err) => {
-                console.error('Resim oluşturulurken hata oluştu:', err);
-            });
-    }, [printRef, proposal]);
 
 
     const isLoading = isProposalLoading || areItemsLoading || isCustomerLoading;
@@ -256,10 +230,6 @@ export default function PrintQuotePage() {
                         <DropdownMenuItem onClick={handleExportToExcel}>
                             <FileDown className="mr-2 h-4 w-4" />
                             Excel Olarak Dışa Aktar (.xlsx)
-                        </DropdownMenuItem>
-                         <DropdownMenuItem onClick={handleExportToImage}>
-                            <Image className="mr-2 h-4 w-4" />
-                            Resim Olarak Kaydet (.jpeg)
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
