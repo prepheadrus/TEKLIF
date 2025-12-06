@@ -5,7 +5,6 @@ import { useTabStore } from '@/hooks/use-tab-store';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { X, Home, FileText, Users, Package, Layers, BookCopy } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { usePathname, useRouter } from 'next/navigation';
 
 // Import Page Contents
 import { DashboardContent } from '@/app/dashboard-content/page';
@@ -43,20 +42,13 @@ const getIconForHref = (href: string) => {
 
 export function TabbedNavigation() {
   const { tabs, removeTab, activeTab, setActiveTab, setIsQuoting } = useTabStore();
-  const router = useRouter();
-  const pathname = usePathname();
-
-  // Effect to handle direct navigation and ensure the tab exists
-  useEffect(() => {
-    setActiveTab(pathname);
-  }, [pathname, setActiveTab]);
-
 
   useEffect(() => {
     const isQuotePage = activeTab.startsWith('/quotes/');
-    const isPrintPage = pathname.includes('/print');
-    setIsQuoting(isQuotePage || isPrintPage);
-  }, [activeTab, pathname, setIsQuoting]);
+    // Since we are no longer using iframes, we need a different way to detect print pages if necessary
+    // For now, we only base it on the quote detail page.
+    setIsQuoting(isQuotePage);
+  }, [activeTab, setIsQuoting]);
 
   const renderContent = (href: string) => {
     if (href.startsWith('/quotes/')) {
@@ -68,7 +60,6 @@ export function TabbedNavigation() {
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
-    router.push(value);
   }
 
   const handleTabClose = (e: React.MouseEvent, href: string) => {
@@ -116,14 +107,13 @@ export function TabbedNavigation() {
       </div>
       
       <div className="flex-1 overflow-y-auto">
-        <TabsContent value="/" className="mt-0 h-full">
-            {activeTab === '/' && renderContent('/')}
+        <TabsContent value="/" forceMount={true} className={cn("mt-0 h-full", activeTab !== '/' && 'hidden')}>
+            {renderContent('/')}
         </TabsContent>
 
         {tabs.map((tab) => (
-            <TabsContent key={tab.href} value={tab.href} className="mt-0 h-full">
-                {/* Render content only if it's the active tab to save resources */}
-                {activeTab === tab.href && renderContent(tab.href)}
+            <TabsContent key={tab.href} value={tab.href} forceMount={true} className={cn("mt-0 h-full", activeTab !== tab.href && 'hidden')}>
+                {renderContent(tab.href)}
             </TabsContent>
         ))}
       </div>

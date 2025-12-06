@@ -71,14 +71,13 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
 
 const NavItem = ({ href, label }: { href: string, label: string }) => {
     const { addTab } = useTabStore();
-    const router = useRouter();
-    const pathname = usePathname();
-    const isActive = pathname === href;
+    const activeTab = useTabStore(state => state.activeTab);
+    const isActive = activeTab === href;
 
     const handleClick = (e: React.MouseEvent) => {
         e.preventDefault();
+        // Sadece yeni bir sekme ekle ve onu aktif yap. Yönlendirme yapma.
         addTab({ href, label });
-        router.push(href);
     }
 
     return (
@@ -100,12 +99,10 @@ const NavItem = ({ href, label }: { href: string, label: string }) => {
 const MobileNav = () => {
     const [open, setOpen] = useState(false);
     const { addTab } = useTabStore();
-    const router = useRouter();
 
     const handleLinkClick = (e: React.MouseEvent, href: string, label: string) => {
         e.preventDefault();
         addTab({ href, label });
-        router.push(href);
         setOpen(false);
     }
     
@@ -118,7 +115,7 @@ const MobileNav = () => {
                 </Button>
             </SheetTrigger>
             <SheetContent side="left">
-                 <Link href="/" className="flex items-center gap-2 font-bold text-slate-800 mb-8" onClick={(e) => { e.preventDefault(); addTab({href:'/', label:'Anasayfa'}); router.push('/'); setOpen(false);}}>
+                 <Link href="/" className="flex items-center gap-2 font-bold text-slate-800 mb-8" onClick={(e) => { e.preventDefault(); addTab({href:'/', label:'Anasayfa'}); setOpen(false);}}>
                     <Building className="h-6 w-6 text-primary" />
                     <span className="text-lg">MechQuote</span>
                 </Link>

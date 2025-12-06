@@ -1,6 +1,5 @@
 'use client';
 import { create } from 'zustand';
-import { usePathname, useRouter } from 'next/navigation';
 
 type Tab = {
   href: string;
@@ -10,10 +9,10 @@ type Tab = {
 type TabState = {
   tabs: Tab[];
   activeTab: string;
-  isQuoting: boolean;
   addTab: (tab: Tab) => void;
   removeTab: (href: string) => void;
   setActiveTab: (href: string) => void;
+  isQuoting: boolean;
   setIsQuoting: (isQuoting: boolean) => void;
 };
 
@@ -23,38 +22,37 @@ export const useTabStore = create<TabState>((set, get) => ({
   isQuoting: false,
 
   addTab: (newTab) => {
-    const { tabs, setActiveTab } = get();
-    // Prevent adding a tab that already exists, but still make it active
+    const { tabs } = get();
+    // Sekme zaten açık değilse ekle
     if (!tabs.some(tab => tab.href === newTab.href)) {
       set({ tabs: [...tabs, newTab] });
     }
-    setActiveTab(newTab.href);
+    // Her durumda yeni tıklanan sekmeyi aktif yap
+    set({ activeTab: newTab.href });
   },
 
   removeTab: (href) => {
-    const { tabs, activeTab, setActiveTab } = get();
+    const { tabs, activeTab } = get();
     const newTabs = tabs.filter(tab => tab.href !== href);
     let newActiveTab = activeTab;
 
+    // Eğer kapatılan sekme aktif ise, yeni aktif sekmeyi belirle
     if (activeTab === href) {
       const removedTabIndex = tabs.findIndex(tab => tab.href === href);
       if (newTabs.length > 0) {
+        // Bir önceki sekmeyi aktif yap
         newActiveTab = newTabs[Math.max(0, removedTabIndex - 1)].href;
       } else {
+        // Hiç sekme kalmazsa anasayfayı aktif yap
         newActiveTab = '/';
       }
     }
     
-    set({ tabs: newTabs });
-    // This will trigger a navigation event in the component
-    setActiveTab(newActiveTab);
+    set({ tabs: newTabs, activeTab: newActiveTab });
   },
 
   setActiveTab: (href) => {
-    // Only update if the active tab is actually changing
-    if (get().activeTab !== href) {
-        set({ activeTab: href });
-    }
+    set({ activeTab: href });
   },
   
   setIsQuoting: (isQuoting: boolean) => {
