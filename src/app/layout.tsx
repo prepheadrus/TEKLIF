@@ -76,7 +76,6 @@ const NavItem = ({ href, label }: { href: string, label: string }) => {
 
     const handleClick = (e: React.MouseEvent) => {
         e.preventDefault();
-        // Sadece yeni bir sekme ekle ve onu aktif yap. Yönlendirme yapma.
         addTab({ href, label });
     }
 

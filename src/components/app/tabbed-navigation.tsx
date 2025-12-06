@@ -45,8 +45,6 @@ export function TabbedNavigation() {
 
   useEffect(() => {
     const isQuotePage = activeTab.startsWith('/quotes/');
-    // Since we are no longer using iframes, we need a different way to detect print pages if necessary
-    // For now, we only base it on the quote detail page.
     setIsQuoting(isQuotePage);
   }, [activeTab, setIsQuoting]);
 
@@ -107,15 +105,22 @@ export function TabbedNavigation() {
       </div>
       
       <div className="flex-1 overflow-y-auto">
-        <TabsContent value="/" forceMount={true} className={cn("mt-0 h-full", activeTab !== '/' && 'hidden')}>
-            {renderContent('/')}
-        </TabsContent>
-
-        {tabs.map((tab) => (
-            <TabsContent key={tab.href} value={tab.href} forceMount={true} className={cn("mt-0 h-full", activeTab !== tab.href && 'hidden')}>
-                {renderContent(tab.href)}
+        {/* Render only the active tab's content */}
+        {activeTab === '/' && (
+            <TabsContent value="/" className="mt-0 h-full">
+                {renderContent('/')}
             </TabsContent>
-        ))}
+        )}
+        {tabs.map((tab) => {
+            if (activeTab === tab.href) {
+                return (
+                    <TabsContent key={tab.href} value={tab.href} className="mt-0 h-full">
+                        {renderContent(tab.href)}
+                    </TabsContent>
+                );
+            }
+            return null;
+        })}
       </div>
     </Tabs>
   );
