@@ -101,21 +101,5 @@ export default {
   },
   plugins: [
     require('tailwindcss-animate'),
-    function({ addUtilities }: any) {
-      addUtilities({
-        '.print-avoid-break': {
-          'page-break-inside': 'avoid',
-          'break-inside': 'avoid',
-        },
-        '.print-break-before': {
-          'page-break-before': 'always',
-          'break-before': 'page',
-        },
-        '.print-break-after': {
-          'page-break-after': 'always',
-          'break-after': 'page',
-        },
-      });
-    },
   ],
 } satisfies Config;
