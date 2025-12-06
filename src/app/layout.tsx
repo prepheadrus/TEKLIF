@@ -7,10 +7,10 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { useAuth, initiateAnonymousSignIn, useUser } from '@/firebase';
-import { Building, Home, Users, Package, FileText, Layers, BookCopy, Menu } from 'lucide-react';
+import { Building, Home, Users, Package, FileText, Layers, BookCopy, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { NoSsr } from '@/components/no-ssr';
 
 
@@ -26,7 +26,6 @@ const navItems = [
 function AppInitializer({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
-  const pathname = usePathname();
 
   useEffect(() => {
     if (!isUserLoading && !user && auth) {
@@ -62,7 +61,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
         {/* This is the portal target for the secondary, sticky header in the quote detail page. */}
         <div id="sub-header-portal"></div>
       </header>
-       <main className="flex-1 flex flex-col">
+       <main className="flex-1 flex flex-col p-8">
             {children}
         </main>
     </div>
