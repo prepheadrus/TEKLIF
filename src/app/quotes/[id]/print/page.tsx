@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useMemo, useCallback } from 'react';
@@ -176,20 +177,26 @@ export default function PrintQuotePage() {
 
     }, [calculatedData, customer]);
     
-    const handleExportToPNG = useCallback(() => {
+    const handleExportToImage = useCallback(() => {
         if (printRef.current === null) {
             return;
         }
 
-        htmlToImage.toPng(printRef.current, { cacheBust: true })
+        htmlToImage.toJpeg(printRef.current, { 
+            quality: 0.95,
+            // CORS hatalarını önlemek için dış kaynakları getirme seçeneğini kapatıyoruz.
+            fetchRequestInit: { mode: 'no-cors' },
+            // Bu seçenek, fontları gömmeye çalışmasını engeller ve güvenlik hatasını çözer.
+            skipFonts: true,
+        })
             .then((dataUrl) => {
                 const link = document.createElement('a');
-                link.download = `Teklif-${proposal?.quoteNumber}.png`;
+                link.download = `Teklif-${proposal?.quoteNumber}.jpeg`;
                 link.href = dataUrl;
                 link.click();
             })
             .catch((err) => {
-                console.error('PNG oluşturulurken hata oluştu:', err);
+                console.error('Resim oluşturulurken hata oluştu:', err);
             });
     }, [printRef, proposal]);
 
@@ -250,9 +257,9 @@ export default function PrintQuotePage() {
                             <FileDown className="mr-2 h-4 w-4" />
                             Excel Olarak Dışa Aktar (.xlsx)
                         </DropdownMenuItem>
-                         <DropdownMenuItem onClick={handleExportToPNG}>
+                         <DropdownMenuItem onClick={handleExportToImage}>
                             <Image className="mr-2 h-4 w-4" />
-                            Resim Olarak Kaydet (.png)
+                            Resim Olarak Kaydet (.jpeg)
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
