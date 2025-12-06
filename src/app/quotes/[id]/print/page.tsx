@@ -236,35 +236,37 @@ export default function PrintQuotePage() {
                             </div>
                         ))}
                     </section>
-                </main>
-                
-                {/* 4. Totals and Footer Section */}
-                <footer className="pt-8 border-t-2 border-slate-300">
-                    <div className="flex justify-end mb-8 print-totals">
-                        <div className="w-[350px] space-y-2 text-sm">
-                            <div className="flex justify-between">
-                                <span className="font-semibold">Ara Toplam:</span>
-                                <span>{formatCurrency(grandTotal)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="font-semibold">KDV (%20):</span>
-                                <span>{formatCurrency(vatAmount)}</span>
-                            </div>
-                            <div className="flex justify-between text-xl font-bold pt-2 border-t mt-2">
-                                <span>Genel Toplam:</span>
-                                <span>{formatCurrency(grandTotalWithVAT)}</span>
+
+                     {/* 4. Totals and Footer Section */}
+                    <footer className="pt-8 border-t-2 border-slate-300">
+                        <div className="flex justify-end mb-8 print-totals">
+                            <div className="w-[350px] space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                    <span className="font-semibold">Ara Toplam:</span>
+                                    <span>{formatCurrency(grandTotal)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="font-semibold">KDV (%20):</span>
+                                    <span>{formatCurrency(vatAmount)}</span>
+                                </div>
+                                <div className="flex justify-between text-xl font-bold pt-2 border-t mt-2">
+                                    <span>Genel Toplam:</span>
+                                    <span>{formatCurrency(grandTotalWithVAT)}</span>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                     <QuoteFooter
-                        notlar={proposal.termsAndConditions?.replace(/\\n/g, '\n')}
-                        kosullar={[]}
-                        firmaKase="/kase.png"
-                        className="print-kase text-xs"
-                    />
-                </footer>
+                        <QuoteFooter
+                            notlar={proposal.termsAndConditions?.replace(/\\n/g, '\n')}
+                            kosullar={[]}
+                            firmaKase="/kase.png"
+                            className="print-kase text-xs"
+                        />
+                    </footer>
+                </main>
             </div>
              {/* --- PRINT AREA END --- */}
         </div>
     );
 }
+
+    
