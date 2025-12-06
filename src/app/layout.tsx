@@ -10,7 +10,7 @@ import { useAuth, initiateAnonymousSignIn, useUser } from '@/firebase';
 import { Building, Home, Users, Package, FileText, Layers, BookCopy, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { NoSsr } from '@/components/no-ssr';
 
 
