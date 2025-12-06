@@ -80,3 +80,59 @@
       @apply bg-transparent;
   }
 }
+
+/* ============================================
+   PRINT STYLES
+   ============================================ */
+
+@media print {
+  @page {
+    size: A4;
+    margin: 20mm 15mm 25mm 15mm;
+  }
+
+  @page :first {
+    margin-top: 15mm;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    background: white !important;
+  }
+
+  /* Sayfa kesme kontrolleri */
+  .print-avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .print-break-before {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  .print-break-after {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+
+  /* Tablo header her sayfada tekrarlansın */
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+  }
+
+  /* Orphans/Widows */
+  p, li {
+    orphans: 3;
+    widows: 3;
+  }
+}
