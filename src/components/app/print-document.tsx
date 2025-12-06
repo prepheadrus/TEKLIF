@@ -1,4 +1,3 @@
-
 'use client';
 
 import { forwardRef } from 'react';
@@ -101,7 +100,7 @@ export const PrintDocument = forwardRef<HTMLDivElement, PrintDocumentProps>(
 
         {/* TEKLİF KALEMLERİ - Kategoriler */}
         {teklif.groupedItems.map(([groupName, items], ki) => (
-          <section key={ki} className="mb-6 print-avoid-break">
+          <section key={ki} className="mb-6">
             <h3 className="font-bold text-base mb-2 p-2 bg-slate-100 border-b-2 border-slate-300">{groupName}</h3>
             <table className="w-full border-collapse text-xs">
               <thead className="bg-gray-100">
@@ -171,5 +170,3 @@ export const PrintDocument = forwardRef<HTMLDivElement, PrintDocumentProps>(
 );
 
 PrintDocument.displayName = 'PrintDocument';
-
-    
