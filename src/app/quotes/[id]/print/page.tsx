@@ -186,36 +186,36 @@ export default function PrintQuotePage() {
     
         const mainContentHTML = sortedGroups.map(([groupName, groupItems]) => `
             <div key="${groupName}" style="break-inside: avoid;">
-                <h3 style="font-size: 0.875rem; font-weight: 700; margin-bottom: 0.25rem; padding: 0.25rem 0.5rem; background-color: #f3f4f6; border-radius: 0.375rem 0.375rem 0 0; border-bottom: 2px solid #d1d5db;">${groupName}</h3>
+                <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem; padding: 0.5rem; background-color: #f3f4f6; border-radius: 0.375rem 0.375rem 0 0; border-bottom: 2px solid #d1d5db; color: #111827;">${groupName}</h3>
                 <table style="width: 100%; font-size: 10px; text-align: left; border-collapse: collapse;">
                     <thead style="display: table-header-group;">
                         <tr style="background-color: #e5e7eb;">
-                            <th style="padding: 4px 8px; font-weight: 700; color: #000000; border-bottom: 1px solid #d1d5db; text-align: left; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">#</th>
-                            <th style="padding: 4px 8px; font-weight: 700; color: #000000; border-bottom: 1px solid #d1d5db; text-align: left; width: 40%; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Açıklama</th>
-                            <th style="padding: 4px 8px; font-weight: 700; color: #000000; border-bottom: 1px solid #d1d5db; text-align: left; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Marka</th>
-                            <th style="padding: 4px 8px; font-weight: 700; color: #000000; border-bottom: 1px solid #d1d5db; text-align: center; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Miktar</th>
-                            <th style="padding: 4px 8px; font-weight: 700; color: #000000; border-bottom: 1px solid #d1d5db; text-align: left; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Birim</th>
-                            <th style="padding: 4px 8px; font-weight: 700; color: #000000; border-bottom: 1px solid #d1d5db; text-align: right; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Birim Fiyat</th>
-                            <th style="padding: 4px 8px; font-weight: 700; color: #000000; border-bottom: 1px solid #d1d5db; text-align: right; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Toplam Tutar</th>
+                            <th style="padding: 6px 8px; font-weight: 700; color: #1f2937; border-bottom: 1px solid #d1d5db; text-align: left; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">#</th>
+                            <th style="padding: 6px 8px; font-weight: 700; color: #1f2937; border-bottom: 1px solid #d1d5db; text-align: left; width: 40%; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Açıklama</th>
+                            <th style="padding: 6px 8px; font-weight: 700; color: #1f2937; border-bottom: 1px solid #d1d5db; text-align: left; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Marka</th>
+                            <th style="padding: 6px 8px; font-weight: 700; color: #1f2937; border-bottom: 1px solid #d1d5db; text-align: center; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Miktar</th>
+                            <th style="padding: 6px 8px; font-weight: 700; color: #1f2937; border-bottom: 1px solid #d1d5db; text-align: left; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Birim</th>
+                            <th style="padding: 6px 8px; font-weight: 700; color: #1f293T; border-bottom: 1px solid #d1d5db; text-align: right; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Birim Fiyat</th>
+                            <th style="padding: 6px 8px; font-weight: 700; color: #1f2937; border-bottom: 1px solid #d1d5db; text-align: right; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Toplam Tutar</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${groupItems.map((item, index) => `
                             <tr key="${item.id}" style="break-inside: avoid;">
-                                <td style="padding: 2px 8px; vertical-align: top; border-bottom: 1px solid #e5e7eb;">${index + 1}</td>
-                                <td style="padding: 2px 8px; vertical-align: top; font-weight: 500; border-bottom: 1px solid #e5e7eb;">${item.name}</td>
-                                <td style="padding: 2px 8px; vertical-align: top; border-bottom: 1px solid #e5e7eb;">${item.brand}</td>
-                                <td style="padding: 2px 8px; vertical-align: top; text-align: center; border-bottom: 1px solid #e5e7eb;">${item.quantity}</td>
-                                <td style="padding: 2px 8px; vertical-align: top; border-bottom: 1px solid #e5e7eb;">${item.unit}</td>
-                                <td style="padding: 2px 8px; vertical-align: top; text-align: right; border-bottom: 1px solid #e5e7eb;">${formatCurrency(item.unitPrice, 'TRY')}</td>
-                                <td style="padding: 2px 8px; vertical-align: top; text-align: right; font-weight: 600; border-bottom: 1px solid #e5e7eb;">${formatCurrency(item.total, 'TRY')}</td>
+                                <td style="padding: 4px 8px; vertical-align: middle; border-bottom: 1px solid #e5e7eb;">${index + 1}</td>
+                                <td style="padding: 4px 8px; vertical-align: middle; font-weight: 500; border-bottom: 1px solid #e5e7eb;">${item.name}</td>
+                                <td style="padding: 4px 8px; vertical-align: middle; border-bottom: 1px solid #e5e7eb;">${item.brand}</td>
+                                <td style="padding: 4px 8px; vertical-align: middle; text-align: center; border-bottom: 1px solid #e5e7eb;">${item.quantity}</td>
+                                <td style="padding: 4px 8px; vertical-align: middle; border-bottom: 1px solid #e5e7eb;">${item.unit}</td>
+                                <td style="padding: 4px 8px; vertical-align: middle; text-align: right; border-bottom: 1px solid #e5e7eb;">${formatCurrency(item.unitPrice, 'TRY')}</td>
+                                <td style="padding: 4px 8px; vertical-align: middle; text-align: right; font-weight: 600; border-bottom: 1px solid #e5e7eb;">${formatCurrency(item.total, 'TRY')}</td>
                             </tr>
                         `).join('')}
                     </tbody>
                     <tfoot style="display: table-footer-group;">
                         <tr style="background-color: #f3f4f6; font-weight: 700; break-inside: avoid;">
-                            <td colspan="6" style="padding: 4px 8px; text-align: right; border-top: 2px solid #d1d5db;">Grup Toplamı (KDV Hariç):</td>
-                            <td style="padding: 4px 8px; text-align: right; border-top: 2px solid #d1d5db;">
+                            <td colspan="6" style="padding: 6px 8px; text-align: right; border-top: 2px solid #d1d5db;">Grup Toplamı (KDV Hariç):</td>
+                            <td style="padding: 6px 8px; text-align: right; border-top: 2px solid #d1d5db;">
                                 ${formatCurrency(groupItems.reduce((sum, item) => sum + item.total, 0), 'TRY')}
                             </td>
                         </tr>
@@ -225,7 +225,7 @@ export default function PrintQuotePage() {
         `).join('');
 
         const currencySummaryHTML = (Object.keys(totals.byCurrency).length > 1) ? `
-            <div style="padding-top: 0.25rem;">
+            <div style="padding-top: 0.5rem; break-inside: avoid;">
                 <h4 style="font-weight: 600; font-size: 0.75rem; margin-bottom: 0.25rem;">Para Birimi Bazında Özet (KDV Dahil)</h4>
                 ${Object.entries(totals.byCurrency).map(([currency, currencyTotals]) => `
                     <div key="${currency}" style="display: flex; justify-content: space-between; font-size: 0.75rem;">
@@ -262,11 +262,14 @@ export default function PrintQuotePage() {
                         .print-hidden, .print-hidden * {
                             display: none !important;
                         }
-                        h3, table, section {
+                        h3, table, section, div {
                            break-inside: avoid;
                         }
                         tr {
                            break-inside: avoid;
+                        }
+                        thead {
+                           display: table-header-group;
                         }
                         tfoot {
                            display: table-footer-group;
@@ -278,57 +281,52 @@ export default function PrintQuotePage() {
                 </head>
                 <body>
                     <!-- Cover Page -->
-                    <div class="page-break" style="display: flex; flex-direction: column; justify-content: space-between; min-height: calc(100vh - 40mm);">
+                    <div class="page-break" style="display: flex; flex-direction: column; justify-content: space-between; height: calc(100vh - 40mm);">
                         <div>
-                            <header style="display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 0.75rem; border-bottom: 1px solid #e5e7eb;">
+                            <header style="display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 1.5rem; border-bottom: 1px solid #e5e7eb;">
                                 <div style="display: flex; align-items: center; gap: 1.5rem;">
-                                    <img src="/logo.png" alt="Firma Logosu" style="width: 100px; height: 100px; object-fit: contain;" />
+                                    <img src="/logo.png" alt="Firma Logosu" style="width: 120px; height: 120px; object-fit: contain;" />
                                     <div>
-                                        <h1 style="font-size: 1.5rem; font-weight: 700; margin: 0;">İMS Mühendislik</h1>
-                                        <p style="font-size: 0.875rem; font-weight: 600; margin: 4px 0 0 0;">Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
-                                        <p style="font-size: 0.75rem; margin-top: 0.5rem; margin: 8px 0 0 0;">Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA</p>
-                                        <p style="font-size: 0.75rem; margin-top: 0.25rem; margin: 4px 0 0 0;">ims.m.muhendislik@gmail.com | (553) 469 75 01</p>
+                                        <h1 style="font-size: 1.875rem; font-weight: 700; margin: 0;">İMS Mühendislik</h1>
+                                        <p style="font-size: 1rem; font-weight: 600; margin: 4px 0 0 0;">Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
+                                        <p style="font-size: 0.875rem; margin-top: 0.5rem; margin: 8px 0 0 0;">Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA</p>
+                                        <p style="font-size: 0.875rem; margin-top: 0.25rem; margin: 4px 0 0 0;">ims.m.muhendislik@gmail.com | (553) 469 75 01</p>
                                     </div>
                                 </div>
                                 <div style="text-align: right; flex-shrink: 0;">
-                                    <h2 style="font-size: 1.875rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin: 0;">TEKLİF</h2>
-                                    <p style="margin-top: 0.5rem; margin: 8px 0 0 0;"><span style="font-weight: 600;">Teklif No:</span> ${proposal.quoteNumber}</p>
-                                    <p style="margin: 4px 0 0 0;"><span style="font-weight: 600;">Tarih:</span> ${formatDate(proposal.createdAt)}</p>
+                                    <h2 style="font-size: 2.25rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin: 0;">TEKLİF</h2>
+                                    <p style="margin-top: 0.5rem; margin: 8px 0 0 0; font-size: 1rem;"><span style="font-weight: 600;">Teklif No:</span> ${proposal.quoteNumber}</p>
+                                    <p style="margin: 4px 0 0 0; font-size: 1rem;"><span style="font-weight: 600;">Tarih:</span> ${formatDate(proposal.createdAt)}</p>
                                 </div>
                             </header>
-                             <div style="margin-top: 3rem; padding: 1rem; font-size: 11px; line-height: 1.6; flex-grow: 1;">
+                             <div style="margin-top: 4rem; padding: 1rem; font-size: 12px; line-height: 1.7; flex-grow: 1;">
                                 <div style="min-height: 200px;" >${coverLetterHtml}</div>
-                                <div style="position: relative; text-align: right; flex-shrink: 0; margin-top: 2rem;">
-                                    <img src="/kase.png" alt="Firma Kaşesi" style="width: 120px; height: 80px; object-fit: contain;" />
+                                <div style="position: relative; text-align: right; flex-shrink: 0; margin-top: 3rem;">
+                                    <img src="/kase.png" alt="Firma Kaşesi" style="width: 130px; height: auto; object-fit: contain;" />
                                 </div>
                              </div>
                         </div>
-                         <footer style="font-size: 9px;">
-                            <div style="font-size: 8px; line-height: 1.5; white-space: pre-wrap;">
-                                ${termsHTML}
-                            </div>
-                        </footer>
                     </div>
 
                     <!-- Main Content Section -->
                     <div>
-                        <header style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.75rem; border-bottom: 1px solid #e5e7eb;">
+                        <header style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 1rem; border-bottom: 1px solid #e5e7eb;">
                             <div style="display: flex; align-items: center; gap: 1rem;">
-                                <img src="/logo.png" alt="Firma Logosu" style="width: 60px; height: 60px; object-fit: contain;" />
+                                <img src="/logo.png" alt="Firma Logosu" style="width: 70px; height: 70px; object-fit: contain;" />
                                 <div>
-                                    <h2 style="font-size: 1rem; font-weight: 700; margin: 0;">İMS Mühendislik</h2>
+                                    <h2 style="font-size: 1.125rem; font-weight: 700; margin: 0;">İMS Mühendislik</h2>
                                     <p style="font-size: 10px; margin-top: 2px; margin: 2px 0 0 0;">Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA</p>
                                 </div>
                             </div>
                             <div style="text-align: right;">
-                                <p style="margin: 0;"><span style="font-weight: 600;">Teklif No:</span> ${proposal.quoteNumber}</p>
-                                <p style="margin: 2px 0 0 0;"><span style="font-weight: 600;">Tarih:</span> ${formatDate(proposal.createdAt)}</p>
+                                <p style="margin: 0; font-size: 12px;"><span style="font-weight: 600;">Teklif No:</span> ${proposal.quoteNumber}</p>
+                                <p style="margin: 2px 0 0 0; font-size: 12px;"><span style="font-weight: 600;">Tarih:</span> ${formatDate(proposal.createdAt)}</p>
                             </div>
                         </header>
-                         <div style="margin-top: 1.5rem; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                         <div style="margin-top: 1.5rem; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1.5rem; break-inside: avoid;">
                                 <div style="border: 1px solid #e5e7eb; padding: 1rem; border-radius: 0.5rem; background-color: #f9fafb;">
-                                    <h3 style="font-size: 0.8rem; font-weight: 600; margin: 0; padding-bottom: 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #d1d5db; text-transform: uppercase; letter-spacing: 0.05em;">Müşteri Bilgileri</h3>
-                                    <div style="line-height: 1.5; font-size: 0.8rem;">
+                                    <h3 style="font-size: 1rem; font-weight: 600; margin: 0; padding-bottom: 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #d1d5db; text-transform: uppercase; letter-spacing: 0.05em;">Müşteri Bilgileri</h3>
+                                    <div style="line-height: 1.5; font-size: 0.875rem;">
                                         <p style="font-weight: 700; color: #111827; margin: 2px 0;">${customer.name}</p>
                                         <p style="margin: 2px 0;">${customer.address || 'Adres belirtilmemiş'}</p>
                                         <p style="margin: 2px 0;">${customer.email} | ${customer.phone || 'Telefon belirtilmemiş'}</p>
@@ -336,8 +334,8 @@ export default function PrintQuotePage() {
                                     </div>
                                 </div>
                                 <div style="border: 1px solid #e5e7eb; padding: 1rem; border-radius: 0.5rem; background-color: #f9fafb;">
-                                    <h3 style="font-size: 0.8rem; font-weight: 600; margin: 0; padding-bottom: 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #d1d5db; text-transform: uppercase; letter-spacing: 0.05em;">Proje Bilgisi</h3>
-                                    <div style="line-height: 1.5; font-size: 0.8rem;">
+                                    <h3 style="font-size: 1rem; font-weight: 600; margin: 0; padding-bottom: 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #d1d5db; text-transform: uppercase; letter-spacing: 0.05em;">Proje Bilgisi</h3>
+                                    <div style="line-height: 1.5; font-size: 0.875rem;">
                                         <p style="font-weight: 700; color: #111827; margin: 2px 0;">${proposal.projectName}</p>
                                     </div>
                                 </div>
@@ -347,9 +345,12 @@ export default function PrintQuotePage() {
                                 ${mainContentHTML}
                             </section>
                             <section style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 1rem; break-inside: avoid;">
-                                <div style="width: 50%;"></div>
-                                <div style="width: 50%; display: flex; flex-direction: column; gap: 0.25rem;">
-                                    <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 0.25rem;">
+                                <div style="width: 50%; font-size: 9px; line-height: 1.5; white-space: pre-wrap;">
+                                   <h4 style="font-weight: 600; font-size: 0.875rem; margin-bottom: 0.5rem;">Teklif Koşulları</h4>
+                                   ${termsHTML}
+                                </div>
+                                <div style="width: 45%; display: flex; flex-direction: column; gap: 0.25rem;">
+                                    <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 0.5rem;">
                                         <div style="display: flex; justify-content: space-between;">
                                             <span style="font-weight: 600;">Ara Toplam (TL):</span>
                                             <span>${formatCurrency(totals.grandTotalInTRY.subtotal, 'TRY')}</span>
@@ -358,8 +359,8 @@ export default function PrintQuotePage() {
                                             <span style="font-weight: 600;">KDV (%20) (TL):</span>
                                             <span>${formatCurrency(totals.grandTotalInTRY.vat, 'TRY')}</span>
                                         </div>
-                                        <div style="height: 1px; background-color: #e5e7eb; margin: 2px 0;"></div>
-                                        <div style="display: flex; justify-content: space-between; font-size: 0.875rem; font-weight: 700; color: #2563eb;">
+                                        <div style="height: 1px; background-color: #e5e7eb; margin: 4px 0;"></div>
+                                        <div style="display: flex; justify-content: space-between; font-size: 1.125rem; font-weight: 700; color: #2563eb;">
                                             <span>Genel Toplam (TL):</span>
                                             <span>${formatCurrency(totals.grandTotalInTRY.grandTotal, 'TRY')}</span>
                                         </div>
