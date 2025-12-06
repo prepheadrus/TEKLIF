@@ -190,13 +190,13 @@ export default function PrintQuotePage() {
                 <table style="width: 100%; font-size: 10px; text-align: left; border-collapse: collapse;">
                     <thead style="display: table-header-group;">
                         <tr style="background-color: #e5e7eb;">
-                            <th style="padding: 4px 8px; font-weight: 700; color: #374151; border-bottom: 1px solid #d1d5db; text-align: left; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">#</th>
-                            <th style="padding: 4px 8px; font-weight: 700; color: #374151; border-bottom: 1px solid #d1d5db; text-align: left; width: 40%; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Açıklama</th>
-                            <th style="padding: 4px 8px; font-weight: 700; color: #374151; border-bottom: 1px solid #d1d5db; text-align: left; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Marka</th>
-                            <th style="padding: 4px 8px; font-weight: 700; color: #374151; border-bottom: 1px solid #d1d5db; text-align: center; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Miktar</th>
-                            <th style="padding: 4px 8px; font-weight: 700; color: #374151; border-bottom: 1px solid #d1d5db; text-align: left; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Birim</th>
-                            <th style="padding: 4px 8px; font-weight: 700; color: #374151; border-bottom: 1px solid #d1d5db; text-align: right; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Birim Fiyat</th>
-                            <th style="padding: 4px 8px; font-weight: 700; color: #374151; border-bottom: 1px solid #d1d5db; text-align: right; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Toplam Tutar</th>
+                            <th style="padding: 4px 8px; font-weight: 700; color: #000000; border-bottom: 1px solid #d1d5db; text-align: left; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">#</th>
+                            <th style="padding: 4px 8px; font-weight: 700; color: #000000; border-bottom: 1px solid #d1d5db; text-align: left; width: 40%; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Açıklama</th>
+                            <th style="padding: 4px 8px; font-weight: 700; color: #000000; border-bottom: 1px solid #d1d5db; text-align: left; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Marka</th>
+                            <th style="padding: 4px 8px; font-weight: 700; color: #000000; border-bottom: 1px solid #d1d5db; text-align: center; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Miktar</th>
+                            <th style="padding: 4px 8px; font-weight: 700; color: #000000; border-bottom: 1px solid #d1d5db; text-align: left; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Birim</th>
+                            <th style="padding: 4px 8px; font-weight: 700; color: #000000; border-bottom: 1px solid #d1d5db; text-align: right; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Birim Fiyat</th>
+                            <th style="padding: 4px 8px; font-weight: 700; color: #000000; border-bottom: 1px solid #d1d5db; text-align: right; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Toplam Tutar</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -213,7 +213,7 @@ export default function PrintQuotePage() {
                         `).join('')}
                     </tbody>
                     <tfoot style="display: table-footer-group;">
-                        <tr style="background-color: #f3f4f6; font-weight: 700;">
+                        <tr style="background-color: #f3f4f6; font-weight: 700; break-inside: avoid;">
                             <td colspan="6" style="padding: 4px 8px; text-align: right; border-top: 2px solid #d1d5db;">Grup Toplamı (KDV Hariç):</td>
                             <td style="padding: 4px 8px; text-align: right; border-top: 2px solid #d1d5db;">
                                 ${formatCurrency(groupItems.reduce((sum, item) => sum + item.total, 0), 'TRY')}
@@ -228,7 +228,7 @@ export default function PrintQuotePage() {
             <div style="padding-top: 0.25rem;">
                 <h4 style="font-weight: 600; font-size: 0.75rem; margin-bottom: 0.25rem;">Para Birimi Bazında Özet (KDV Dahil)</h4>
                 ${Object.entries(totals.byCurrency).map(([currency, currencyTotals]) => `
-                    <div key="${currency}" style="display: flex; justify-content: space-between; font-size: 0.75rem; color: ${currency === 'USD' ? '#166534' : currency === 'EUR' ? '#1d4ed8' : 'inherit'};">
+                    <div key="${currency}" style="display: flex; justify-content: space-between; font-size: 0.75rem;">
                         <span>Toplam (${currency}):</span>
                         <span style="font-family: monospace; font-weight: 600;">${formatCurrency(currencyTotals.grandTotal, currency as 'TRY'|'USD'|'EUR')}</span>
                     </div>
@@ -250,59 +250,73 @@ export default function PrintQuotePage() {
                     <style>
                         @page {
                             size: A4;
-                            margin: 1.5cm;
+                            margin: 20mm 15mm;
                         }
                         body {
                             -webkit-print-color-adjust: exact;
                             font-family: 'Inter', sans-serif;
                             font-size: 10px;
-                            color: #374151;
+                            color: #000000;
                             background-color: #fff;
+                        }
+                        .print-hidden, .print-hidden * {
+                            display: none !important;
+                        }
+                        h3, table, section {
+                           break-inside: avoid;
+                        }
+                        tr {
+                           break-inside: avoid;
+                        }
+                        tfoot {
+                           display: table-footer-group;
+                        }
+                        .page-break {
+                           page-break-after: always;
                         }
                     </style>
                 </head>
                 <body>
                     <!-- Cover Page -->
-                    <div style="display: flex; flex-direction: column; justify-content: space-between; min-height: calc(100vh - 3cm); page-break-after: always;">
+                    <div class="page-break" style="display: flex; flex-direction: column; justify-content: space-between; min-height: calc(100vh - 40mm);">
                         <div>
                             <header style="display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 0.75rem; border-bottom: 1px solid #e5e7eb;">
                                 <div style="display: flex; align-items: center; gap: 1.5rem;">
                                     <img src="/logo.png" alt="Firma Logosu" style="width: 100px; height: 100px; object-fit: contain;" />
                                     <div>
-                                        <h1 style="font-size: 1.5rem; font-weight: 700; color: #1f2937; margin: 0;">İMS Mühendislik</h1>
-                                        <p style="font-size: 0.875rem; font-weight: 600; color: #4b5563; margin: 4px 0 0 0;">Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
+                                        <h1 style="font-size: 1.5rem; font-weight: 700; margin: 0;">İMS Mühendislik</h1>
+                                        <p style="font-size: 0.875rem; font-weight: 600; margin: 4px 0 0 0;">Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
                                         <p style="font-size: 0.75rem; margin-top: 0.5rem; margin: 8px 0 0 0;">Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA</p>
                                         <p style="font-size: 0.75rem; margin-top: 0.25rem; margin: 4px 0 0 0;">ims.m.muhendislik@gmail.com | (553) 469 75 01</p>
                                     </div>
                                 </div>
                                 <div style="text-align: right; flex-shrink: 0;">
-                                    <h2 style="font-size: 1.875rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin: 0; color: '#111827';">TEKLİF</h2>
+                                    <h2 style="font-size: 1.875rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin: 0;">TEKLİF</h2>
                                     <p style="margin-top: 0.5rem; margin: 8px 0 0 0;"><span style="font-weight: 600;">Teklif No:</span> ${proposal.quoteNumber}</p>
                                     <p style="margin: 4px 0 0 0;"><span style="font-weight: 600;">Tarih:</span> ${formatDate(proposal.createdAt)}</p>
                                 </div>
                             </header>
-                             <div style="margin-top: 3rem; padding: 1rem; font-size: 11px; line-height: 1.6; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between;">
+                             <div style="margin-top: 3rem; padding: 1rem; font-size: 11px; line-height: 1.6; flex-grow: 1;">
                                 <div style="min-height: 200px;" >${coverLetterHtml}</div>
-                                <div style="position: relative; text-align: right; flex-shrink: 0;">
-                                    <img src="/kase.png" alt="Firma Kaşesi" style="width: 120px; height: 80px; object-fit: contain; margin-top: 1rem;" />
+                                <div style="position: relative; text-align: right; flex-shrink: 0; margin-top: 2rem;">
+                                    <img src="/kase.png" alt="Firma Kaşesi" style="width: 120px; height: 80px; object-fit: contain;" />
                                 </div>
                              </div>
                         </div>
-                        <footer style="font-size: 9px; page-break-inside: avoid;">
+                         <footer style="font-size: 9px;">
                             <div style="font-size: 8px; line-height: 1.5; white-space: pre-wrap;">
-                                <p style="font-weight: 600; margin: 0; margin-bottom: 4px;">Teklif Koşulları:</p>
                                 ${termsHTML}
                             </div>
                         </footer>
                     </div>
 
                     <!-- Main Content Section -->
-                    <div style="break-before: page;">
+                    <div>
                         <header style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.75rem; border-bottom: 1px solid #e5e7eb;">
                             <div style="display: flex; align-items: center; gap: 1rem;">
                                 <img src="/logo.png" alt="Firma Logosu" style="width: 60px; height: 60px; object-fit: contain;" />
                                 <div>
-                                    <h2 style="font-size: 1rem; font-weight: 700; color: #1f2937; margin: 0;">İMS Mühendislik</h2>
+                                    <h2 style="font-size: 1rem; font-weight: 700; margin: 0;">İMS Mühendislik</h2>
                                     <p style="font-size: 10px; margin-top: 2px; margin: 2px 0 0 0;">Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA</p>
                                 </div>
                             </div>
@@ -311,9 +325,9 @@ export default function PrintQuotePage() {
                                 <p style="margin: 2px 0 0 0;"><span style="font-weight: 600;">Tarih:</span> ${formatDate(proposal.createdAt)}</p>
                             </div>
                         </header>
-                         <div style="margin-top: 1.5rem; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; break-after: avoid; margin-bottom: 1.5rem;">
+                         <div style="margin-top: 1.5rem; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
                                 <div style="border: 1px solid #e5e7eb; padding: 1rem; border-radius: 0.5rem; background-color: #f9fafb;">
-                                    <h3 style="font-size: 0.8rem; font-weight: 600; margin: 0; padding-bottom: 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #d1d5db; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em;">Müşteri Bilgileri</h3>
+                                    <h3 style="font-size: 0.8rem; font-weight: 600; margin: 0; padding-bottom: 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #d1d5db; text-transform: uppercase; letter-spacing: 0.05em;">Müşteri Bilgileri</h3>
                                     <div style="line-height: 1.5; font-size: 0.8rem;">
                                         <p style="font-weight: 700; color: #111827; margin: 2px 0;">${customer.name}</p>
                                         <p style="margin: 2px 0;">${customer.address || 'Adres belirtilmemiş'}</p>
@@ -322,7 +336,7 @@ export default function PrintQuotePage() {
                                     </div>
                                 </div>
                                 <div style="border: 1px solid #e5e7eb; padding: 1rem; border-radius: 0.5rem; background-color: #f9fafb;">
-                                    <h3 style="font-size: 0.8rem; font-weight: 600; margin: 0; padding-bottom: 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #d1d5db; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em;">Proje Bilgisi</h3>
+                                    <h3 style="font-size: 0.8rem; font-weight: 600; margin: 0; padding-bottom: 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #d1d5db; text-transform: uppercase; letter-spacing: 0.05em;">Proje Bilgisi</h3>
                                     <div style="line-height: 1.5; font-size: 0.8rem;">
                                         <p style="font-weight: 700; color: #111827; margin: 2px 0;">${proposal.projectName}</p>
                                     </div>
@@ -387,7 +401,7 @@ export default function PrintQuotePage() {
     
     if (isLoading) {
         return (
-            <div className="flex h-screen w-full items-center justify-center bg-gray-100">
+            <div className="flex h-screen w-full items-center justify-center bg-gray-100 print-hidden">
                 <div className="flex flex-col items-center gap-4 text-center p-8">
                     <Loader2 className="h-12 w-12 animate-spin text-primary" />
                     <h1 className="text-xl font-semibold">Yazdırma Önizlemesi Hazırlanıyor</h1>
@@ -404,7 +418,7 @@ export default function PrintQuotePage() {
 
     // This part is mostly for fallback, as the printing is handled in useEffect
     return (
-         <div className="flex h-screen w-full items-center justify-center bg-gray-100">
+         <div className="flex h-screen w-full items-center justify-center bg-gray-100 print-hidden">
             <div className="flex flex-col items-center gap-4 text-center p-8">
                 <h1 className="text-xl font-semibold">Yönlendiriliyorsunuz...</h1>
                 <p className="text-muted-foreground max-w-md">
