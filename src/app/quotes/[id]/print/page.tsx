@@ -6,7 +6,6 @@ import { useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase
 import { collection, doc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import { calculateItemTotals } from '@/lib/pricing';
-import { generateProposalCoverLetter } from '@/ai/flows/generate-proposal-cover-letter';
 
 
 type Proposal = {
@@ -66,9 +65,6 @@ export default function PrintQuotePage() {
     const proposalId = params.id as string;
     const customerId = searchParams.get('customerId');
     
-    const [coverLetterHtml, setCoverLetterHtml] = useState<string>('<p>Sunuş yazısı hazırlanıyor...</p>');
-    const [isGenerating, setIsGenerating] = useState(true);
-
     const proposalRef = useMemoFirebase(
         () => (firestore && proposalId ? doc(firestore, 'proposals', proposalId) : null),
         [firestore, proposalId]
@@ -159,25 +155,6 @@ export default function PrintQuotePage() {
         return { sortedGroups, totals: calculatedTotals };
     }, [proposal, items]);
 
-     useEffect(() => {
-        if (proposal && customer && totals) {
-            setIsGenerating(true);
-            generateProposalCoverLetter({
-                customerName: customer.name,
-                projectName: proposal.projectName,
-                totalAmount: formatCurrency(totals.grandTotalInTRY.grandTotal, 'TRY'),
-            }).then(result => {
-                setCoverLetterHtml(result.coverLetterHtml);
-            }).catch(err => {
-                console.error("AI cover letter generation failed:", err);
-                const fallbackHtml = `<p>Sayın ${customer.name},</p><p>Firmanızın ihtiyaçları doğrultusunda, "${proposal.projectName}" projesi için hazırlamış olduğumuz teklifimizi bilgilerinize sunarız. Projenizin her aşamasında kalite, verimlilik ve zamanında teslimat ilkeleriyle çalışmayı taahhüt eder, işbirliğimizin başarılı olacağına inancımızla teşekkür ederiz.</p>`;
-                setCoverLetterHtml(fallbackHtml);
-            }).finally(() => {
-                setIsGenerating(false);
-            });
-        }
-    }, [proposal, customer, totals]);
-
 
     const generatePrintHTML = useCallback(() => {
         if (!proposal || !items || !customer || !totals) {
@@ -185,35 +162,35 @@ export default function PrintQuotePage() {
         }
     
         const mainContentHTML = sortedGroups.map(([groupName, groupItems]) => `
-            <div key="${groupName}" style="break-inside: avoid;">
-                <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem; padding: 0.5rem; background-color: #f3f4f6; border-radius: 0.375rem 0.375rem 0 0; border-bottom: 2px solid #d1d5db; color: #111827;">${groupName}</h3>
+            <div style="break-inside: avoid;">
+                <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem; padding: 0.5rem; background-color: #f3f4f6; border-radius: 0.375rem 0.375rem 0 0; border-bottom: 2px solid #d1d5db; color: #111827; break-after: avoid;">${groupName}</h3>
                 <table style="width: 100%; font-size: 10px; text-align: left; border-collapse: collapse;">
-                    <thead style="display: table-header-group;">
+                    <thead>
                         <tr style="background-color: #e5e7eb;">
-                            <th style="padding: 6px 8px; font-weight: 700; color: #1f2937; border-bottom: 1px solid #d1d5db; text-align: left; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">#</th>
-                            <th style="padding: 6px 8px; font-weight: 700; color: #1f2937; border-bottom: 1px solid #d1d5db; text-align: left; width: 40%; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Açıklama</th>
-                            <th style="padding: 6px 8px; font-weight: 700; color: #1f2937; border-bottom: 1px solid #d1d5db; text-align: left; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Marka</th>
-                            <th style="padding: 6px 8px; font-weight: 700; color: #1f2937; border-bottom: 1px solid #d1d5db; text-align: center; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Miktar</th>
-                            <th style="padding: 6px 8px; font-weight: 700; color: #1f2937; border-bottom: 1px solid #d1d5db; text-align: left; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Birim</th>
-                            <th style="padding: 6px 8px; font-weight: 700; color: #1f2937; border-bottom: 1px solid #d1d5db; text-align: right; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Birim Fiyat</th>
-                            <th style="padding: 6px 8px; font-weight: 700; color: #1f2937; border-bottom: 1px solid #d1d5db; text-align: right; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Toplam Tutar</th>
+                            <th style="padding: 4px 6px; font-weight: 700; color: #1f2937; border-bottom: 1px solid #d1d5db; text-align: left; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">#</th>
+                            <th style="padding: 4px 6px; font-weight: 700; color: #1f2937; border-bottom: 1px solid #d1d5db; text-align: left; width: 40%; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Açıklama</th>
+                            <th style="padding: 4px 6px; font-weight: 700; color: #1f2937; border-bottom: 1px solid #d1d5db; text-align: left; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Marka</th>
+                            <th style="padding: 4px 6px; font-weight: 700; color: #1f2937; border-bottom: 1px solid #d1d5db; text-align: center; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Miktar</th>
+                            <th style="padding: 4px 6px; font-weight: 700; color: #1f2937; border-bottom: 1px solid #d1d5db; text-align: left; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Birim</th>
+                            <th style="padding: 4px 6px; font-weight: 700; color: #1f2937; border-bottom: 1px solid #d1d5db; text-align: right; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Birim Fiyat</th>
+                            <th style="padding: 4px 6px; font-weight: 700; color: #1f2937; border-bottom: 1px solid #d1d5db; text-align: right; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Toplam Tutar</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${groupItems.map((item, index) => `
-                            <tr key="${item.id}" style="break-inside: avoid;">
-                                <td style="padding: 4px 8px; vertical-align: middle; border-bottom: 1px solid #e5e7eb;">${index + 1}</td>
-                                <td style="padding: 4px 8px; vertical-align: middle; font-weight: 500; border-bottom: 1px solid #e5e7eb;">${item.name}</td>
-                                <td style="padding: 4px 8px; vertical-align: middle; border-bottom: 1px solid #e5e7eb;">${item.brand}</td>
-                                <td style="padding: 4px 8px; vertical-align: middle; text-align: center; border-bottom: 1px solid #e5e7eb;">${item.quantity}</td>
-                                <td style="padding: 4px 8px; vertical-align: middle; border-bottom: 1px solid #e5e7eb;">${item.unit}</td>
-                                <td style="padding: 4px 8px; vertical-align: middle; text-align: right; border-bottom: 1px solid #e5e7eb;">${formatCurrency(item.unitPrice, 'TRY')}</td>
-                                <td style="padding: 4px 8px; vertical-align: middle; text-align: right; font-weight: 600; border-bottom: 1px solid #e5e7eb;">${formatCurrency(item.total, 'TRY')}</td>
+                            <tr>
+                                <td style="padding: 4px 6px; vertical-align: middle; border-bottom: 1px solid #e5e7eb;">${index + 1}</td>
+                                <td style="padding: 4px 6px; vertical-align: middle; font-weight: 500; border-bottom: 1px solid #e5e7eb;">${item.name}</td>
+                                <td style="padding: 4px 6px; vertical-align: middle; border-bottom: 1px solid #e5e7eb;">${item.brand}</td>
+                                <td style="padding: 4px 6px; vertical-align: middle; text-align: center; border-bottom: 1px solid #e5e7eb;">${item.quantity}</td>
+                                <td style="padding: 4px 6px; vertical-align: middle; border-bottom: 1px solid #e5e7eb;">${item.unit}</td>
+                                <td style="padding: 4px 6px; vertical-align: middle; text-align: right; border-bottom: 1px solid #e5e7eb;">${formatCurrency(item.unitPrice, 'TRY')}</td>
+                                <td style="padding: 4px 6px; vertical-align: middle; text-align: right; font-weight: 600; border-bottom: 1px solid #e5e7eb;">${formatCurrency(item.total, 'TRY')}</td>
                             </tr>
                         `).join('')}
                     </tbody>
                     <tfoot style="display: table-footer-group;">
-                        <tr style="background-color: #f3f4f6; font-weight: 700; break-inside: avoid;">
+                        <tr style="background-color: #f3f4f6; font-weight: 700;">
                             <td colspan="6" style="padding: 6px 8px; text-align: right; border-top: 2px solid #d1d5db;">Grup Toplamı (KDV Hariç):</td>
                             <td style="padding: 6px 8px; text-align: right; border-top: 2px solid #d1d5db;">
                                 ${formatCurrency(groupItems.reduce((sum, item) => sum + item.total, 0), 'TRY')}
@@ -225,7 +202,7 @@ export default function PrintQuotePage() {
         `).join('');
 
         const currencySummaryHTML = (Object.keys(totals.byCurrency).length > 1) ? `
-            <div style="padding-top: 0.5rem; break-inside: avoid;">
+            <div style="padding-top: 0.5rem;">
                 <h4 style="font-weight: 600; font-size: 0.75rem; margin-bottom: 0.25rem; color: #000000;">Para Birimi Bazında Özet (KDV Dahil)</h4>
                 ${Object.entries(totals.byCurrency).map(([currency, currencyTotals]) => `
                     <div key="${currency}" style="display: flex; justify-content: space-between; font-size: 0.75rem;">
@@ -240,6 +217,8 @@ export default function PrintQuotePage() {
             ? proposal.termsAndConditions.replace(/\n/g, '<br />')
             : 'Teklif koşulları belirtilmemiş.';
         
+        const coverLetterHtml = `<p>Sayın ${customer.name},</p><p>Firmanızın ihtiyaçları doğrultusunda, "${proposal.projectName}" projesi için hazırlamış olduğumuz teklifimizi bilgilerinize sunarız. Projenizin her aşamasında kalite, verimlilik ve zamanında teslimat ilkeleriyle çalışmayı taahhüt eder, işbirliğimizin başarılı olacağına inancımızla teşekkür ederiz.</p>`;
+
         return `
             <html>
                 <head>
@@ -250,7 +229,7 @@ export default function PrintQuotePage() {
                     <style>
                         @page {
                             size: A4;
-                            margin: 20mm 15mm;
+                            margin: 10mm 10mm 10mm 15mm;
                         }
                          @media print {
                             body {
@@ -288,7 +267,7 @@ export default function PrintQuotePage() {
                 </head>
                 <body>
                     <!-- Cover Page -->
-                    <div class="page-break" style="display: block !important; height: auto !important;">
+                    <div class="page-break">
                         <header style="padding-bottom: 1.5rem; border-bottom: 1px solid #e5e7eb;">
                             <div style="display: table; width: 100%;">
                                 <div style="display: table-cell; vertical-align: middle; width: 70%;">
@@ -332,11 +311,11 @@ export default function PrintQuotePage() {
                                 </div>
                             </div>
                         </header>
-                         <div style="margin-top: 1.5rem; display: table; width: 100%; border-spacing: 1rem 0; margin-left: -1rem; break-inside: avoid;">
+                         <div style="margin-top: 1.5rem; display: table; width: 100%; border-spacing: 1rem 0; margin-left: -1rem;">
                                 <div style="display: table-cell; width: 50%; padding-left: 1rem;">
-                                    <div style="border: 1px solid #e5e7eb; padding: 1rem; border-radius: 0.5rem; background-color: #f9fafb;">
-                                        <h3 style="font-size: 1rem; font-weight: 600; margin: 0; padding-bottom: 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #d1d5db; text-transform: uppercase; letter-spacing: 0.05em; color: #000000;">Müşteri Bilgileri</h3>
-                                        <div style="line-height: 1.5; font-size: 0.875rem;">
+                                    <div style="padding: 0.5rem;">
+                                        <h3 style="font-size: 0.8rem; font-weight: 600; margin: 0; padding-bottom: 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #d1d5db; text-transform: uppercase; letter-spacing: 0.05em; color: #000000;">Müşteri Bilgileri</h3>
+                                        <div style="line-height: 1.5; font-size: 0.75rem;">
                                             <p style="font-weight: 700; color: #111827; margin: 2px 0;">${customer.name}</p>
                                             <p style="margin: 2px 0; color: #000000;">${customer.address || 'Adres belirtilmemiş'}</p>
                                             <p style="margin: 2px 0; color: #000000;">${customer.email} | ${customer.phone || 'Telefon belirtilmemiş'}</p>
@@ -345,9 +324,9 @@ export default function PrintQuotePage() {
                                     </div>
                                 </div>
                                 <div style="display: table-cell; width: 50%; padding-left: 1rem;">
-                                    <div style="border: 1px solid #e5e7eb; padding: 1rem; border-radius: 0.5rem; background-color: #f9fafb;">
-                                        <h3 style="font-size: 1rem; font-weight: 600; margin: 0; padding-bottom: 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #d1d5db; text-transform: uppercase; letter-spacing: 0.05em; color: #000000;">Proje Bilgisi</h3>
-                                        <div style="line-height: 1.5; font-size: 0.875rem;">
+                                    <div style="padding: 0.5rem;">
+                                        <h3 style="font-size: 0.8rem; font-weight: 600; margin: 0; padding-bottom: 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #d1d5db; text-transform: uppercase; letter-spacing: 0.05em; color: #000000;">Proje Bilgisi</h3>
+                                        <div style="line-height: 1.5; font-size: 0.75rem;">
                                             <p style="font-weight: 700; color: #111827; margin: 2px 0;">${proposal.projectName}</p>
                                         </div>
                                     </div>
@@ -360,15 +339,15 @@ export default function PrintQuotePage() {
                             <section style="margin-top: 1rem; break-inside: avoid;">
                                 <div style="display: table; width: 100%;">
                                     <div style="display: table-cell; width: 55%; vertical-align: top; font-size: 9px; line-height: 1.5; white-space: pre-wrap; color: #000000; padding-right: 1rem;">
-                                       <h4 style="font-weight: 600; font-size: 0.875rem; margin-bottom: 0.5rem; color: #000000;">Teklif Koşulları</h4>
+                                       <h4 style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.5rem; color: #000000;">Teklif Koşulları</h4>
                                        ${termsHTML}
                                     </div>
-                                    <div style="display: table-cell; width: 45%; vertical-align: top;">
+                                    <div style="display: table-cell; width: 45%; vertical-align: top; font-size: 0.7rem; padding: 0.5rem; background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 0.5rem;">
                                         <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 0.5rem;">
                                             <div style="display: table; width: 100%;"><span style="display: table-cell; font-weight: 600; color: #000000;">Ara Toplam (TL):</span><span style="display: table-cell; text-align: right; color: #000000;">${formatCurrency(totals.grandTotalInTRY.subtotal, 'TRY')}</span></div>
                                             <div style="display: table; width: 100%;"><span style="display: table-cell; font-weight: 600; color: #000000;">KDV (%20) (TL):</span><span style="display: table-cell; text-align: right; color: #000000;">${formatCurrency(totals.grandTotalInTRY.vat, 'TRY')}</span></div>
                                             <div style="height: 1px; background-color: #e5e7eb; margin: 4px 0;"></div>
-                                            <div style="display: table; width: 100%; font-size: 1.125rem; font-weight: 700;"><span style="display: table-cell; color: #000000;">Genel Toplam (TL):</span><span style="display: table-cell; text-align: right; color: #000000;">${formatCurrency(totals.grandTotalInTRY.grandTotal, 'TRY')}</span></div>
+                                            <div style="display: table; width: 100%; font-size: 1rem; font-weight: 700;"><span style="display: table-cell; color: #000000;">Genel Toplam (TL):</span><span style="display: table-cell; text-align: right; color: #000000;">${formatCurrency(totals.grandTotalInTRY.grandTotal, 'TRY')}</span></div>
                                         </div>
                                         ${currencySummaryHTML}
                                     </div>
@@ -379,10 +358,10 @@ export default function PrintQuotePage() {
                 </body>
             </html>
         `;
-    }, [proposal, items, customer, totals, sortedGroups, coverLetterHtml]);
+    }, [proposal, items, customer, totals, sortedGroups]);
 
     useEffect(() => {
-        if (isGenerating || isProposalLoading || areItemsLoading || isCustomerLoading) {
+        if (isProposalLoading || areItemsLoading || isCustomerLoading) {
             return;
         }
 
@@ -400,10 +379,10 @@ export default function PrintQuotePage() {
 
         return () => clearTimeout(timer);
 
-    }, [isGenerating, isProposalLoading, areItemsLoading, isCustomerLoading, generatePrintHTML]);
+    }, [isProposalLoading, areItemsLoading, isCustomerLoading, generatePrintHTML]);
 
 
-    const isLoading = isProposalLoading || areItemsLoading || isCustomerLoading || isGenerating;
+    const isLoading = isProposalLoading || areItemsLoading || isCustomerLoading;
     
     if (isLoading) {
         return (
@@ -412,10 +391,7 @@ export default function PrintQuotePage() {
                     <Loader2 className="h-12 w-12 animate-spin text-primary" />
                     <h1 className="text-xl font-semibold">Yazdırma Önizlemesi Hazırlanıyor</h1>
                     <p className="text-muted-foreground max-w-md">
-                        {isGenerating ? 'Yapay zeka sunuş metni oluşturuyor...' : 'Teklif verileri yükleniyor...'}
-                    </p>
-                     <p className="text-sm text-muted-foreground max-w-md">
-                       Yeni sekme otomatik olarak açılacaktır. Lütfen tarayıcınızın pop-up engelleyicisini kontrol edin.
+                       Teklif verileri yükleniyor... Yeni sekme otomatik olarak açılacaktır. Lütfen tarayıcınızın pop-up engelleyicisini kontrol edin.
                     </p>
                 </div>
             </div>
