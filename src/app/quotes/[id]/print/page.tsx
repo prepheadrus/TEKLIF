@@ -168,7 +168,7 @@ export default function PrintQuotePage() {
         // Totals
         wsData.push(['', '', '', '', '', '', 'Ara Toplam', calculatedData.grandTotal]);
         wsData.push(['', '', '', '', '', '', 'KDV (%20)', calculatedData.vatAmount]);
-        wsDatapush(['', '', '', '', '', '', 'Genel Toplam', calculatedData.grandTotalWithVAT]);
+        wsData.push(['', '', '', '', '', '', 'Genel Toplam', calculatedData.grandTotalWithVAT]);
         
         const ws = XLSX.utils.aoa_to_sheet(wsData);
         XLSX.utils.book_append_sheet(wb, ws, 'Teklif');
