@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { NoSsr } from '@/components/no-ssr';
-import { useTabStore } from '@/hooks/use-tab-store';
 
 const navItems = [
     { href: '/', label: 'Anasayfa', icon: Home },
@@ -26,7 +25,6 @@ const navItems = [
 function AppInitializer({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
-  const { isQuoting } = useTabStore();
 
   useEffect(() => {
     if (!isUserLoading && !user && auth) {
@@ -34,8 +32,10 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
     }
   }, [isUserLoading, user, auth]);
 
+  const isQuotePage = usePathname().startsWith('/quotes/');
+
   return (
-    <div className={cn("flex flex-col min-h-screen bg-slate-50", { 'print-hidden-on-print-page': isQuoting })}>
+    <div className={cn("flex flex-col min-h-screen bg-slate-50", { 'print-hidden-on-print-page': isQuotePage })}>
       <header className="sticky top-0 z-30 flex-shrink-0 bg-white/95 backdrop-blur-sm border-b border-slate-200">
         <div className="mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
@@ -70,13 +70,14 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
 }
 
 const NavItem = ({ href, label }: { href: string, label: string }) => {
-    const { addTab } = useTabStore();
-    const activeTab = useTabStore(state => state.activeTab);
-    const isActive = activeTab === href;
+    const pathname = usePathname();
+    const isActive = pathname === href;
 
     const handleClick = (e: React.MouseEvent) => {
         e.preventDefault();
-        addTab({ href, label });
+        // Use the href as the target name. This ensures that if a tab with that name
+        // is already open, the browser will focus it instead of opening a new one.
+        window.open(href, href); 
     }
 
     return (
@@ -97,11 +98,10 @@ const NavItem = ({ href, label }: { href: string, label: string }) => {
 
 const MobileNav = () => {
     const [open, setOpen] = useState(false);
-    const { addTab } = useTabStore();
 
-    const handleLinkClick = (e: React.MouseEvent, href: string, label: string) => {
+    const handleLinkClick = (e: React.MouseEvent, href: string) => {
         e.preventDefault();
-        addTab({ href, label });
+        window.open(href, href);
         setOpen(false);
     }
     
@@ -114,16 +114,16 @@ const MobileNav = () => {
                 </Button>
             </SheetTrigger>
             <SheetContent side="left">
-                 <Link href="/" className="flex items-center gap-2 font-bold text-slate-800 mb-8" onClick={(e) => { e.preventDefault(); addTab({href:'/', label:'Anasayfa'}); setOpen(false);}}>
+                 <a href="/" onClick={(e) => handleLinkClick(e, '/')} className="flex items-center gap-2 font-bold text-slate-800 mb-8">
                     <Building className="h-6 w-6 text-primary" />
                     <span className="text-lg">MechQuote</span>
-                </Link>
+                </a>
                 <nav className="flex flex-col gap-2">
                     {navItems.map((item) => (
                         <a 
                             key={item.href}
                             href={item.href}
-                            onClick={(e) => handleLinkClick(e, item.href, item.label)}
+                            onClick={(e) => handleLinkClick(e, item.href)}
                             className="text-lg text-slate-700 hover:text-primary"
                         >
                             {item.label}

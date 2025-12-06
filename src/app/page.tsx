@@ -1,8 +1,8 @@
 'use client';
-import { TabbedNavigation } from '@/components/app/tabbed-navigation';
+import { DashboardContent } from '@/app/dashboard-content/page';
 
 export default function HomePage() {
   return (
-    <TabbedNavigation />
+    <DashboardContent />
   );
 }
