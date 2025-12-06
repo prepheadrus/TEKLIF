@@ -170,7 +170,7 @@ export default function PrintQuotePage() {
         </div>`;
 
         const mainContentHTML = sortedGroups.map(([groupName, groupItems]) => `
-            <div key="${groupName}" style="break-inside: avoid;">
+            <div key="${groupName}">
                 <h3 style="font-size: 0.875rem; font-weight: 700; margin-bottom: 0.25rem; padding: 0.25rem 0.5rem; background-color: #f3f4f6; border-radius: 0.375rem 0.375rem 0 0; border-bottom: 2px solid #d1d5db;">${groupName}</h3>
                 <table style="width: 100%; font-size: 10px; text-align: left; border-collapse: collapse;">
                     <thead style="display: table-header-group;">
@@ -222,7 +222,7 @@ export default function PrintQuotePage() {
         ` : '';
 
         const termsHTML = proposal.termsAndConditions 
-            ? proposal.termsAndConditions.replace(/\n/g, '<br />')
+            ? proposal.termsAndConditions.replace(/\\n/g, '<br />')
             : 'Teklif koşulları belirtilmemiş.';
         
         return `
@@ -250,100 +250,98 @@ export default function PrintQuotePage() {
                     </style>
                 </head>
                 <body>
-                    <div class="print-layout">
-                        <!-- Cover Page -->
-                        <div style="display: flex; flex-direction: column; justify-content: space-between; min-height: calc(100vh - 3cm); page-break-after: always;">
-                            <div>
-                                <header style="display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 0.75rem; border-bottom: 1px solid #e5e7eb;">
-                                    <div style="display: flex; align-items: center; gap: 1.5rem;">
-                                        <img src="/logo.png" alt="Firma Logosu" style="width: 100px; height: 100px; object-fit: contain;" />
-                                        <div>
-                                            <h1 style="font-size: 1.5rem; font-weight: 700; color: #1f2937; margin: 0;">İMS Mühendislik</h1>
-                                            <p style="font-size: 0.875rem; font-weight: 600; color: #4b5563; margin: 4px 0 0 0;">Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
-                                            <p style="font-size: 0.75rem; margin-top: 0.5rem; margin: 8px 0 0 0;">Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA</p>
-                                            <p style="font-size: 0.75rem; margin-top: 0.25rem; margin: 4px 0 0 0;">ims.m.muhendislik@gmail.com | (553) 469 75 01</p>
-                                        </div>
-                                    </div>
-                                    <div style="text-align: right; flex-shrink: 0;">
-                                        <h2 style="font-size: 1.875rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin: 0; color: '#111827';">TEKLİF</h2>
-                                        <p style="margin-top: 0.5rem; margin: 8px 0 0 0;"><span style="font-weight: 600;">Teklif No:</span> ${proposal.quoteNumber}</p>
-                                        <p style="margin: 4px 0 0 0;"><span style="font-weight: 600;">Tarih:</span> ${formatDate(proposal.createdAt)}</p>
-                                    </div>
-                                </header>
-                                <div style="margin-top: 2rem; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4rem;">
+                    <!-- Cover Page -->
+                    <div style="display: flex; flex-direction: column; justify-content: space-between; min-height: calc(100vh - 3cm); page-break-after: always;">
+                        <div>
+                            <header style="display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 0.75rem; border-bottom: 1px solid #e5e7eb;">
+                                <div style="display: flex; align-items: center; gap: 1.5rem;">
+                                    <img src="/logo.png" alt="Firma Logosu" style="width: 100px; height: 100px; object-fit: contain;" />
                                     <div>
-                                        <h3 style="font-size: 0.8rem; font-weight: 600; margin-bottom: 0.5rem; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em;">Müşteri Bilgileri</h3>
-                                        <div style="line-height: 1.5;">
-                                            <p style="font-weight: 700; color: #111827; font-size: 0.875rem;">${customer.name}</p>
-                                            <p>${customer.address || 'Adres belirtilmemiş'}</p>
-                                            <p>${customer.email} | ${customer.phone || 'Telefon belirtilmemiş'}</p>
-                                            ${customer.taxNumber ? `<p>Vergi No/TCKN: ${customer.taxNumber}</p>` : ''}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <h3 style="font-size: 0.8rem; font-weight: 600; margin-bottom: 0.5rem; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em;">Proje Bilgisi</h3>
-                                        <div style="line-height: 1.5;">
-                                            <p style="font-weight: 700; color: #111827; font-size: 0.875rem;">${proposal.projectName}</p>
-                                        </div>
+                                        <h1 style="font-size: 1.5rem; font-weight: 700; color: #1f2937; margin: 0;">İMS Mühendislik</h1>
+                                        <p style="font-size: 0.875rem; font-weight: 600; color: #4b5563; margin: 4px 0 0 0;">Isıtma-Soğutma ve Mekanik Tesisat Çözümleri</p>
+                                        <p style="font-size: 0.75rem; margin-top: 0.5rem; margin: 8px 0 0 0;">Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA</p>
+                                        <p style="font-size: 0.75rem; margin-top: 0.25rem; margin: 4px 0 0 0;">ims.m.muhendislik@gmail.com | (553) 469 75 01</p>
                                     </div>
                                 </div>
-                                ${coverPageIntro}
-                            </div>
-                            <footer style="border-top: 1px solid #e5e7eb; padding-top: 0.75rem; font-size: 9px; page-break-inside: avoid;">
-                                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                                    <div style="font-size: 8px; line-height: 1.5; white-space: pre-wrap;">
-                                        <p style="font-weight: 600; margin: 0; margin-bottom: 4px;">Teklif Koşulları:</p>
-                                        ${termsHTML}
-                                    </div>
-                                    <div style="position: relative; width: 10rem; height: auto; text-align: right; flex-shrink: 0;">
-                                        <img src="/kase.png" alt="Firma Kaşesi" style="width: 120px; height: 80px; object-fit: contain;" />
-                                    </div>
-                                </div>
-                            </footer>
-                        </div>
-
-                        <!-- Main Content Section -->
-                        <div style="break-before: page;">
-                            <header style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.75rem; border-bottom: 1px solid #e5e7eb;">
-                                <div style="display: flex; align-items: center; gap: 1rem;">
-                                    <img src="/logo.png" alt="Firma Logosu" style="width: 60px; height: 60px; object-fit: contain;" />
-                                    <div>
-                                        <h2 style="font-size: 1rem; font-weight: 700; color: #1f2937; margin: 0;">İMS Mühendislik</h2>
-                                        <p style="font-size: 10px; margin-top: 2px; margin: 2px 0 0 0;">Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA</p>
-                                    </div>
-                                </div>
-                                <div style="text-align: right;">
-                                    <p style="margin: 0;"><span style="font-weight: 600;">Teklif No:</span> ${proposal.quoteNumber}</p>
-                                    <p style="margin: 2px 0 0 0;"><span style="font-weight: 600;">Tarih:</span> ${formatDate(proposal.createdAt)}</p>
+                                <div style="text-align: right; flex-shrink: 0;">
+                                    <h2 style="font-size: 1.875rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin: 0; color: '#111827';">TEKLİF</h2>
+                                    <p style="margin-top: 0.5rem; margin: 8px 0 0 0;"><span style="font-weight: 600;">Teklif No:</span> ${proposal.quoteNumber}</p>
+                                    <p style="margin: 4px 0 0 0;"><span style="font-weight: 600;">Tarih:</span> ${formatDate(proposal.createdAt)}</p>
                                 </div>
                             </header>
-                            <main>
-                                <section style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;">
-                                    ${mainContentHTML}
-                                </section>
-                                <section style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 1rem; break-inside: avoid;">
-                                    <div style="width: 50%;"></div>
-                                    <div style="width: 50%; display: flex; flex-direction: column; gap: 0.25rem;">
-                                        <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 0.25rem;">
-                                            <div style="display: flex; justify-content: space-between;">
-                                                <span style="font-weight: 600;">Ara Toplam (TL):</span>
-                                                <span>${formatCurrency(totals.grandTotalInTRY.subtotal, 'TRY')}</span>
-                                            </div>
-                                            <div style="display: flex; justify-content: space-between;">
-                                                <span style="font-weight: 600;">KDV (%20) (TL):</span>
-                                                <span>${formatCurrency(totals.grandTotalInTRY.vat, 'TRY')}</span>
-                                            </div>
-                                            <div style="height: 1px; background-color: #e5e7eb; margin: 2px 0;"></div>
-                                            <div style="display: flex; justify-content: space-between; font-size: 0.875rem; font-weight: 700; color: #2563eb;">
-                                                <span>Genel Toplam (TL):</span>
-                                                <span>${formatCurrency(totals.grandTotalInTRY.grandTotal, 'TRY')}</span>
-                                            </div>
-                                        </div>
-                                        ${currencySummaryHTML}
+                            <div style="margin-top: 2rem; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4rem;">
+                                <div>
+                                    <h3 style="font-size: 0.8rem; font-weight: 600; margin-bottom: 0.5rem; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em;">Müşteri Bilgileri</h3>
+                                    <div style="line-height: 1.5;">
+                                        <p style="font-weight: 700; color: #111827; font-size: 0.875rem; margin: 2px 0;">${customer.name}</p>
+                                        <p style="margin: 2px 0;">${customer.address || 'Adres belirtilmemiş'}</p>
+                                        <p style="margin: 2px 0;">${customer.email} | ${customer.phone || 'Telefon belirtilmemiş'}</p>
+                                        ${customer.taxNumber ? `<p style="margin: 2px 0;">Vergi No/TCKN: ${customer.taxNumber}</p>` : ''}
                                     </div>
-                                </section>
-                            </main>
+                                </div>
+                                <div>
+                                    <h3 style="font-size: 0.8rem; font-weight: 600; margin-bottom: 0.5rem; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em;">Proje Bilgisi</h3>
+                                    <div style="line-height: 1.5;">
+                                        <p style="font-weight: 700; color: #111827; font-size: 0.875rem; margin: 2px 0;">${proposal.projectName}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            ${coverPageIntro}
                         </div>
+                        <footer style="border-top: 1px solid #e5e7eb; padding-top: 0.75rem; font-size: 9px; page-break-inside: avoid;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                <div style="font-size: 8px; line-height: 1.5; white-space: pre-wrap;">
+                                    <p style="font-weight: 600; margin: 0; margin-bottom: 4px;">Teklif Koşulları:</p>
+                                    ${termsHTML}
+                                </div>
+                                <div style="position: relative; width: 10rem; height: auto; text-align: right; flex-shrink: 0;">
+                                    <img src="/kase.png" alt="Firma Kaşesi" style="width: 120px; height: 80px; object-fit: contain;" />
+                                </div>
+                            </div>
+                        </footer>
+                    </div>
+
+                    <!-- Main Content Section -->
+                    <div style="break-before: page;">
+                        <header style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.75rem; border-bottom: 1px solid #e5e7eb;">
+                            <div style="display: flex; align-items: center; gap: 1rem;">
+                                <img src="/logo.png" alt="Firma Logosu" style="width: 60px; height: 60px; object-fit: contain;" />
+                                <div>
+                                    <h2 style="font-size: 1rem; font-weight: 700; color: #1f2937; margin: 0;">İMS Mühendislik</h2>
+                                    <p style="font-size: 10px; margin-top: 2px; margin: 2px 0 0 0;">Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA</p>
+                                </div>
+                            </div>
+                            <div style="text-align: right;">
+                                <p style="margin: 0;"><span style="font-weight: 600;">Teklif No:</span> ${proposal.quoteNumber}</p>
+                                <p style="margin: 2px 0 0 0;"><span style="font-weight: 600;">Tarih:</span> ${formatDate(proposal.createdAt)}</p>
+                            </div>
+                        </header>
+                        <main>
+                            <section style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;">
+                                ${mainContentHTML}
+                            </section>
+                            <section style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 1rem; break-inside: avoid;">
+                                <div style="width: 50%;"></div>
+                                <div style="width: 50%; display: flex; flex-direction: column; gap: 0.25rem;">
+                                    <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 0.25rem;">
+                                        <div style="display: flex; justify-content: space-between;">
+                                            <span style="font-weight: 600;">Ara Toplam (TL):</span>
+                                            <span>${formatCurrency(totals.grandTotalInTRY.subtotal, 'TRY')}</span>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between;">
+                                            <span style="font-weight: 600;">KDV (%20) (TL):</span>
+                                            <span>${formatCurrency(totals.grandTotalInTRY.vat, 'TRY')}</span>
+                                        </div>
+                                        <div style="height: 1px; background-color: #e5e7eb; margin: 2px 0;"></div>
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.875rem; font-weight: 700; color: #2563eb;">
+                                            <span>Genel Toplam (TL):</span>
+                                            <span>${formatCurrency(totals.grandTotalInTRY.grandTotal, 'TRY')}</span>
+                                        </div>
+                                    </div>
+                                    ${currencySummaryHTML}
+                                </div>
+                            </section>
+                        </main>
                     </div>
                 </body>
             </html>
