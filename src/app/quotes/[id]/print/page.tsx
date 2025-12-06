@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
@@ -132,7 +132,7 @@ export default function PrintQuotePage() {
     
     if (isLoading) {
         return (
-            <div className="flex h-screen w-full items-center justify-center bg-gray-100">
+            <div className="flex h-screen w-full items-center justify-center print:hidden">
                 <div className="flex flex-col items-center gap-4 text-center p-8">
                     <Loader2 className="h-12 w-12 animate-spin text-primary" />
                     <h1 className="text-xl font-semibold">Teklif Verileri Yükleniyor...</h1>
@@ -143,7 +143,7 @@ export default function PrintQuotePage() {
     
     if (!calculatedData || !customer) {
          return (
-             <div className="flex h-screen w-full items-center justify-center bg-gray-100">
+             <div className="flex h-screen w-full items-center justify-center print:hidden">
                 <div className="flex flex-col items-center gap-4 text-center p-8">
                     <h1 className="text-xl font-semibold text-destructive">Veri Hatası</h1>
                     <p className="text-muted-foreground max-w-md">
@@ -165,10 +165,10 @@ export default function PrintQuotePage() {
     };
 
     return (
-        <div className="bg-gray-200">
-             <div className="container mx-auto py-6 print:hidden">
-                <Button onClick={handlePrint} className="gap-2">
-                    <Printer className="h-4 w-4" />
+        <>
+            <div className="fixed top-4 right-4 z-50 print:hidden no-print">
+                <Button onClick={handlePrint} className="shadow-lg">
+                    <Printer className="mr-2 h-4 w-4" />
                     Yazdır / PDF Olarak Kaydet
                 </Button>
             </div>
@@ -179,6 +179,6 @@ export default function PrintQuotePage() {
                 customer={customer}
                 firma={firmaData}
             />
-        </div>
+        </>
     );
 }
