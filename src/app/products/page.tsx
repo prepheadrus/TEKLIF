@@ -98,7 +98,7 @@ const buildCategoryNameMap = (categories: InstallationType[]): Map<string, strin
     return nameMap;
 };
 
-export default function ProductsPage() {
+export function ProductsPageContent() {
   const { toast } = useToast();
   const firestore = useFirestore();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -247,7 +247,7 @@ export default function ProductsPage() {
   const tableIsLoading = isLoadingProducts || isLoadingInstallationTypes || isLoadingSuppliers;
 
   return (
-    <>
+    <div className="flex flex-col gap-4 p-8">
       <div className="flex items-center justify-between space-y-2">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Ürünler / Malzemeler</h2>
@@ -384,6 +384,10 @@ export default function ProductsPage() {
         }}
         existingProduct={editingProduct}
       />
-    </>
+    </div>
   );
+}
+
+export default function ProductsPage() {
+    return <ProductsPageContent />;
 }

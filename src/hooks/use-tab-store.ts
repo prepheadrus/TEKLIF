@@ -1,5 +1,6 @@
 'use client';
 import { create } from 'zustand';
+import { usePathname, useRouter } from 'next/navigation';
 
 type Tab = {
   href: string;
@@ -23,7 +24,7 @@ export const useTabStore = create<TabState>((set, get) => ({
 
   addTab: (newTab) => {
     const { tabs } = get();
-    // Prevent adding a tab that already exists
+    // Prevent adding a tab that already exists, but still make it active
     if (!tabs.some(tab => tab.href === newTab.href)) {
       set({ tabs: [...tabs, newTab] });
     }
@@ -31,29 +32,28 @@ export const useTabStore = create<TabState>((set, get) => ({
   },
 
   removeTab: (href) => {
-    const { tabs, activeTab } = get();
+    const { tabs, activeTab, setActiveTab } = get();
     const newTabs = tabs.filter(tab => tab.href !== href);
     let newActiveTab = activeTab;
 
-    // If the closed tab was the active one, decide which tab to activate next
     if (activeTab === href) {
       const removedTabIndex = tabs.findIndex(tab => tab.href === href);
       if (newTabs.length > 0) {
-        // Try to activate the previous tab, or the first one if it was the first
         newActiveTab = newTabs[Math.max(0, removedTabIndex - 1)].href;
       } else {
-        // If no tabs are left, activate the homepage
         newActiveTab = '/';
       }
     }
-
-    set({ tabs: newTabs, activeTab: newActiveTab });
+    
+    set({ tabs: newTabs });
+    // Directly call setActiveTab to handle the active state change
+    setActiveTab(newActiveTab);
   },
 
   setActiveTab: (href) => {
     set({ activeTab: href });
   },
-
+  
   setIsQuoting: (isQuoting: boolean) => {
     set({ isQuoting });
   }

@@ -1,37 +1,104 @@
 'use client';
-import { useEffect } from 'react';
+
+import React, { useEffect } from 'react';
 import { useTabStore } from '@/hooks/use-tab-store';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import { X, Home } from 'lucide-react';
+import { X, Home, FileText, Users, Package, Layers, BookCopy } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+
+// Import Page Contents
+import { DashboardContent } from '@/app/dashboard-content/page';
+import { QuotesPageContent } from '@/app/quotes/page';
+import { CustomersPageContent } from '@/app/customers/page';
+import { ProductsPageContent } from '@/app/products/page';
+import { InstallationTypesPageContent } from '@/app/installation-types/page';
+import { RecipesPageContent } from '@/app/recipes/page';
+import QuoteDetailPage from '@/app/quotes/[id]/page';
+
+
+// Map hrefs to components
+const pageContentMap: Record<string, React.ComponentType<any>> = {
+  '/': DashboardContent,
+  '/quotes': QuotesPageContent,
+  '/customers': CustomersPageContent,
+  '/products': ProductsPageContent,
+  '/installation-types': InstallationTypesPageContent,
+  '/recipes': RecipesPageContent,
+};
+
+const getIconForHref = (href: string) => {
+    switch (href) {
+        case '/': return <Home className="mr-2 h-4 w-4" />;
+        case '/quotes': return <FileText className="mr-2 h-4 w-4" />;
+        case '/customers': return <Users className="mr-2 h-4 w-4" />;
+        case '/products': return <Package className="mr-2 h-4 w-4" />;
+        case '/installation-types': return <Layers className="mr-2 h-4 w-4" />;
+        case '/recipes': return <BookCopy className="mr-2 h-4 w-4" />;
+        default: return null;
+    }
+}
+
 
 export function TabbedNavigation() {
-  const { tabs, activeTab, setActiveTab, removeTab, setIsQuoting } = useTabStore();
+  const { tabs, activeTab, setActiveTab, removeTab, addTab, setIsQuoting } = useTabStore();
+  const router = useRouter();
   const pathname = usePathname();
 
+  // Effect to handle direct navigation and ensure the tab exists
   useEffect(() => {
-    // Check if the current visible page is a quote detail page
-    const isQuotePage = tabs.some(tab => tab.href === activeTab && tab.href?.startsWith('/quotes/'));
-    const isPrintPage = pathname.includes('/print');
-
-    if (isQuotePage || isPrintPage) {
-        setIsQuoting(true);
+    // This handles quote detail pages
+    if (pathname.startsWith('/quotes/') && pathname.length > '/quotes/'.length) {
+        const existingTab = tabs.find(t => t.href === pathname);
+        if (!existingTab) {
+            addTab({ href: pathname, label: `Teklif Detay` });
+        }
+        setActiveTab(pathname);
     } else {
-        setIsQuoting(false);
+        // This handles other pages, ensuring they are in the tab list if navigated to directly
+        const page = pageContentMap[pathname];
+        if (page && pathname !== '/') {
+            const existingTab = tabs.find(t => t.href === pathname);
+            if (!existingTab) {
+                // Find the label from navItems or create a default one
+                const label = pathname.charAt(1).toUpperCase() + pathname.slice(2);
+                addTab({ href: pathname, label });
+            }
+            setActiveTab(pathname);
+        }
     }
-  }, [activeTab, tabs, setIsQuoting, pathname]);
+  }, [pathname, addTab, setActiveTab, tabs]);
+
+
+  useEffect(() => {
+    const isQuotePage = activeTab.startsWith('/quotes/');
+    const isPrintPage = pathname.includes('/print');
+    setIsQuoting(isQuotePage || isPrintPage);
+  }, [activeTab, pathname, setIsQuoting]);
+
+  const renderContent = (href: string) => {
+    if (href.startsWith('/quotes/')) {
+        // For dynamic quote pages, we need to render the component directly
+        // The page itself will handle fetching data based on its ID from the URL.
+        return <QuoteDetailPage />;
+    }
+    const PageComponent = pageContentMap[href];
+    return PageComponent ? <PageComponent /> : <div className="p-8">Sayfa bulunamadı: {href}</div>;
+  };
 
   return (
-    <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col h-full">
-      <div className="flex-shrink-0 border-b">
-        <TabsList className="h-auto p-0 bg-transparent rounded-none gap-1">
+    <Tabs value={activeTab} onValueChange={(value) => {
+        setActiveTab(value);
+        // Also update the browser URL for history and bookmarking
+        router.push(value);
+    }} className="flex-1 flex flex-col h-full bg-slate-100/70">
+      <div className="flex-shrink-0 border-b bg-background">
+        <TabsList className="h-auto p-0 bg-transparent rounded-none gap-0">
           <TabsTrigger
             value="/"
             className={cn(
-                "relative h-10 px-4 py-2 text-sm font-medium border-b-2 border-transparent rounded-none transition-none focus-visible:ring-0",
-                "data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
+                "relative h-10 px-4 py-2 text-sm font-medium border-b-2 rounded-none transition-none focus-visible:ring-0",
+                 activeTab === '/' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'
             )}
           >
             <Home className="mr-2 h-4 w-4" />
@@ -43,10 +110,11 @@ export function TabbedNavigation() {
               key={tab.href}
               value={tab.href}
                className={cn(
-                    "group relative h-10 pl-4 pr-8 py-2 text-sm font-medium border-b-2 border-transparent rounded-none transition-none focus-visible:ring-0",
-                    "data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
+                    "group relative h-10 pl-4 pr-8 py-2 text-sm font-medium border-b-2 rounded-none transition-none focus-visible:ring-0",
+                    activeTab === tab.href ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'
                 )}
             >
+              {getIconForHref(tab.href)}
               {tab.label}
               <div
                 role="button"
@@ -63,27 +131,19 @@ export function TabbedNavigation() {
           ))}
         </TabsList>
       </div>
-
-      <TabsContent value="/" className="flex-1 bg-slate-100/70 p-0">
-        <iframe src="/dashboard-content" className="w-full h-full border-0" title="Anasayfa" />
-      </TabsContent>
-
-      {tabs.map((tab) => (
-        <TabsContent key={tab.href} value={tab.href} className="flex-1 mt-0">
-          <iframe src={tab.href} className="w-full h-full border-0" title={tab.label} />
+      
+      <div className="flex-1 overflow-y-auto">
+        <TabsContent value="/" className="mt-0 h-full">
+            {activeTab === '/' && renderContent('/')}
         </TabsContent>
-      ))}
+
+        {tabs.map((tab) => (
+            <TabsContent key={tab.href} value={tab.href} className="mt-0 h-full">
+                {/* Render content only if it's the active tab to save resources */}
+                {activeTab === tab.href && renderContent(tab.href)}
+            </TabsContent>
+        ))}
+      </div>
     </Tabs>
   );
-}
-
-// Create a new page component for the dashboard content
-export function DashboardContentPage() {
-    // This could be the original content of your dashboard page
-    return (
-        <div>
-            <h1>Dashboard Content</h1>
-            <p>Welcome to the main dashboard.</p>
-        </div>
-    );
 }

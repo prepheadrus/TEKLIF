@@ -70,13 +70,12 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
 }
 
 const NavItem = ({ href, label }: { href: string, label: string }) => {
-    const pathname = usePathname();
     const { addTab, setActiveTab, activeTab } = useTabStore();
     const isActive = activeTab === href;
 
     const handleClick = (e: React.MouseEvent) => {
-        if (href === '/') {
-            setActiveTab('/');
+        // For quote detail links, we let them navigate normally for now
+        if (href.startsWith('/quotes/')) {
             return;
         }
         e.preventDefault();
@@ -101,15 +100,11 @@ const NavItem = ({ href, label }: { href: string, label: string }) => {
 
 const MobileNav = () => {
     const [open, setOpen] = useState(false);
-    const { addTab, setActiveTab } = useTabStore();
+    const { addTab } = useTabStore();
 
     const handleLinkClick = (e: React.MouseEvent, href: string, label: string) => {
         e.preventDefault();
-        if (href === '/') {
-            setActiveTab('/');
-        } else {
-            addTab({ href, label });
-        }
+        addTab({ href, label });
         setOpen(false);
     }
     
@@ -122,7 +117,7 @@ const MobileNav = () => {
                 </Button>
             </SheetTrigger>
             <SheetContent side="left">
-                 <Link href="/" className="flex items-center gap-2 font-bold text-slate-800 mb-8" onClick={() => setOpen(false)}>
+                 <Link href="/" className="flex items-center gap-2 font-bold text-slate-800 mb-8" onClick={(e) => { e.preventDefault(); addTab({href:'/', label:'Anasayfa'}); setOpen(false);}}>
                     <Building className="h-6 w-6 text-primary" />
                     <span className="text-lg">MechQuote</span>
                 </Link>

@@ -2,9 +2,9 @@
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 
-export default function RecipesPage() {
+export function RecipesPageContent() {
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8 p-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Reçeteler</h1>
         <p className="text-muted-foreground">Ürün maliyet reçetelerinizi yönetin.</p>
@@ -20,4 +20,8 @@ export default function RecipesPage() {
        </Card>
     </div>
   );
+}
+
+export default function RecipesPage() {
+    return <RecipesPageContent />;
 }

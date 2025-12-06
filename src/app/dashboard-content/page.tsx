@@ -16,7 +16,7 @@ type Proposal = {
 type Customer = {}; // We only need to count them
 type Product = {};  // We only need to count them
 
-export default function DashboardContentPage() {
+export function DashboardContent() {
   const firestore = useFirestore();
 
   // Fetch all necessary data collections
@@ -81,7 +81,7 @@ export default function DashboardContentPage() {
   );
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8 p-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Yönetim Paneli</h1>
         <p className="text-muted-foreground">Genel bakış ve son aktiviteler.</p>
@@ -137,4 +137,8 @@ export default function DashboardContentPage() {
       </div>
     </div>
   );
+}
+
+export default function DashboardContentPage() {
+    return <DashboardContent />;
 }

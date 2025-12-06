@@ -149,7 +149,7 @@ const StatCard = ({ title, value, icon, isLoading }: { title: string, value: str
 
 const ITEMS_PER_PAGE = 20;
 
-export default function QuotesPage() {
+export function QuotesPageContent() {
   const router = useRouter();
   const { toast } = useToast();
   const firestore = useFirestore();
@@ -632,7 +632,7 @@ export default function QuotesPage() {
 
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 p-8">
       <div className="flex items-center justify-between space-y-2">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Teklif Arşivi</h2>
@@ -1094,4 +1094,8 @@ export default function QuotesPage() {
       </Card>
     </div>
   );
+}
+
+export default function QuotesPage() {
+    return <QuotesPageContent />
 }

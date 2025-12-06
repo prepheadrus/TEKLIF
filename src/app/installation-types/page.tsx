@@ -223,7 +223,7 @@ const CategoryNode = ({
 };
 
 
-export default function InstallationTypesPage() {
+export function InstallationTypesPageContent() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -363,7 +363,7 @@ export default function InstallationTypesPage() {
 
   return (
     <>
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-8 p-8">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">
@@ -458,4 +458,7 @@ export default function InstallationTypesPage() {
   );
 }
 
+export default function InstallationTypesPage() {
+    return <InstallationTypesPageContent />;
+}
     

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -53,7 +52,7 @@ type Customer = {
   taxNumber?: string;
 };
 
-export default function CustomersPage() {
+export function CustomersPageContent() {
   const router = useRouter();
   const { toast } = useToast();
   const firestore = useFirestore();
@@ -86,7 +85,7 @@ export default function CustomersPage() {
   );
 
   return (
-    <>
+    <div className="flex flex-col gap-4 p-8">
       <div className="flex items-center justify-between space-y-2">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Müşteriler</h2>
@@ -202,6 +201,10 @@ export default function CustomersPage() {
         onOpenChange={setIsAddCustomerOpen}
         onCustomerAdded={refetch}
       />
-    </>
+    </div>
   );
+}
+
+export default function CustomersPage() {
+    return <CustomersPageContent />;
 }
