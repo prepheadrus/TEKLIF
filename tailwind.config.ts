@@ -14,6 +14,10 @@ export default {
         headline: ['Inter', 'sans-serif'],
         code: ['"Source Code Pro"', 'monospace'],
       },
+       screens: {
+        'print': { 'raw': 'print' },
+        'screen': { 'raw': 'screen' },
+      },
       colors: {
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
@@ -95,5 +99,23 @@ export default {
       },
     },
   },
-  plugins: [require('tailwindcss-animate')],
+  plugins: [
+    require('tailwindcss-animate'),
+    function({ addUtilities }: any) {
+      addUtilities({
+        '.print-avoid-break': {
+          'page-break-inside': 'avoid',
+          'break-inside': 'avoid',
+        },
+        '.print-break-before': {
+          'page-break-before': 'always',
+          'break-before': 'page',
+        },
+        '.print-break-after': {
+          'page-break-after': 'always',
+          'break-after': 'page',
+        },
+      });
+    },
+  ],
 } satisfies Config;
