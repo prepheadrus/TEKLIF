@@ -1,8 +1,5 @@
-'use client';
-
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
-import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { NoSsr } from '@/components/no-ssr';
 import { AppProvider } from '@/components/app/app-provider';
 import type { Metadata } from 'next';
@@ -36,11 +33,9 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <NoSsr>
-          <FirebaseClientProvider>
             <AppProvider>{children}</AppProvider>
-          </FirebaseClientProvider>
-          <Toaster />
         </NoSsr>
+        <Toaster />
       </body>
     </html>
   );

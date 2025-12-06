@@ -9,12 +9,12 @@ import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 const navItems = [
-    { href: '/', label: 'Anasayfa', icon: Home, target: 'anasayfa' },
-    { href: '/quotes', label: 'Teklifler', icon: FileText, target: 'teklifler' },
-    { href: '/customers', label: 'Müşteriler', icon: Users, target: 'musteriler' },
-    { href: '/products', label: 'Ürünler', icon: Package, target: 'urunler' },
-    { href: '/installation-types', label: 'Kategoriler', icon: Layers, target: 'kategoriler' },
-    { href: '/recipes', label: 'Reçeteler', icon: BookCopy, target: 'receteler' },
+    { href: '/', label: 'Anasayfa', icon: Home, target: '/' },
+    { href: '/quotes', label: 'Teklifler', icon: FileText, target: '/quotes' },
+    { href: '/customers', label: 'Müşteriler', icon: Users, target: '/customers' },
+    { href: '/products', label: 'Ürünler', icon: Package, target: '/products' },
+    { href: '/installation-types', label: 'Kategoriler', icon: Layers, target: '/installation-types' },
+    { href: '/recipes', label: 'Reçeteler', icon: BookCopy, target: '/recipes' },
 ];
 
 const NavItem = ({ href, label, target }: { href: string, label: string, target: string }) => {
@@ -23,6 +23,7 @@ const NavItem = ({ href, label, target }: { href: string, label: string, target:
 
     const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
         e.preventDefault();
+        // Check if a window with this target name already exists. If not, open it. If so, focus it.
         window.open(href, target); 
     }
 
@@ -60,7 +61,7 @@ const MobileNav = () => {
                 </Button>
             </SheetTrigger>
             <SheetContent side="left">
-                 <a href="/" onClick={(e) => handleLinkClick(e, '/', 'anasayfa')} className="flex items-center gap-2 font-bold text-slate-800 mb-8">
+                 <a href="/" onClick={(e) => handleLinkClick(e, '/', '/')} className="flex items-center gap-2 font-bold text-slate-800 mb-8">
                     <Building className="h-6 w-6 text-primary" />
                     <span className="text-lg">MechQuote</span>
                 </a>
@@ -105,13 +106,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         <div className="mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
                 <div className="flex items-center gap-8">
-                    <a href="/" onClick={(e) => { e.preventDefault(); window.open('/', 'anasayfa'); }} className="flex items-center gap-2 font-bold text-slate-800">
+                    <a href="/" onClick={(e) => { e.preventDefault(); window.open('/', '/'); }} className="flex items-center gap-2 font-bold text-slate-800">
                         <Building className="h-6 w-6 text-primary" />
                         <span className="text-lg">MechQuote</span>
                     </a>
                     <nav className="hidden md:flex gap-1">
                          {navItems.map((item) => (
-                            <NavItem key={item.href} href={item.href} label={item.label} target={item.href} />
+                            <NavItem key={item.href} href={item.href} label={item.label} target={item.target} />
                         ))}
                     </nav>
                 </div>

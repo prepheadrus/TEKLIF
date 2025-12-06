@@ -1,4 +1,3 @@
-'use client';
 import { DashboardContent } from '@/app/dashboard-content/page';
 import { Metadata } from 'next';
 
