@@ -270,17 +270,21 @@ export default function PrintQuotePage() {
                                         <p style="margin: 4px 0 0 0;"><span style="font-weight: 600;">Tarih:</span> ${formatDate(proposal.createdAt)}</p>
                                     </div>
                                 </header>
-                                <div style="margin-top: 2rem; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem;">
-                                    <div style="border: 1px solid #e5e7eb; padding: 1rem; border-radius: 0.5rem; background-color: #f9fafb;">
-                                        <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; border-bottom: 1px solid #d1d5db; padding-bottom: 0.5rem;">Müşteri Bilgileri</h3>
-                                        <p style="font-weight: 700; font-size: 0.875rem; color: #111827;">${customer.name}</p>
-                                        <p style="margin-top: 0.25rem;">${customer.address || 'Adres belirtilmemiş'}</p>
-                                        <p style="margin-top: 0.25rem;">${customer.email} | ${customer.phone || 'Telefon belirtilmemiş'}</p>
-                                        ${customer.taxNumber ? `<p style="margin-top: 0.25rem;">Vergi No/TCKN: ${customer.taxNumber}</p>` : ''}
+                                <div style="margin-top: 2rem; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4rem;">
+                                    <div>
+                                        <h3 style="font-size: 0.8rem; font-weight: 600; margin-bottom: 0.5rem; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em;">Müşteri Bilgileri</h3>
+                                        <div style="line-height: 1.5;">
+                                            <p style="font-weight: 700; color: #111827; font-size: 0.875rem;">${customer.name}</p>
+                                            <p>${customer.address || 'Adres belirtilmemiş'}</p>
+                                            <p>${customer.email} | ${customer.phone || 'Telefon belirtilmemiş'}</p>
+                                            ${customer.taxNumber ? `<p>Vergi No/TCKN: ${customer.taxNumber}</p>` : ''}
+                                        </div>
                                     </div>
-                                    <div style="border: 1px solid #e5e7eb; padding: 1rem; border-radius: 0.5rem; background-color: #f9fafb;">
-                                        <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; border-bottom: 1px solid #d1d5db; padding-bottom: 0.5rem;">Proje Bilgisi</h3>
-                                        <p style="font-weight: 700; font-size: 0.875rem; color: #111827;">${proposal.projectName}</p>
+                                    <div>
+                                        <h3 style="font-size: 0.8rem; font-weight: 600; margin-bottom: 0.5rem; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em;">Proje Bilgisi</h3>
+                                        <div style="line-height: 1.5;">
+                                            <p style="font-weight: 700; color: #111827; font-size: 0.875rem;">${proposal.projectName}</p>
+                                        </div>
                                     </div>
                                 </div>
                                 ${coverPageIntro}
@@ -356,7 +360,7 @@ export default function PrintQuotePage() {
                 newWindow.document.close();
             }
         }
-    }, [isLoading, generatePrintHTML]);
+    }, [isLoading, generatePrintHTML, proposal, items, customer, totals]);
 
 
     return (
