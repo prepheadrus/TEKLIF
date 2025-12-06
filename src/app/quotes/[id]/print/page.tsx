@@ -184,11 +184,6 @@ export default function PrintQuotePage() {
             return '';
         }
     
-        const coverPageIntro = `<div style="margin-top: 3rem; padding: 1rem; font-size: 11px; line-height: 1.6;">
-            <div dangerouslySetInnerHTML={{ __html: coverLetterHtml }} />
-             <p style="margin-top: 1rem; font-weight: 600;">İMS Mühendislik | Teşekkür Ederiz!</p>
-        </div>`;
-
         const mainContentHTML = sortedGroups.map(([groupName, groupItems]) => `
             <div key="${groupName}" style="break-inside: avoid;">
                 <h3 style="font-size: 0.875rem; font-weight: 700; margin-bottom: 0.25rem; padding: 0.25rem 0.5rem; background-color: #f3f4f6; border-radius: 0.375rem 0.375rem 0 0; border-bottom: 2px solid #d1d5db;">${groupName}</h3>
@@ -255,7 +250,7 @@ export default function PrintQuotePage() {
                     <style>
                         @page {
                             size: A4;
-                            margin: 0;
+                            margin: 1.5cm;
                         }
                         body {
                             -webkit-print-color-adjust: exact;
@@ -263,9 +258,6 @@ export default function PrintQuotePage() {
                             font-size: 10px;
                             color: #374151;
                             background-color: #fff;
-                        }
-                        .print-layout {
-                            padding: 1.5cm;
                         }
                     </style>
                 </head>
@@ -289,19 +281,17 @@ export default function PrintQuotePage() {
                                     <p style="margin: 4px 0 0 0;"><span style="font-weight: 600;">Tarih:</span> ${formatDate(proposal.createdAt)}</p>
                                 </div>
                             </header>
-                             <div style="margin-top: 3rem; padding: 1rem; font-size: 11px; line-height: 1.6; flex-grow: 1;">
+                             <div style="margin-top: 3rem; padding: 1rem; font-size: 11px; line-height: 1.6; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between;">
                                 <div style="min-height: 200px;" >${coverLetterHtml}</div>
-                             </div>
-                        </div>
-                        <footer style="font-size: 9px; page-break-inside: avoid;">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-end;">
-                                <div style="font-size: 8px; line-height: 1.5; white-space: pre-wrap;">
-                                    <p style="font-weight: 600; margin: 0; margin-bottom: 4px;">Teklif Koşulları:</p>
-                                    ${termsHTML}
-                                </div>
                                 <div style="position: relative; text-align: right; flex-shrink: 0;">
                                     <img src="/kase.png" alt="Firma Kaşesi" style="width: 120px; height: 80px; object-fit: contain; margin-top: 1rem;" />
                                 </div>
+                             </div>
+                        </div>
+                        <footer style="font-size: 9px; page-break-inside: avoid;">
+                            <div style="font-size: 8px; line-height: 1.5; white-space: pre-wrap;">
+                                <p style="font-weight: 600; margin: 0; margin-bottom: 4px;">Teklif Koşulları:</p>
+                                ${termsHTML}
                             </div>
                         </footer>
                     </div>
@@ -322,8 +312,8 @@ export default function PrintQuotePage() {
                             </div>
                         </header>
                          <div style="margin-top: 1.5rem; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; break-after: avoid; margin-bottom: 1.5rem;">
-                                <div>
-                                    <h3 style="font-size: 0.8rem; font-weight: 600; margin-bottom: 0.5rem; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em;">Müşteri Bilgileri</h3>
+                                <div style="border: 1px solid #e5e7eb; padding: 1rem; border-radius: 0.5rem; background-color: #f9fafb;">
+                                    <h3 style="font-size: 0.8rem; font-weight: 600; margin: 0; padding-bottom: 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #d1d5db; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em;">Müşteri Bilgileri</h3>
                                     <div style="line-height: 1.5; font-size: 0.8rem;">
                                         <p style="font-weight: 700; color: #111827; margin: 2px 0;">${customer.name}</p>
                                         <p style="margin: 2px 0;">${customer.address || 'Adres belirtilmemiş'}</p>
@@ -331,8 +321,8 @@ export default function PrintQuotePage() {
                                         ${customer.taxNumber ? `<p style="margin: 2px 0;">Vergi No/TCKN: ${customer.taxNumber}</p>` : ''}
                                     </div>
                                 </div>
-                                <div>
-                                    <h3 style="font-size: 0.8rem; font-weight: 600; margin-bottom: 0.5rem; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em;">Proje Bilgisi</h3>
+                                <div style="border: 1px solid #e5e7eb; padding: 1rem; border-radius: 0.5rem; background-color: #f9fafb;">
+                                    <h3 style="font-size: 0.8rem; font-weight: 600; margin: 0; padding-bottom: 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #d1d5db; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em;">Proje Bilgisi</h3>
                                     <div style="line-height: 1.5; font-size: 0.8rem;">
                                         <p style="font-weight: 700; color: #111827; margin: 2px 0;">${proposal.projectName}</p>
                                     </div>
@@ -371,8 +361,13 @@ export default function PrintQuotePage() {
     }, [proposal, items, customer, totals, sortedGroups, coverLetterHtml]);
 
     useEffect(() => {
-        if (!isGenerating && !isProposalLoading && !areItemsLoading && !isCustomerLoading) {
-            const html = generatePrintHTML();
+        if (isGenerating || isProposalLoading || areItemsLoading || isCustomerLoading) {
+            return;
+        }
+
+        const html = generatePrintHTML();
+        // Use a timeout to ensure the DOM has updated with the AI content
+        const timer = setTimeout(() => {
             const newWindow = window.open('about:blank', '_blank');
             if (newWindow) {
                 newWindow.document.open();
@@ -381,7 +376,10 @@ export default function PrintQuotePage() {
             } else {
                 alert("Lütfen bu site için pop-up'lara izin verin.");
             }
-        }
+        }, 100); // A small delay can help
+
+        return () => clearTimeout(timer);
+
     }, [isGenerating, isProposalLoading, areItemsLoading, isCustomerLoading, generatePrintHTML]);
 
 
