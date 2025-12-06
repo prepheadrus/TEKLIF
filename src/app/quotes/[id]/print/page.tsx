@@ -6,10 +6,10 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 import { Loader2, Printer } from 'lucide-react';
-import { useReactToPrint } from 'react-to-print';
 import { Button } from '@/components/ui/button';
 import { PrintDocument } from '@/components/app/print-document';
 import { calculateItemTotals } from '@/lib/pricing';
+import { usePrintQuote } from '@/hooks/use-print-quote';
 
 
 // --- Type Definitions ---
@@ -57,8 +57,7 @@ export default function PrintQuotePage() {
     const params = useParams();
     const searchParams = useSearchParams();
     const firestore = useFirestore();
-    const printRef = useRef<HTMLDivElement>(null);
-
+    
     const proposalId = params.id as string;
     const customerId = searchParams.get('customerId');
     
@@ -82,9 +81,8 @@ export default function PrintQuotePage() {
     const { data: customer, isLoading: isCustomerLoading } = useDoc<Customer>(customerRef);
     
     // --- Print Hook ---
-    const handlePrint = useReactToPrint({
-        content: () => printRef.current,
-        documentTitle: `Teklif-${proposal?.quoteNumber || 'detay'}`,
+    const { printRef, handlePrint } = usePrintQuote({
+        teklifNo: proposal?.quoteNumber || 'teklif',
     });
 
     // --- Memoized Calculations ---
