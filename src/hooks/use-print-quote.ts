@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useCallback, useRef } from 'react';
@@ -15,17 +14,16 @@ export function usePrintQuote(options: UsePrintQuoteOptions) {
   const printRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = useReactToPrint({
-    // `contentRef` yerine `content` kullanarak React 18 uyumluluğu sağlanır.
-    // Bu, findDOMNode hatasını çözer.
+    // `contentRef` yerine `content` fonksiyonunu kullanmak React 18 uyumluluğu sağlar
+    // ve `findDOMNode` hatasını çözer.
     content: () => printRef.current,
+    
     documentTitle: `Teklif-${teklifNo}`,
+    
     pageStyle: `
       @page {
         size: A4;
-        margin: 20mm 15mm 25mm 15mm;
-      }
-      @page :first {
-        margin-top: 15mm;
+        margin: 15mm 12mm 20mm 12mm;
       }
       @media print {
         body {
@@ -35,39 +33,25 @@ export function usePrintQuote(options: UsePrintQuoteOptions) {
         .print-hidden {
           display: none !important;
         }
-        .print-avoid-break {
-          page-break-inside: avoid !important;
-          break-inside: avoid !important;
-        }
-        thead {
-          display: table-header-group;
-        }
-        tr {
-          page-break-inside: avoid !important;
-        }
       }
     `,
-    onBeforePrint: async () => {
-      if (onBeforePrint) {
-        await onBeforePrint();
-      }
-    },
-    onAfterPrint: () => {
-      if (onAfterPrint) {
-        onAfterPrint();
-      }
-    },
+    
+    onBeforePrint: onBeforePrint ? async () => {
+      await onBeforePrint();
+    } : undefined,
+    
+    onAfterPrint: onAfterPrint,
+    
+    // Tarayıcı belleğini temizlemek için yazdırma sonrası iframe'i kaldırır.
+    removeAfterPrint: true,
   });
 
-  // PDF olarak kaydetme (tarayıcı print dialog'undan)
-  const handleSaveAsPdf = useCallback(() => {
-    handlePrint();
-  }, [handlePrint]);
-
+  // handleSaveAsPdf fonksiyonu, handlePrint ile aynı işlevi gördüğü için
+  // ve PDF indirme seçeneği zaten tarayıcının yazdırma diyalogunda sunulduğu için kaldırıldı.
+  // Bu, kod tekrarını önler.
   return {
     printRef,
     handlePrint,
-    handleSaveAsPdf,
   };
 }
 
