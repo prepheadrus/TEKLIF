@@ -121,7 +121,19 @@
   /* ===== SAYFA AYARLARI ===== */
   @page {
     size: A4;
-    margin: 10mm 10mm 15mm 10mm; /* Daha dar kenar boşlukları */
+    margin: 10mm;
+  }
+
+  @page :first {
+    margin-top: 10mm;
+  }
+
+  @page :left {
+    margin-left: 12mm;
+  }
+
+  @page :right {
+    margin-right: 12mm;
   }
 
   /* Body sıfırla */
@@ -150,12 +162,7 @@
     display: table-footer-group;
   }
 
-  tr {
+  tr, .print-avoid-break {
     page-break-inside: avoid;
-  }
-
-  .print-avoid-break {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
   }
 }
