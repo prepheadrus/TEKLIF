@@ -28,6 +28,7 @@ const pageContentMap: Record<string, React.ComponentType<any>> = {
 };
 
 const getIconForHref = (href: string) => {
+    if (href.startsWith('/quotes/')) return <FileText className="mr-2 h-4 w-4" />;
     switch (href) {
         case '/': return <Home className="mr-2 h-4 w-4" />;
         case '/quotes': return <FileText className="mr-2 h-4 w-4" />;
@@ -41,33 +42,14 @@ const getIconForHref = (href: string) => {
 
 
 export function TabbedNavigation() {
-  const { tabs, activeTab, setActiveTab, removeTab, addTab, setIsQuoting } = useTabStore();
+  const { tabs, removeTab, activeTab, setActiveTab, setIsQuoting } = useTabStore();
   const router = useRouter();
   const pathname = usePathname();
 
   // Effect to handle direct navigation and ensure the tab exists
   useEffect(() => {
-    // This handles quote detail pages
-    if (pathname.startsWith('/quotes/') && pathname.length > '/quotes/'.length) {
-        const existingTab = tabs.find(t => t.href === pathname);
-        if (!existingTab) {
-            addTab({ href: pathname, label: `Teklif Detay` });
-        }
-        setActiveTab(pathname);
-    } else {
-        // This handles other pages, ensuring they are in the tab list if navigated to directly
-        const page = pageContentMap[pathname];
-        if (page && pathname !== '/') {
-            const existingTab = tabs.find(t => t.href === pathname);
-            if (!existingTab) {
-                // Find the label from navItems or create a default one
-                const label = pathname.charAt(1).toUpperCase() + pathname.slice(2);
-                addTab({ href: pathname, label });
-            }
-            setActiveTab(pathname);
-        }
-    }
-  }, [pathname, addTab, setActiveTab, tabs]);
+    setActiveTab(pathname);
+  }, [pathname, setActiveTab]);
 
 
   useEffect(() => {
@@ -78,20 +60,24 @@ export function TabbedNavigation() {
 
   const renderContent = (href: string) => {
     if (href.startsWith('/quotes/')) {
-        // For dynamic quote pages, we need to render the component directly
-        // The page itself will handle fetching data based on its ID from the URL.
         return <QuoteDetailPage />;
     }
     const PageComponent = pageContentMap[href];
     return PageComponent ? <PageComponent /> : <div className="p-8">Sayfa bulunamadı: {href}</div>;
   };
 
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    router.push(value);
+  }
+
+  const handleTabClose = (e: React.MouseEvent, href: string) => {
+    e.stopPropagation();
+    removeTab(href);
+  }
+
   return (
-    <Tabs value={activeTab} onValueChange={(value) => {
-        setActiveTab(value);
-        // Also update the browser URL for history and bookmarking
-        router.push(value);
-    }} className="flex-1 flex flex-col h-full bg-slate-100/70">
+    <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col h-full bg-slate-100/70">
       <div className="flex-shrink-0 border-b bg-background">
         <TabsList className="h-auto p-0 bg-transparent rounded-none gap-0">
           <TabsTrigger
@@ -120,10 +106,7 @@ export function TabbedNavigation() {
                 role="button"
                 aria-label={`Sekmeyi kapat: ${tab.label}`}
                 className="absolute top-1/2 right-1 -translate-y-1/2 h-6 w-6 rounded-full flex items-center justify-center opacity-50 group-hover:opacity-100 hover:bg-muted"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  removeTab(tab.href);
-                }}
+                onClick={(e) => handleTabClose(e, tab.href)}
               >
                 <X className="h-4 w-4" />
               </div>

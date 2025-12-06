@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
@@ -70,16 +70,15 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
 }
 
 const NavItem = ({ href, label }: { href: string, label: string }) => {
-    const { addTab, setActiveTab, activeTab } = useTabStore();
-    const isActive = activeTab === href;
+    const { addTab } = useTabStore();
+    const router = useRouter();
+    const pathname = usePathname();
+    const isActive = pathname === href;
 
     const handleClick = (e: React.MouseEvent) => {
-        // For quote detail links, we let them navigate normally for now
-        if (href.startsWith('/quotes/')) {
-            return;
-        }
         e.preventDefault();
         addTab({ href, label });
+        router.push(href);
     }
 
     return (
@@ -89,8 +88,8 @@ const NavItem = ({ href, label }: { href: string, label: string }) => {
             className={cn(
                 "px-3 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer",
                 isActive 
-                    ? "text-primary bg-primary/10" 
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                    ? "text-primary" 
+                    : "text-slate-600 hover:text-slate-900"
             )}
         >
             {label}
@@ -101,10 +100,12 @@ const NavItem = ({ href, label }: { href: string, label: string }) => {
 const MobileNav = () => {
     const [open, setOpen] = useState(false);
     const { addTab } = useTabStore();
+    const router = useRouter();
 
     const handleLinkClick = (e: React.MouseEvent, href: string, label: string) => {
         e.preventDefault();
         addTab({ href, label });
+        router.push(href);
         setOpen(false);
     }
     
@@ -117,7 +118,7 @@ const MobileNav = () => {
                 </Button>
             </SheetTrigger>
             <SheetContent side="left">
-                 <Link href="/" className="flex items-center gap-2 font-bold text-slate-800 mb-8" onClick={(e) => { e.preventDefault(); addTab({href:'/', label:'Anasayfa'}); setOpen(false);}}>
+                 <Link href="/" className="flex items-center gap-2 font-bold text-slate-800 mb-8" onClick={(e) => { e.preventDefault(); addTab({href:'/', label:'Anasayfa'}); router.push('/'); setOpen(false);}}>
                     <Building className="h-6 w-6 text-primary" />
                     <span className="text-lg">MechQuote</span>
                 </Link>

@@ -23,12 +23,12 @@ export const useTabStore = create<TabState>((set, get) => ({
   isQuoting: false,
 
   addTab: (newTab) => {
-    const { tabs } = get();
+    const { tabs, setActiveTab } = get();
     // Prevent adding a tab that already exists, but still make it active
     if (!tabs.some(tab => tab.href === newTab.href)) {
       set({ tabs: [...tabs, newTab] });
     }
-    set({ activeTab: newTab.href });
+    setActiveTab(newTab.href);
   },
 
   removeTab: (href) => {
@@ -46,12 +46,15 @@ export const useTabStore = create<TabState>((set, get) => ({
     }
     
     set({ tabs: newTabs });
-    // Directly call setActiveTab to handle the active state change
+    // This will trigger a navigation event in the component
     setActiveTab(newActiveTab);
   },
 
   setActiveTab: (href) => {
-    set({ activeTab: href });
+    // Only update if the active tab is actually changing
+    if (get().activeTab !== href) {
+        set({ activeTab: href });
+    }
   },
   
   setIsQuoting: (isQuoting: boolean) => {
