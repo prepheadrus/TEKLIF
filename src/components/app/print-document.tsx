@@ -63,7 +63,7 @@ const formatDate = (timestamp?: { seconds: number }) => {
 export const PrintDocument = forwardRef<HTMLDivElement, PrintDocumentProps>(
   ({ teklif, firma, customer }, ref) => {
     return (
-      <div ref={ref} className="bg-white p-8 max-w-[210mm] mx-auto text-[10pt] leading-relaxed screen:shadow-lg screen:my-8">
+      <div ref={ref} className="bg-white p-8 max-w-[210mm] mx-auto text-[10pt] leading-relaxed screen:shadow-lg screen:my-8 print:p-0">
         
         {/* HEADER - Kompakt */}
         <header className="flex justify-between items-start pb-3 border-b mb-4">

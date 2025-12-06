@@ -92,10 +92,10 @@
   nav,
   .navbar,
   header:not(.print-header),
-  [class*="MechQuote"],
   .app-header,
   .site-header,
-  .main-nav {
+  .main-nav,
+  .no-print {
     display: none !important;
   }
 
