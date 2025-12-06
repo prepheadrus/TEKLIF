@@ -15,6 +15,8 @@ export function usePrintQuote(options: UsePrintQuoteOptions) {
   const printRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = useReactToPrint({
+    // `contentRef` yerine `content` kullanarak React 18 uyumluluğu sağlanır.
+    // Bu, findDOMNode hatasını çözer.
     content: () => printRef.current,
     documentTitle: `Teklif-${teklifNo}`,
     pageStyle: `
