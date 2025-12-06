@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useMemo, useCallback } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
-import { Loader2, Printer, FileDown, ChevronDown } from 'lucide-react';
+import { Loader2, Printer, FileDown, ChevronDown, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PrintDocument } from '@/components/app/print-document';
 import { calculateItemTotals } from '@/lib/pricing';
@@ -58,6 +58,7 @@ export default function PrintQuotePage() {
     const params = useParams();
     const searchParams = useSearchParams();
     const firestore = useFirestore();
+    const router = useRouter();
     
     const proposalId = params.id as string;
     const customerId = searchParams.get('customerId');
@@ -213,7 +214,11 @@ export default function PrintQuotePage() {
 
     return (
         <div data-print-page>
-            <div className="fixed top-4 right-4 z-50 print:hidden no-print">
+            <div className="fixed top-4 right-4 z-50 print:hidden no-print flex items-center gap-2">
+                <Button variant="outline" onClick={() => router.back()}>
+                    <ChevronLeft className="mr-2 h-4 w-4" />
+                    Teklife Geri Dön
+                </Button>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                          <Button className="shadow-lg">
