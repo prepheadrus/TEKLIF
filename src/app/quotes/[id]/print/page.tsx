@@ -6,6 +6,7 @@ import { useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase
 import { collection, doc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import { calculateItemTotals } from '@/lib/pricing';
+import { generateProposalCoverLetter } from '@/ai/flows/generate-proposal-cover-letter';
 
 
 type Proposal = {
@@ -65,6 +66,8 @@ export default function PrintQuotePage() {
     const proposalId = params.id as string;
     const customerId = searchParams.get('customerId');
     
+    const [coverLetterHtml, setCoverLetterHtml] = useState<string>('<p>Sunuş yazısı hazırlanıyor...</p>');
+    const [isGenerating, setIsGenerating] = useState(true);
 
     const proposalRef = useMemoFirebase(
         () => (firestore && proposalId ? doc(firestore, 'proposals', proposalId) : null),
@@ -156,7 +159,25 @@ export default function PrintQuotePage() {
         return { sortedGroups, totals: calculatedTotals };
     }, [proposal, items]);
 
-    const isLoading = isProposalLoading || areItemsLoading || isCustomerLoading;
+     useEffect(() => {
+        if (proposal && customer && totals) {
+            setIsGenerating(true);
+            generateProposalCoverLetter({
+                customerName: customer.name,
+                projectName: proposal.projectName,
+                totalAmount: formatCurrency(totals.grandTotalInTRY.grandTotal, 'TRY'),
+            }).then(result => {
+                setCoverLetterHtml(result.coverLetterHtml);
+            }).catch(err => {
+                console.error("AI cover letter generation failed:", err);
+                const fallbackHtml = `<p>Sayın ${customer.name},</p><p>Firmanızın ihtiyaçları doğrultusunda, "${proposal.projectName}" projesi için hazırlamış olduğumuz teklifimizi bilgilerinize sunarız. Projenizin her aşamasında kalite, verimlilik ve zamanında teslimat ilkeleriyle çalışmayı taahhüt eder, işbirliğimizin başarılı olacağına inancımızla teşekkür ederiz.</p>`;
+                setCoverLetterHtml(fallbackHtml);
+            }).finally(() => {
+                setIsGenerating(false);
+            });
+        }
+    }, [proposal, customer, totals]);
+
 
     const generatePrintHTML = useCallback(() => {
         if (!proposal || !items || !customer || !totals) {
@@ -164,13 +185,12 @@ export default function PrintQuotePage() {
         }
     
         const coverPageIntro = `<div style="margin-top: 3rem; padding: 1rem; font-size: 11px; line-height: 1.6;">
-            <p>Sayın ${customer.name},</p>
-            <p>Firmanızın ihtiyaçları doğrultusunda, "${proposal.projectName}" projesi için hazırlamış olduğumuz teklifimizi bilgilerinize sunarız. Projenizin her aşamasında kalite, verimlilik ve zamanında teslimat ilkeleriyle çalışmayı taahhüt eder, işbirliğimizin başarılı olacağına inancımızla teşekkür ederiz.</p>
-            <p style="margin-top: 1rem; font-weight: 600;">İMS Mühendislik | Teşekkür Ederiz!</p>
+            <div dangerouslySetInnerHTML={{ __html: coverLetterHtml }} />
+             <p style="margin-top: 1rem; font-weight: 600;">İMS Mühendislik | Teşekkür Ederiz!</p>
         </div>`;
 
         const mainContentHTML = sortedGroups.map(([groupName, groupItems]) => `
-            <div key="${groupName}">
+            <div key="${groupName}" style="break-inside: avoid;">
                 <h3 style="font-size: 0.875rem; font-weight: 700; margin-bottom: 0.25rem; padding: 0.25rem 0.5rem; background-color: #f3f4f6; border-radius: 0.375rem 0.375rem 0 0; border-bottom: 2px solid #d1d5db;">${groupName}</h3>
                 <table style="width: 100%; font-size: 10px; text-align: left; border-collapse: collapse;">
                     <thead style="display: table-header-group;">
@@ -198,7 +218,7 @@ export default function PrintQuotePage() {
                         `).join('')}
                     </tbody>
                     <tfoot style="display: table-footer-group;">
-                        <tr style="background-color: #f3f4f6; font-weight: 700; break-inside: avoid;">
+                        <tr style="background-color: #f3f4f6; font-weight: 700;">
                             <td colspan="6" style="padding: 4px 8px; text-align: right; border-top: 2px solid #d1d5db;">Grup Toplamı (KDV Hariç):</td>
                             <td style="padding: 4px 8px; text-align: right; border-top: 2px solid #d1d5db;">
                                 ${formatCurrency(groupItems.reduce((sum, item) => sum + item.total, 0), 'TRY')}
@@ -222,7 +242,7 @@ export default function PrintQuotePage() {
         ` : '';
 
         const termsHTML = proposal.termsAndConditions 
-            ? proposal.termsAndConditions.replace(/\\n/g, '<br />')
+            ? proposal.termsAndConditions.replace(/\n/g, '<br />')
             : 'Teklif koşulları belirtilmemiş.';
         
         return `
@@ -269,33 +289,18 @@ export default function PrintQuotePage() {
                                     <p style="margin: 4px 0 0 0;"><span style="font-weight: 600;">Tarih:</span> ${formatDate(proposal.createdAt)}</p>
                                 </div>
                             </header>
-                            <div style="margin-top: 2rem; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4rem;">
-                                <div>
-                                    <h3 style="font-size: 0.8rem; font-weight: 600; margin-bottom: 0.5rem; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em;">Müşteri Bilgileri</h3>
-                                    <div style="line-height: 1.5;">
-                                        <p style="font-weight: 700; color: #111827; font-size: 0.875rem; margin: 2px 0;">${customer.name}</p>
-                                        <p style="margin: 2px 0;">${customer.address || 'Adres belirtilmemiş'}</p>
-                                        <p style="margin: 2px 0;">${customer.email} | ${customer.phone || 'Telefon belirtilmemiş'}</p>
-                                        ${customer.taxNumber ? `<p style="margin: 2px 0;">Vergi No/TCKN: ${customer.taxNumber}</p>` : ''}
-                                    </div>
-                                </div>
-                                <div>
-                                    <h3 style="font-size: 0.8rem; font-weight: 600; margin-bottom: 0.5rem; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em;">Proje Bilgisi</h3>
-                                    <div style="line-height: 1.5;">
-                                        <p style="font-weight: 700; color: #111827; font-size: 0.875rem; margin: 2px 0;">${proposal.projectName}</p>
-                                    </div>
-                                </div>
-                            </div>
-                            ${coverPageIntro}
+                             <div style="margin-top: 3rem; padding: 1rem; font-size: 11px; line-height: 1.6; flex-grow: 1;">
+                                <div style="min-height: 200px;" >${coverLetterHtml}</div>
+                             </div>
                         </div>
-                        <footer style="border-top: 1px solid #e5e7eb; padding-top: 0.75rem; font-size: 9px; page-break-inside: avoid;">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <footer style="font-size: 9px; page-break-inside: avoid;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-end;">
                                 <div style="font-size: 8px; line-height: 1.5; white-space: pre-wrap;">
                                     <p style="font-weight: 600; margin: 0; margin-bottom: 4px;">Teklif Koşulları:</p>
                                     ${termsHTML}
                                 </div>
-                                <div style="position: relative; width: 10rem; height: auto; text-align: right; flex-shrink: 0;">
-                                    <img src="/kase.png" alt="Firma Kaşesi" style="width: 120px; height: 80px; object-fit: contain;" />
+                                <div style="position: relative; text-align: right; flex-shrink: 0;">
+                                    <img src="/kase.png" alt="Firma Kaşesi" style="width: 120px; height: 80px; object-fit: contain; margin-top: 1rem;" />
                                 </div>
                             </div>
                         </footer>
@@ -316,8 +321,25 @@ export default function PrintQuotePage() {
                                 <p style="margin: 2px 0 0 0;"><span style="font-weight: 600;">Tarih:</span> ${formatDate(proposal.createdAt)}</p>
                             </div>
                         </header>
+                         <div style="margin-top: 1.5rem; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; break-after: avoid; margin-bottom: 1.5rem;">
+                                <div>
+                                    <h3 style="font-size: 0.8rem; font-weight: 600; margin-bottom: 0.5rem; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em;">Müşteri Bilgileri</h3>
+                                    <div style="line-height: 1.5; font-size: 0.8rem;">
+                                        <p style="font-weight: 700; color: #111827; margin: 2px 0;">${customer.name}</p>
+                                        <p style="margin: 2px 0;">${customer.address || 'Adres belirtilmemiş'}</p>
+                                        <p style="margin: 2px 0;">${customer.email} | ${customer.phone || 'Telefon belirtilmemiş'}</p>
+                                        ${customer.taxNumber ? `<p style="margin: 2px 0;">Vergi No/TCKN: ${customer.taxNumber}</p>` : ''}
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3 style="font-size: 0.8rem; font-weight: 600; margin-bottom: 0.5rem; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em;">Proje Bilgisi</h3>
+                                    <div style="line-height: 1.5; font-size: 0.8rem;">
+                                        <p style="font-weight: 700; color: #111827; margin: 2px 0;">${proposal.projectName}</p>
+                                    </div>
+                                </div>
+                            </div>
                         <main>
-                            <section style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;">
+                            <section style="display: flex; flex-direction: column; gap: 1rem;">
                                 ${mainContentHTML}
                             </section>
                             <section style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 1rem; break-inside: avoid;">
@@ -346,31 +368,49 @@ export default function PrintQuotePage() {
                 </body>
             </html>
         `;
-    }, [proposal, items, customer, totals, sortedGroups]);
+    }, [proposal, items, customer, totals, sortedGroups, coverLetterHtml]);
 
     useEffect(() => {
-        if (!isLoading) {
+        if (!isGenerating && !isProposalLoading && !areItemsLoading && !isCustomerLoading) {
             const html = generatePrintHTML();
             const newWindow = window.open('about:blank', '_blank');
             if (newWindow) {
                 newWindow.document.open();
                 newWindow.document.write(html);
                 newWindow.document.close();
+            } else {
+                alert("Lütfen bu site için pop-up'lara izin verin.");
             }
         }
-    }, [isLoading, generatePrintHTML, proposal, items, customer, totals]);
+    }, [isGenerating, isProposalLoading, areItemsLoading, isCustomerLoading, generatePrintHTML]);
 
 
+    const isLoading = isProposalLoading || areItemsLoading || isCustomerLoading || isGenerating;
+    
+    if (isLoading) {
+        return (
+            <div className="flex h-screen w-full items-center justify-center bg-gray-100">
+                <div className="flex flex-col items-center gap-4 text-center p-8">
+                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                    <h1 className="text-xl font-semibold">Yazdırma Önizlemesi Hazırlanıyor</h1>
+                    <p className="text-muted-foreground max-w-md">
+                        {isGenerating ? 'Yapay zeka sunuş metni oluşturuyor...' : 'Teklif verileri yükleniyor...'}
+                    </p>
+                     <p className="text-sm text-muted-foreground max-w-md">
+                       Yeni sekme otomatik olarak açılacaktır. Lütfen tarayıcınızın pop-up engelleyicisini kontrol edin.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    // This part is mostly for fallback, as the printing is handled in useEffect
     return (
-        <div className="flex h-screen w-full items-center justify-center bg-gray-100">
+         <div className="flex h-screen w-full items-center justify-center bg-gray-100">
             <div className="flex flex-col items-center gap-4 text-center p-8">
-                <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                <h1 className="text-xl font-semibold">Yazdırma Önizlemesi Hazırlanıyor</h1>
+                <h1 className="text-xl font-semibold">Yönlendiriliyorsunuz...</h1>
                 <p className="text-muted-foreground max-w-md">
-                    Teklif çıktınız yeni bir sekmede açılacaktır. Lütfen pop-up engelleyicinizin bu site için devre dışı olduğundan emin olun.
-                </p>
-                 <p className="text-sm text-muted-foreground max-w-md">
-                   Eğer yeni sekme otomatik olarak açılmazsa, lütfen tarayıcınızın pop-up engelleyicisini kontrol edin.
+                   Yazdırma penceresi açılmadıysa, lütfen pop-up engelleyicinizi kontrol edip tekrar deneyin.
                 </p>
             </div>
         </div>
