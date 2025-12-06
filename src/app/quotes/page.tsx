@@ -9,6 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { addDoc, collection, doc, serverTimestamp, getDocs, query, orderBy, where, writeBatch, setDoc, updateDoc } from 'firebase/firestore';
 import Papa from 'papaparse';
+import { Metadata } from 'next';
 
 import {
   Card,
@@ -85,6 +86,11 @@ type ProposalGroup = {
     latestProposal: Proposal;
     versions: Proposal[];
 }
+
+export const metadata: Metadata = {
+    title: 'Teklif Arşivi',
+};
+
 
 function getStatusBadge(status: Proposal['status']) {
   switch (status) {

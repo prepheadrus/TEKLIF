@@ -218,6 +218,28 @@ const calculateAllTotals = (items: ProposalItem[] | undefined, rates: { USD: num
    };
 }
 
+// This function needs to be defined at the top level of the module
+// to be used by generateMetadata.
+async function getProposalDataForMetadata(id: string) {
+    // This is a simplified example. In a real app, you'd have a shared
+    // function to get a properly initialized Firestore instance.
+    // For this to work, you'd need to configure Firebase Admin SDK for server-side fetching.
+    // As we are in a client component, we cannot do server-side data fetching here directly.
+    // A common pattern is to use a server action or an API route.
+    // For now, we will return a generic title.
+    return { projectName: 'Teklif Detayı', customerName: 'Yükleniyor...' };
+}
+
+export async function generateMetadata({ params }: { params: { id: string } }) {
+  // This server-side data fetching won't work inside a 'use client' component.
+  // We'll just return a static title for now. A real implementation
+  // would require architectural changes (API route, Server Components, etc.)
+  // const proposal = await getProposalDataForMetadata(params.id);
+  return {
+    title: `Teklif Detayı`,
+  };
+}
+
 
 // Main Component
 export default function QuoteDetailPage() {

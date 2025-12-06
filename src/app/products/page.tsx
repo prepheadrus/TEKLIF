@@ -36,6 +36,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { QuickAddProduct } from '@/components/app/quick-add-product';
 import { productSeedData } from '@/lib/product-seed-data';
+import { Metadata } from 'next';
 
 // Combined type for a product/material
 export type Product = {
@@ -67,6 +68,10 @@ type InstallationType = {
     name: string;
     parentId?: string | null;
 }
+
+export const metadata: Metadata = {
+    title: 'Ürünler ve Malzemeler',
+};
 
 const buildCategoryNameMap = (categories: InstallationType[]): Map<string, string> => {
     const categoryMap: { [id: string]: { id: string; name: string; children: any[], parentId?: string | null } } = {};

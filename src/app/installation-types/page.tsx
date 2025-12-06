@@ -60,6 +60,7 @@ import { QuickAddInstallationType } from '@/components/app/quick-add-installatio
 import { cn } from '@/lib/utils';
 import { initialInstallationTypesData } from '@/lib/seed-data';
 import type { InitialInstallationType } from '@/lib/seed-data';
+import { Metadata } from 'next';
 
 
 export type InstallationType = {
@@ -72,6 +73,11 @@ export type InstallationType = {
 export type TreeNode = InstallationType & {
   children: TreeNode[];
 };
+
+export const metadata: Metadata = {
+  title: 'Tesisat Kategorileri',
+};
+
 
 const buildTree = (categories: InstallationType[]): TreeNode[] => {
   const categoryMap: { [id: string]: TreeNode } = {};

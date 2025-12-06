@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { collection, doc, deleteDoc, setDoc, query, orderBy } from 'firebase/firestore';
+import { Metadata } from 'next';
 
 import {
   Table,
@@ -51,6 +52,11 @@ type Customer = {
   address?: string;
   taxNumber?: string;
 };
+
+export const metadata: Metadata = {
+  title: 'Müşteriler',
+};
+
 
 export function CustomersPageContent() {
   const router = useRouter();

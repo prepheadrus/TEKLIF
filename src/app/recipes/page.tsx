@@ -1,6 +1,12 @@
 'use client';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+    title: 'Reçeteler',
+};
+
 
 export function RecipesPageContent() {
   return (
