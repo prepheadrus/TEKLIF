@@ -229,8 +229,16 @@ export default function PrintQuotePage() {
                     <style>
                         @page {
                             size: A4;
-                            margin: 0;
+                            margin: 0 !important;
                         }
+
+                        @page :left {
+                            content: "none";
+                        }
+                        @page :right {
+                            content: "none";
+                        }
+                        
                          @media print {
                             body {
                                 -webkit-print-color-adjust: exact;
@@ -238,41 +246,45 @@ export default function PrintQuotePage() {
                                 font-size: 10px;
                                 color: #000000 !important;
                                 background-color: #fff;
-                                padding: 10mm 10mm 10mm 15mm;
+                                padding: 1.5cm 1cm 1cm 1.5cm;
                             }
                             
                             .print-hidden, .print-hidden * { display: none !important; }
                             
-                            body, div, section, main, header, footer, article {
+                            div, section, main, header, footer, article {
                                 display: block !important;
                                 height: auto !important;
                                 min-height: unset !important;
                             }
                             
                             .cover-page {
-                                padding: 0 !important;
-                                width: 100%;
                                 height: 100vh;
+                                width: 100%;
                                 display: flex !important;
                                 flex-direction: column;
                                 justify-content: center;
                                 align-items: center;
                                 text-align: center;
                                 break-after: page;
+                                padding: 0 !important;
                             }
                             
-                            h3, .summary-wrapper {
-                               break-inside: avoid;
+                            .summary-wrapper, h3 {
+                                break-inside: avoid;
+                            }
+                            
+                            .info-cards {
+                                break-inside: avoid;
                             }
                             
                             tr {
-                               break-inside: avoid;
+                                break-inside: avoid;
                             }
                             thead {
-                               display: table-header-group;
+                                display: table-header-group;
                             }
                             tfoot {
-                               display: table-footer-group;
+                                display: table-footer-group;
                             }
                         }
                     </style>
@@ -323,7 +335,7 @@ export default function PrintQuotePage() {
                                 </div>
                             </div>
                         </header>
-                         <div style="margin-top: 1.5rem; display: table; width: 100%; border-spacing: 1rem 0; margin-left: -1rem; break-inside: avoid;">
+                         <div class="info-cards" style="margin-top: 1.5rem; display: table; width: 100%; border-spacing: 1rem 0; margin-left: -1rem; break-inside: avoid;">
                                 <div style="display: table-cell; width: 50%; padding-left: 1rem;">
                                     <div style="padding: 0.5rem; background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 0.5rem;">
                                         <h3 style="font-size: 0.8rem; font-weight: 600; margin: 0; padding-bottom: 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #d1d5db; text-transform: uppercase; letter-spacing: 0.05em; color: #000000;">Müşteri Bilgileri</h3>
@@ -376,22 +388,24 @@ export default function PrintQuotePage() {
         if (isProposalLoading || areItemsLoading || isCustomerLoading) {
             return;
         }
+        
+        if (proposal && items && customer && totals) {
+            const html = generatePrintHTML();
+            const timer = setTimeout(() => {
+                const newWindow = window.open('about:blank', '_blank');
+                if (newWindow) {
+                    newWindow.document.open();
+                    newWindow.document.write(html);
+                    newWindow.document.close();
+                } else {
+                    alert("Lütfen bu site için pop-up'lara izin verin.");
+                }
+            }, 100); 
 
-        const html = generatePrintHTML();
-        const timer = setTimeout(() => {
-            const newWindow = window.open('about:blank', '_blank');
-            if (newWindow) {
-                newWindow.document.open();
-                newWindow.document.write(html);
-                newWindow.document.close();
-            } else {
-                alert("Lütfen bu site için pop-up'lara izin verin.");
-            }
-        }, 100); 
+            return () => clearTimeout(timer);
+        }
 
-        return () => clearTimeout(timer);
-
-    }, [isProposalLoading, areItemsLoading, isCustomerLoading, generatePrintHTML]);
+    }, [isProposalLoading, areItemsLoading, isCustomerLoading, proposal, items, customer, totals, generatePrintHTML]);
 
 
     const isLoading = isProposalLoading || areItemsLoading || isCustomerLoading;
