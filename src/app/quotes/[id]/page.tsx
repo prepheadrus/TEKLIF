@@ -883,24 +883,19 @@ export default function QuoteDetailPage() {
                           Yeni Grup Ekle
                       </Button>
                   </div>
-              </form>
-        </main>
-
-        <div className="sticky bottom-0 left-0 right-0 z-20">
-            <div className="bg-white/80 backdrop-blur-md shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.05)] rounded-t-2xl max-w-7xl mx-auto px-6 py-3 grid grid-cols-3 gap-x-8">
-                  {/* Sol Taraf: Koşullar */}
-                  <div className="col-span-1">
+                  
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
                       <FormField
                           control={form.control}
                           name="termsAndConditions"
                           render={({ field }) => (
                               <FormItem>
-                                  <FormLabel className="font-semibold text-sm">Teklif Koşulları</FormLabel>
+                                  <FormLabel className="font-semibold text-lg">Teklif Koşulları</FormLabel>
                                   <FormControl>
                                       <Textarea
                                           {...field}
                                           placeholder="Teklifin kapsamı, ödeme koşulları ve diğer notlar..."
-                                          className="h-32 text-xs bg-slate-50"
+                                          className="h-40 text-sm bg-slate-50"
                                       />
                                   </FormControl>
                                   <FormMessage />
@@ -908,11 +903,14 @@ export default function QuoteDetailPage() {
                           )}
                       />
                   </div>
+              </form>
+        </main>
 
-
-                  {/* Orta: Finansal Özet */}
-                  <div className="col-span-1 flex flex-col justify-between">
-                     <div className="flex items-end gap-x-4">
+        <div className="sticky bottom-0 left-0 right-0 z-20">
+            <div className="bg-white/80 backdrop-blur-md shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.05)] rounded-t-2xl max-w-7xl mx-auto px-6 py-3 grid grid-cols-2 gap-x-8">
+                  {/* Sol: Finansal Özet */}
+                  <div className="col-span-1 flex items-center justify-between">
+                     <div className="flex items-center gap-x-4">
                         {!includeVAT ? (
                           <div>
                               <p className="text-sm font-semibold text-blue-600">Genel Toplam (KDV Hariç)</p>
