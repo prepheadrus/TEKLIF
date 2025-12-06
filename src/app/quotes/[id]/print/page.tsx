@@ -5,11 +5,14 @@ import React, { useMemo, useCallback } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
-import { Loader2, Printer } from 'lucide-react';
+import { Loader2, Printer, FileDown, Image, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PrintDocument } from '@/components/app/print-document';
 import { calculateItemTotals } from '@/lib/pricing';
 import { usePrintQuote } from '@/hooks/use-print-quote';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import * as XLSX from 'xlsx';
+import * as htmlToImage from 'html-to-image';
 
 
 // --- Type Definitions ---
@@ -128,6 +131,69 @@ export default function PrintQuotePage() {
     }, [proposal, items]);
 
 
+    const handleExportToExcel = useCallback(() => {
+        if (!calculatedData || !customer) return;
+
+        const wb = XLSX.utils.book_new();
+        const wsData: (string | number)[][] = [];
+
+        // Header
+        wsData.push(['Teklif Bilgileri']);
+        wsData.push(['Teklif No:', calculatedData.quoteNumber, '', 'Müşteri:', customer.name]);
+        wsData.push(['Proje:', calculatedData.projectName, '', 'Adres:', customer.address || '']);
+        wsData.push(['Tarih:', new Date(calculatedData.createdAt.seconds * 1000).toLocaleDateString('tr-TR'), '', 'E-posta:', customer.email || '']);
+        wsData.push(['', '', '', 'Telefon:', customer.phone || '']);
+        wsData.push([]); // Boş satır
+
+        // Items Table
+        wsData.push(['#', 'Grup', 'Açıklama', 'Marka', 'Miktar', 'Birim', 'Birim Fiyat (TL)', 'Toplam Fiyat (TL)']);
+        
+        let itemIndex = 1;
+        calculatedData.groupedItems.forEach(([groupName, items]) => {
+            items.forEach(item => {
+                wsData.push([
+                    itemIndex++,
+                    groupName,
+                    item.name,
+                    item.brand,
+                    item.quantity,
+                    item.unit,
+                    item.unitPrice,
+                    item.total,
+                ]);
+            });
+        });
+        wsData.push([]); // Boş satır
+
+        // Totals
+        wsData.push(['', '', '', '', '', '', 'Ara Toplam', calculatedData.grandTotal]);
+        wsData.push(['', '', '', '', '', '', 'KDV (%20)', calculatedData.vatAmount]);
+        wsDatapush(['', '', '', '', '', '', 'Genel Toplam', calculatedData.grandTotalWithVAT]);
+        
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        XLSX.utils.book_append_sheet(wb, ws, 'Teklif');
+        XLSX.writeFile(wb, `Teklif-${calculatedData.quoteNumber}.xlsx`);
+
+    }, [calculatedData, customer]);
+    
+    const handleExportToPNG = useCallback(() => {
+        if (printRef.current === null) {
+            return;
+        }
+
+        htmlToImage.toPng(printRef.current, { cacheBust: true })
+            .then((dataUrl) => {
+                const link = document.createElement('a');
+                link.download = `Teklif-${proposal?.quoteNumber}.png`;
+                link.href = dataUrl;
+                link.click();
+            })
+            .catch((err) => {
+                console.error('PNG oluşturulurken hata oluştu:', err);
+            });
+    }, [printRef, proposal]);
+
+
     const isLoading = isProposalLoading || areItemsLoading || isCustomerLoading;
     
     if (isLoading) {
@@ -167,10 +233,29 @@ export default function PrintQuotePage() {
     return (
         <div data-print-page>
             <div className="fixed top-4 right-4 z-50 print:hidden no-print">
-                <Button onClick={handlePrint} className="shadow-lg">
-                    <Printer className="mr-2 h-4 w-4" />
-                    Yazdır / PDF Olarak Kaydet
-                </Button>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                         <Button className="shadow-lg">
+                            <FileDown className="mr-2 h-4 w-4" />
+                            Dışa Aktar
+                            <ChevronDown className="ml-2 h-4 w-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={handlePrint}>
+                            <Printer className="mr-2 h-4 w-4" />
+                            PDF Olarak Kaydet
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleExportToExcel}>
+                            <FileDown className="mr-2 h-4 w-4" />
+                            Excel Olarak Dışa Aktar (.xlsx)
+                        </DropdownMenuItem>
+                         <DropdownMenuItem onClick={handleExportToPNG}>
+                            <Image className="mr-2 h-4 w-4" />
+                            Resim Olarak Kaydet (.png)
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
             
             <PrintDocument 
