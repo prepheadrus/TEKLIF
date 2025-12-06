@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams, useSearchParams } from 'next/navigation';
-import { useMemo, useEffect, useState, useCallback } from 'react';
+import { useMemo, useEffect, useCallback } from 'react';
 import { useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
@@ -229,7 +229,7 @@ export default function PrintQuotePage() {
                     <style>
                         @page {
                             size: A4;
-                            margin: 10mm 10mm 10mm 15mm;
+                            margin: 0;
                         }
                          @media print {
                             body {
@@ -238,18 +238,33 @@ export default function PrintQuotePage() {
                                 font-size: 10px;
                                 color: #000000 !important;
                                 background-color: #fff;
+                                padding: 10mm 10mm 10mm 15mm;
                             }
-                            .print-hidden, .print-hidden * {
-                                display: none !important;
-                            }
+                            
+                            .print-hidden, .print-hidden * { display: none !important; }
+                            
                             body, div, section, main, header, footer, article {
                                 display: block !important;
                                 height: auto !important;
                                 min-height: unset !important;
                             }
-                            h3, table, section, div, p {
+                            
+                            .cover-page {
+                                padding: 0 !important;
+                                width: 100%;
+                                height: 100vh;
+                                display: flex !important;
+                                flex-direction: column;
+                                justify-content: center;
+                                align-items: center;
+                                text-align: center;
+                                break-after: page;
+                            }
+                            
+                            h3, .summary-wrapper {
                                break-inside: avoid;
                             }
+                            
                             tr {
                                break-inside: avoid;
                             }
@@ -259,18 +274,15 @@ export default function PrintQuotePage() {
                             tfoot {
                                display: table-footer-group;
                             }
-                            .page-break {
-                               page-break-after: always;
-                            }
                         }
                     </style>
                 </head>
                 <body>
                     <!-- Cover Page -->
-                    <div class="page-break">
-                        <header style="padding-bottom: 1.5rem; border-bottom: 1px solid #e5e7eb;">
+                    <div class="cover-page">
+                        <header style="padding-bottom: 1.5rem; border-bottom: 1px solid #e5e7eb; width: 80%;">
                             <div style="display: table; width: 100%;">
-                                <div style="display: table-cell; vertical-align: middle; width: 70%;">
+                                <div style="display: table-cell; vertical-align: middle; width: 70%; text-align: left;">
                                     <img src="/logo.png" alt="Firma Logosu" style="width: 120px; height: 120px; object-fit: contain; vertical-align: middle; display: inline-block; margin-right: 1.5rem;" />
                                     <div style="display: inline-block; vertical-align: middle;">
                                         <h1 style="font-size: 1.875rem; font-weight: 700; margin: 0; color: #000000;">İMS Mühendislik</h1>
@@ -286,8 +298,8 @@ export default function PrintQuotePage() {
                                 </div>
                             </div>
                         </header>
-                         <div style="margin-top: 4rem; padding: 1rem; font-size: 12px; line-height: 1.7; color: #000000;">
-                            <div style="min-height: 200px;">${coverLetterHtml}</div>
+                         <div style="margin-top: 4rem; padding: 1rem; font-size: 12px; line-height: 1.7; color: #000000; width: 80%;">
+                            <div style="min-height: 200px; text-align: left;">${coverLetterHtml}</div>
                             <div style="position: relative; text-align: right; margin-top: 3rem;">
                                 <img src="/kase.png" alt="Firma Kaşesi" style="width: 130px; height: auto; object-fit: contain;" />
                             </div>
@@ -311,9 +323,9 @@ export default function PrintQuotePage() {
                                 </div>
                             </div>
                         </header>
-                         <div style="margin-top: 1.5rem; display: table; width: 100%; border-spacing: 1rem 0; margin-left: -1rem;">
+                         <div style="margin-top: 1.5rem; display: table; width: 100%; border-spacing: 1rem 0; margin-left: -1rem; break-inside: avoid;">
                                 <div style="display: table-cell; width: 50%; padding-left: 1rem;">
-                                    <div style="padding: 0.5rem;">
+                                    <div style="padding: 0.5rem; background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 0.5rem;">
                                         <h3 style="font-size: 0.8rem; font-weight: 600; margin: 0; padding-bottom: 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #d1d5db; text-transform: uppercase; letter-spacing: 0.05em; color: #000000;">Müşteri Bilgileri</h3>
                                         <div style="line-height: 1.5; font-size: 0.75rem;">
                                             <p style="font-weight: 700; color: #111827; margin: 2px 0;">${customer.name}</p>
@@ -324,7 +336,7 @@ export default function PrintQuotePage() {
                                     </div>
                                 </div>
                                 <div style="display: table-cell; width: 50%; padding-left: 1rem;">
-                                    <div style="padding: 0.5rem;">
+                                    <div style="padding: 0.5rem; background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 0.5rem;">
                                         <h3 style="font-size: 0.8rem; font-weight: 600; margin: 0; padding-bottom: 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #d1d5db; text-transform: uppercase; letter-spacing: 0.05em; color: #000000;">Proje Bilgisi</h3>
                                         <div style="line-height: 1.5; font-size: 0.75rem;">
                                             <p style="font-weight: 700; color: #111827; margin: 2px 0;">${proposal.projectName}</p>
@@ -336,7 +348,7 @@ export default function PrintQuotePage() {
                             <section style="margin-top: 1rem;">
                                 ${mainContentHTML}
                             </section>
-                            <section style="margin-top: 1rem; break-inside: avoid;">
+                            <div class="summary-wrapper" style="break-inside: avoid; margin-top: 1rem;">
                                 <div style="display: table; width: 100%;">
                                     <div style="display: table-cell; width: 55%; vertical-align: top; font-size: 9px; line-height: 1.5; white-space: pre-wrap; color: #000000; padding-right: 1rem;">
                                        <h4 style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.5rem; color: #000000;">Teklif Koşulları</h4>
@@ -352,7 +364,7 @@ export default function PrintQuotePage() {
                                         ${currencySummaryHTML}
                                     </div>
                                 </div>
-                            </section>
+                            </div>
                         </main>
                     </div>
                 </body>
