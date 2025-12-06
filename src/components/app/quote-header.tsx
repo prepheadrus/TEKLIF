@@ -26,41 +26,35 @@ export function QuoteHeader({
   className
 }: QuoteHeaderProps) {
   return (
-    <div className={cn("flex justify-between items-start", className)}>
-      {/* Sol: Firma Bilgileri */}
-      <div className="flex-1">
+    <div className={cn("flex justify-between items-start pb-3 border-b border-gray-300 mb-4", className)}>
+      {/* Sol: Logo + Firma (kompakt) */}
+      <div className="flex items-start gap-3">
         {firmaLogo && (
-          <Image 
-            src={firmaLogo} 
-            alt={firmaAdi} 
-            width={120} 
-            height={60}
-            className="mb-2 print:mb-2"
-          />
+            <Image 
+              src={firmaLogo} 
+              alt="Logo" 
+              width={48}
+              height={48}
+              className="h-12 w-auto" // Küçük logo: 48px
+            />
         )}
-        <h1 className="text-2xl font-bold text-primary print:text-black">
-          {firmaAdi}
-        </h1>
-        {firmaAltBaslik && (
-          <p className="text-sm text-muted-foreground print:text-gray-600">
-            {firmaAltBaslik}
-          </p>
-        )}
-        <p className="text-sm mt-1 print:text-xs">{firmaAdres}</p>
-        <p className="text-sm print:text-xs">
-          {firmaEmail} | {firmaTelefon}
-        </p>
+        <div className="text-xs leading-tight">
+          <p className="font-bold text-sm">{firmaAdi}</p>
+          {firmaAltBaslik && <p className="text-gray-600">{firmaAltBaslik}</p>}
+          <p className="text-gray-500 mt-1">{firmaAdres}</p>
+          <p className="text-gray-500">{firmaEmail} | {firmaTelefon}</p>
+        </div>
       </div>
 
-      {/* Sağ: Teklif Bilgileri */}
-      <div className="text-right">
-        <h2 className="text-3xl font-bold tracking-tight print:text-2xl">
-          TEKLİF
-        </h2>
-        <div className="mt-2 text-sm space-y-1">
-          <p><span className="font-medium">Teklif No:</span> {teklifNo}</p>
-          <p><span className="font-medium">Tarih:</span> {tarih}</p>
-        </div>
+      {/* Sağ: Teklif bilgisi */}
+      <div className="text-right flex-shrink-0 ml-4">
+        <p className="text-2xl font-bold">TEKLİF</p>
+        <p className="text-sm mt-1">
+          <span className="font-medium">Teklif No:</span> {teklifNo}
+        </p>
+        <p className="text-sm">
+          <span className="font-medium">Tarih:</span> {tarih}
+        </p>
       </div>
     </div>
   );
