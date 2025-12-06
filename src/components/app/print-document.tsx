@@ -131,8 +131,8 @@ export const PrintDocument = forwardRef<HTMLDivElement, PrintDocumentProps>(
           </section>
         ))}
 
-        <footer className="pt-4 border-t-2 border-slate-300 print-avoid-break">
-            <div className="flex justify-end mb-8">
+        <footer className="pt-4 border-t-2 border-slate-300">
+            <div className="flex justify-end mb-8 print-avoid-break">
                  <div className="w-[350px] space-y-2 text-sm">
                     <div className="flex justify-between">
                         <span className="font-semibold">Ara Toplam:</span>
@@ -150,14 +150,14 @@ export const PrintDocument = forwardRef<HTMLDivElement, PrintDocumentProps>(
             </div>
             
             {teklif.termsAndConditions && (
-                <div className="text-xs mt-8">
+                <div className="text-xs mt-8 print-avoid-break">
                     <h3 className="font-bold mb-1">Notlar ve Koşullar</h3>
                     <p className="whitespace-pre-wrap text-gray-600">{teklif.termsAndConditions}</p>
                 </div>
             )}
 
             {firma.kase && (
-              <section className="flex justify-end mt-8">
+              <section className="flex justify-end mt-8 print-avoid-break">
                 <div className="text-center">
                   <img src={firma.kase} className="h-20 w-auto" alt="Kaşe" />
                 </div>
