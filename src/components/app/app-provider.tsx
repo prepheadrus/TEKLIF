@@ -111,7 +111,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                     </a>
                     <nav className="hidden md:flex gap-1">
                          {navItems.map((item) => (
-                            <NavItem key={item.href} href={item.href} label={item.label} target={item.target} />
+                            <NavItem key={item.href} href={item.href} label={item.label} target={item.href} />
                         ))}
                     </nav>
                 </div>
