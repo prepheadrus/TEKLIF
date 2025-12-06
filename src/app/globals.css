@@ -86,6 +86,10 @@
    ============================================ */
 
 @media print {
+  .print\:hidden {
+    display: none !important;
+  }
+
   @page {
     size: A4;
     margin: 15mm 12mm 20mm 12mm;
@@ -165,7 +169,8 @@
 
   /* Toplamlar kesilmesin */
   .print-totals {
-    page-break-inside: avoid;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   /* SUNUŞ YAZISINI GİZLE veya çok kısa tut */
@@ -175,7 +180,8 @@
 
   /* Kaşe bölümü kesilmesin */
   .print-kase {
-    page-break-inside: avoid;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
     margin-top: 20px;
   }
 
@@ -183,16 +189,6 @@
    .print-avoid-break {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-  }
-
-  .print-break-before {
-    page-break-before: always !important;
-    break-before: page !important;
-  }
-
-  .print-break-after {
-    page-break-after: always !important;
-    break-after: page !important;
   }
 
     /* Orphans/Widows */
