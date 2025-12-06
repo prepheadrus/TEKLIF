@@ -3,6 +3,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { NoSsr } from '@/components/no-ssr';
 import { AppProvider } from '@/components/app/app-provider';
 import type { Metadata } from 'next';
+import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
   title: {
@@ -33,7 +34,9 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <NoSsr>
+          <FirebaseClientProvider>
             <AppProvider>{children}</AppProvider>
+          </FirebaseClientProvider>
         </NoSsr>
         <Toaster />
       </body>
