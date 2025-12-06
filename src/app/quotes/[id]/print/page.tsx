@@ -172,7 +172,7 @@ export default function PrintQuotePage() {
                             <th style="padding: 4px 6px; font-weight: 700; color: #1f2937; border-bottom: 1px solid #d1d5db; text-align: left; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Marka</th>
                             <th style="padding: 4px 6px; font-weight: 700; color: #1f2937; border-bottom: 1px solid #d1d5db; text-align: center; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Miktar</th>
                             <th style="padding: 4px 6px; font-weight: 700; color: #1f2937; border-bottom: 1px solid #d1d5db; text-align: left; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Birim</th>
-                            <th style="padding: 4px 6px; font-weight: 700; color: #1f2937; border-bottom: 1px solid #d1d5db; text-align: right; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Birim Fiyat</th>
+                            <th style="padding: 4px 6px; font-weight: 700; color: #1f2D37; border-bottom: 1px solid #d1d5db; text-align: right; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Birim Fiyat</th>
                             <th style="padding: 4px 6px; font-weight: 700; color: #1f2937; border-bottom: 1px solid #d1d5db; text-align: right; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: middle;">Toplam Tutar</th>
                         </tr>
                     </thead>
@@ -189,7 +189,7 @@ export default function PrintQuotePage() {
                             </tr>
                         `).join('')}
                     </tbody>
-                    <tfoot style="display: table-footer-group;">
+                    <tfoot>
                         <tr style="background-color: #f3f4f6; font-weight: 700;">
                             <td colspan="6" style="padding: 6px 8px; text-align: right; border-top: 2px solid #d1d5db;">Grup Toplamı (KDV Hariç):</td>
                             <td style="padding: 6px 8px; text-align: right; border-top: 2px solid #d1d5db;">
@@ -230,13 +230,13 @@ export default function PrintQuotePage() {
                         @page {
                             size: A4;
                             margin: 0 !important;
-                        }
-
-                        @page :left {
-                            content: "none";
-                        }
-                        @page :right {
-                            content: "none";
+                            
+                            @top-left { content: none; }
+                            @top-center { content: none; }
+                            @top-right { content: none; }
+                            @bottom-left { content: none; }
+                            @bottom-center { content: none; }
+                            @bottom-right { content: none; }
                         }
                         
                          @media print {
@@ -249,37 +249,38 @@ export default function PrintQuotePage() {
                                 padding: 1.5cm 1cm 1cm 1.5cm;
                             }
                             
-                            .print-hidden, .print-hidden * { display: none !important; }
-                            
                             div, section, main, header, footer, article {
                                 display: block !important;
                                 height: auto !important;
                                 min-height: unset !important;
                             }
+
+                            .print-hidden, .print-hidden * { display: none !important; }
                             
                             .cover-page {
-                                height: 100vh;
+                                padding: 0 !important;
+                                height: 100vh !important;
                                 width: 100%;
                                 display: flex !important;
                                 flex-direction: column;
                                 justify-content: center;
                                 align-items: center;
                                 text-align: center;
-                                break-after: page;
-                                padding: 0 !important;
+                                break-after: always; page-break-after: always;
                             }
                             
-                            .summary-wrapper, h3 {
-                                break-inside: avoid;
+                            .content-start {
+                                break-before: page; page-break-before: always;
                             }
-                            
-                            .info-cards {
+
+                            .summary-wrapper, h3, .info-cards {
                                 break-inside: avoid;
                             }
                             
                             tr {
                                 break-inside: avoid;
                             }
+
                             thead {
                                 display: table-header-group;
                             }
@@ -319,7 +320,7 @@ export default function PrintQuotePage() {
                     </div>
 
                     <!-- Main Content Section -->
-                    <div>
+                    <div class="content-start">
                         <header style="padding-bottom: 1rem; border-bottom: 1px solid #e5e7eb;">
                             <div style="display: table; width: 100%;">
                                 <div style="display: table-cell; vertical-align: middle;">
@@ -335,7 +336,7 @@ export default function PrintQuotePage() {
                                 </div>
                             </div>
                         </header>
-                         <div class="info-cards" style="margin-top: 1.5rem; display: table; width: 100%; border-spacing: 1rem 0; margin-left: -1rem; break-inside: avoid;">
+                         <div class="info-cards" style="margin-top: 1.5rem; display: table; width: 100%; border-spacing: 1rem 0; margin-left: -1rem;">
                                 <div style="display: table-cell; width: 50%; padding-left: 1rem;">
                                     <div style="padding: 0.5rem; background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 0.5rem;">
                                         <h3 style="font-size: 0.8rem; font-weight: 600; margin: 0; padding-bottom: 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #d1d5db; text-transform: uppercase; letter-spacing: 0.05em; color: #000000;">Müşteri Bilgileri</h3>
@@ -360,7 +361,7 @@ export default function PrintQuotePage() {
                             <section style="margin-top: 1rem;">
                                 ${mainContentHTML}
                             </section>
-                            <div class="summary-wrapper" style="break-inside: avoid; margin-top: 1rem;">
+                            <div class="summary-wrapper" style="margin-top: 1rem;">
                                 <div style="display: table; width: 100%;">
                                     <div style="display: table-cell; width: 55%; vertical-align: top; font-size: 9px; line-height: 1.5; white-space: pre-wrap; color: #000000; padding-right: 1rem;">
                                        <h4 style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.5rem; color: #000000;">Teklif Koşulları</h4>
@@ -435,3 +436,5 @@ export default function PrintQuotePage() {
         </div>
     );
 }
+
+    
