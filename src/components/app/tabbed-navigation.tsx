@@ -48,23 +48,23 @@ export function TabbedNavigation() {
                 )}
             >
               {tab.label}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute top-1/2 right-0 -translate-y-1/2 h-6 w-6 rounded-full opacity-50 group-hover:opacity-100"
+              <div
+                role="button"
+                aria-label={`Sekmeyi kapat: ${tab.label}`}
+                className="absolute top-1/2 right-1 -translate-y-1/2 h-6 w-6 rounded-full flex items-center justify-center opacity-50 group-hover:opacity-100 hover:bg-muted"
                 onClick={(e) => {
                   e.stopPropagation();
                   removeTab(tab.href);
                 }}
               >
                 <X className="h-4 w-4" />
-              </Button>
+              </div>
             </TabsTrigger>
           ))}
         </TabsList>
       </div>
 
-      <TabsContent value="/" className="flex-1 bg-slate-100/70 p-8">
+      <TabsContent value="/" className="flex-1 bg-slate-100/70 p-0">
         <iframe src="/dashboard-content" className="w-full h-full border-0" title="Anasayfa" />
       </TabsContent>
 
