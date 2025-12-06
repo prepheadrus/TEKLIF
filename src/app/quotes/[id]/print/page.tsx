@@ -17,6 +17,7 @@ type Proposal = {
     customerId: string;
     totalAmount: number;
     exchangeRates: { USD: number, EUR: number };
+    termsAndConditions?: string;
 };
 
 type ProposalItem = {
@@ -158,7 +159,7 @@ export default function PrintQuotePage() {
     const isLoading = isProposalLoading || areItemsLoading || isCustomerLoading;
 
     const generatePrintHTML = useCallback(() => {
-        if (isLoading || !proposal || !items || !customer || !totals) {
+        if (!proposal || !items || !customer || !totals) {
             return '';
         }
     
@@ -219,6 +220,10 @@ export default function PrintQuotePage() {
                 `).join('')}
             </div>
         ` : '';
+
+        const termsHTML = proposal.termsAndConditions 
+            ? proposal.termsAndConditions.replace(/\n/g, '<br />')
+            : 'Teklif koşulları belirtilmemiş.';
         
         return `
             <html>
@@ -247,7 +252,7 @@ export default function PrintQuotePage() {
                 <body>
                     <div class="print-layout">
                         <!-- Cover Page -->
-                        <div style="display: flex; flex-direction: column; justify-content: space-between; height: calc(100vh - 3cm); page-break-after: always;">
+                        <div style="display: flex; flex-direction: column; justify-content: space-between; min-height: calc(100vh - 3cm); page-break-after: always;">
                             <div>
                                 <header style="display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 0.75rem; border-bottom: 1px solid #e5e7eb;">
                                     <div style="display: flex; align-items: center; gap: 1.5rem;">
@@ -260,7 +265,7 @@ export default function PrintQuotePage() {
                                         </div>
                                     </div>
                                     <div style="text-align: right; flex-shrink: 0;">
-                                        <h2 style="font-size: 1.875rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin: 0; color: #111827;">TEKLİF</h2>
+                                        <h2 style="font-size: 1.875rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin: 0; color: '#111827';">TEKLİF</h2>
                                         <p style="margin-top: 0.5rem; margin: 8px 0 0 0;"><span style="font-weight: 600;">Teklif No:</span> ${proposal.quoteNumber}</p>
                                         <p style="margin: 4px 0 0 0;"><span style="font-weight: 600;">Tarih:</span> ${formatDate(proposal.createdAt)}</p>
                                     </div>
@@ -280,17 +285,13 @@ export default function PrintQuotePage() {
                                 </div>
                                 ${coverPageIntro}
                             </div>
-                            <footer style="border-top: 1px solid #e5e7eb; padding-top: 0.75rem; font-size: 9px;">
-                                <div style="display: flex; justify-content: space-between; align-items: flex-end;">
-                                    <div>
+                            <footer style="border-top: 1px solid #e5e7eb; padding-top: 0.75rem; font-size: 9px; page-break-inside: avoid;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                    <div style="font-size: 8px; line-height: 1.5; white-space: pre-wrap;">
                                         <p style="font-weight: 600; margin: 0; margin-bottom: 4px;">Teklif Koşulları:</p>
-                                        <ul style="list-style-position: inside; padding-left: 0; margin: 0; display: flex; flex-direction: column; gap: 2px;">
-                                            <li>Teklifin geçerlilik süresi 15 gündür.</li>
-                                            <li>Fiyatlarımıza KDV dahildir.</li>
-                                            <li>Hesaplamada kullanılan kurlar: 1 EUR = ${proposal.exchangeRates.EUR.toFixed(4)} TL, 1 USD = ${proposal.exchangeRates.USD.toFixed(4)} TL</li>
-                                        </ul>
+                                        ${termsHTML}
                                     </div>
-                                    <div style="position: relative; width: 10rem; height: auto; text-align: right;">
+                                    <div style="position: relative; width: 10rem; height: auto; text-align: right; flex-shrink: 0;">
                                         <img src="/kase.png" alt="Firma Kaşesi" style="width: 120px; height: 80px; object-fit: contain;" />
                                     </div>
                                 </div>
@@ -298,7 +299,7 @@ export default function PrintQuotePage() {
                         </div>
 
                         <!-- Main Content Section -->
-                        <main style="page-break-before: always;">
+                        <div style="break-before: page;">
                             <header style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.75rem; border-bottom: 1px solid #e5e7eb;">
                                 <div style="display: flex; align-items: center; gap: 1rem;">
                                     <img src="/logo.png" alt="Firma Logosu" style="width: 60px; height: 60px; object-fit: contain;" />
@@ -312,52 +313,49 @@ export default function PrintQuotePage() {
                                     <p style="margin: 2px 0 0 0;"><span style="font-weight: 600;">Tarih:</span> ${formatDate(proposal.createdAt)}</p>
                                 </div>
                             </header>
-                            <section style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;">
-                                ${mainContentHTML}
-                            </section>
-                            <section style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 1rem; break-inside: avoid;">
-                                <div style="width: 50%;"></div>
-                                <div style="width: 50%; display: flex; flex-direction: column; gap: 0.25rem;">
-                                    <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 0.25rem;">
-                                        <div style="display: flex; justify-content: space-between;">
-                                            <span style="font-weight: 600;">Ara Toplam (TL):</span>
-                                            <span>${formatCurrency(totals.grandTotalInTRY.subtotal, 'TRY')}</span>
+                            <main>
+                                <section style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;">
+                                    ${mainContentHTML}
+                                </section>
+                                <section style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 1rem; break-inside: avoid;">
+                                    <div style="width: 50%;"></div>
+                                    <div style="width: 50%; display: flex; flex-direction: column; gap: 0.25rem;">
+                                        <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 0.25rem;">
+                                            <div style="display: flex; justify-content: space-between;">
+                                                <span style="font-weight: 600;">Ara Toplam (TL):</span>
+                                                <span>${formatCurrency(totals.grandTotalInTRY.subtotal, 'TRY')}</span>
+                                            </div>
+                                            <div style="display: flex; justify-content: space-between;">
+                                                <span style="font-weight: 600;">KDV (%20) (TL):</span>
+                                                <span>${formatCurrency(totals.grandTotalInTRY.vat, 'TRY')}</span>
+                                            </div>
+                                            <div style="height: 1px; background-color: #e5e7eb; margin: 2px 0;"></div>
+                                            <div style="display: flex; justify-content: space-between; font-size: 0.875rem; font-weight: 700; color: #2563eb;">
+                                                <span>Genel Toplam (TL):</span>
+                                                <span>${formatCurrency(totals.grandTotalInTRY.grandTotal, 'TRY')}</span>
+                                            </div>
                                         </div>
-                                        <div style="display: flex; justify-content: space-between;">
-                                            <span style="font-weight: 600;">KDV (%20) (TL):</span>
-                                            <span>${formatCurrency(totals.grandTotalInTRY.vat, 'TRY')}</span>
-                                        </div>
-                                        <div style="height: 1px; background-color: #e5e7eb; margin: 2px 0;"></div>
-                                        <div style="display: flex; justify-content: space-between; font-size: 0.875rem; font-weight: 700; color: #2563eb;">
-                                            <span>Genel Toplam (TL):</span>
-                                            <span>${formatCurrency(totals.grandTotalInTRY.grandTotal, 'TRY')}</span>
-                                        </div>
+                                        ${currencySummaryHTML}
                                     </div>
-                                    ${currencySummaryHTML}
-                                </div>
-                            </section>
-                        </main>
+                                </section>
+                            </main>
+                        </div>
                     </div>
                 </body>
             </html>
         `;
-    }, [isLoading, proposal, items, customer, totals, sortedGroups]);
+    }, [proposal, items, customer, totals, sortedGroups]);
 
     useEffect(() => {
-        // This effect runs whenever the dependencies change.
-        // The condition inside ensures the logic only executes when data is ready.
         if (!isLoading) {
             const html = generatePrintHTML();
-            if (html) { // Only proceed if HTML was generated
-                const newWindow = window.open('about:blank', '_blank');
-                if (newWindow) {
-                    newWindow.document.open();
-                    newWindow.document.write(html);
-                    newWindow.document.close();
-                }
+            const newWindow = window.open('about:blank', '_blank');
+            if (newWindow) {
+                newWindow.document.open();
+                newWindow.document.write(html);
+                newWindow.document.close();
             }
         }
-    // The dependency array now includes generatePrintHTML to be correct.
     }, [isLoading, generatePrintHTML]);
 
 

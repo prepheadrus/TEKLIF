@@ -32,6 +32,7 @@ import {
   FormControl,
   FormField,
   FormItem,
+  FormLabel,
   FormMessage,
 } from '@/components/ui/form';
 import {
@@ -78,6 +79,7 @@ import {
 } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Textarea } from '@/components/ui/textarea';
 
 
 const proposalItemSchema = z.object({
@@ -97,6 +99,7 @@ const proposalItemSchema = z.object({
 
 const proposalSchema = z.object({
   versionNote: z.string().optional(),
+  termsAndConditions: z.string().optional(),
   items: z.array(proposalItemSchema),
   exchangeRates: z.object({
       USD: z.coerce.number(),
@@ -119,6 +122,7 @@ type Proposal = {
   customerId: string;
   exchangeRates: { USD: number; EUR: number };
   createdAt: { seconds: number };
+  termsAndConditions?: string;
 };
 
 const getGroupIcon = (groupName: string) => {
@@ -255,10 +259,13 @@ export default function QuoteDetailPage() {
   );
   const { data: installationTypes, isLoading: isLoadingInstallationTypes } = useCollection<InstallationType>(installationTypesRef);
 
+  const defaultTerms = `Teklif Kapsamı:\n- Yukarıdaki listede belirtilen tüm malzemelerin temini.\n- Tüm malzemelerin montajı ve işçiliği.\n- Test ve devreye alma işlemleri.\n\nÖdeme Koşulları:\n- %50 sipariş avansı, %50 iş bitimi.\n\nNotlar:\n- Fiyatlara KDV dahil değildir.\n- Teklif geçerlilik süresi 15 gündür.`;
+  
   const form = useForm<ProposalFormValues>({
     resolver: zodResolver(proposalSchema),
     defaultValues: {
       versionNote: '',
+      termsAndConditions: defaultTerms,
       items: [],
       exchangeRates: { USD: 32.5, EUR: 35.0 }
     },
@@ -296,6 +303,7 @@ export default function QuoteDetailPage() {
 
     form.reset({
       versionNote: proposal.versionNote || '',
+      termsAndConditions: proposal.termsAndConditions || defaultTerms,
       items: newItems,
       exchangeRates: proposal.exchangeRates || { USD: 32.5, EUR: 35.0 }
     });
@@ -463,6 +471,7 @@ export default function QuoteDetailPage() {
       const proposalDocRef = doc(firestore, 'proposals', proposalId);
       batch.update(proposalDocRef, {
         versionNote: data.versionNote,
+        termsAndConditions: data.termsAndConditions,
         totalAmount: calculatedTotals.grandTotalSellExVAT,
         exchangeRates: data.exchangeRates,
         updatedAt: serverTimestamp(),
@@ -878,47 +887,69 @@ export default function QuoteDetailPage() {
         </main>
 
         <div className="sticky bottom-0 left-0 right-0 z-20">
-            <div className="bg-white/80 backdrop-blur-md shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.05)] rounded-t-2xl max-w-7xl mx-auto px-6 py-3 flex justify-between items-center gap-x-8">
-                  {/* Sol Taraf: Finansal Özet */}
-                  <div className="flex-1 flex items-end gap-x-6">
-                      {!includeVAT ? (
+            <div className="bg-white/80 backdrop-blur-md shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.05)] rounded-t-2xl max-w-7xl mx-auto px-6 py-3 grid grid-cols-3 gap-x-8">
+                  {/* Sol Taraf: Koşullar */}
+                  <div className="col-span-1">
+                      <FormField
+                          control={form.control}
+                          name="termsAndConditions"
+                          render={({ field }) => (
+                              <FormItem>
+                                  <FormLabel className="font-semibold text-sm">Teklif Koşulları</FormLabel>
+                                  <FormControl>
+                                      <Textarea
+                                          {...field}
+                                          placeholder="Teklifin kapsamı, ödeme koşulları ve diğer notlar..."
+                                          className="h-32 text-xs bg-slate-50"
+                                      />
+                                  </FormControl>
+                                  <FormMessage />
+                              </FormItem>
+                          )}
+                      />
+                  </div>
+
+
+                  {/* Orta: Finansal Özet */}
+                  <div className="col-span-1 flex flex-col justify-between">
+                     <div className="flex items-end gap-x-4">
+                        {!includeVAT ? (
                           <div>
                               <p className="text-sm font-semibold text-blue-600">Genel Toplam (KDV Hariç)</p>
                               <p className="font-mono text-4xl font-extrabold text-blue-700">{formatCurrency(calculatedTotals.grandTotalSellExVAT)}</p>
                           </div>
                       ) : (
-                          <>
+                          <div className="flex items-end gap-x-2">
                               <div>
                                   <p className="text-xs text-slate-500">Ara Toplam</p>
-                                  <p className="font-mono text-xl font-bold text-slate-800">{formatCurrency(calculatedTotals.grandTotalSellExVAT)}</p>
+                                  <p className="font-mono text-lg font-bold text-slate-800">{formatCurrency(calculatedTotals.grandTotalSellExVAT)}</p>
                               </div>
-                              <div className="text-xl text-slate-400">+</div>
+                              <div className="text-lg text-slate-400">+</div>
                               <div>
-                                  <p className="text-xs text-slate-500">Toplam KDV (%{new Intl.NumberFormat('tr-TR').format(0.20 * 100)})</p>
-                                  <p className="font-mono text-xl font-bold text-slate-800">{formatCurrency(calculatedTotals.vatAmount)}</p>
+                                  <p className="text-xs text-slate-500">KDV (%{new Intl.NumberFormat('tr-TR').format(0.20 * 100)})</p>
+                                  <p className="font-mono text-lg font-bold text-slate-800">{formatCurrency(calculatedTotals.vatAmount)}</p>
                               </div>
-                              <div className="text-xl text-slate-400">=</div>
+                              <div className="text-lg text-slate-400">=</div>
                               <div>
-                                  <p className="text-sm font-semibold text-blue-600">Genel Toplam</p>
-                                  <p className="font-mono text-4xl font-extrabold text-blue-700">{formatCurrency(calculatedTotals.grandTotalSellWithVAT)}</p>
+                                  <p className="text-sm font-semibold text-blue-600">Toplam</p>
+                                  <p className="font-mono text-3xl font-extrabold text-blue-700">{formatCurrency(calculatedTotals.grandTotalSellWithVAT)}</p>
                               </div>
-                          </>
+                          </div>
                       )}
-                  </div>
-
-                  {/* Orta: Toplam Kar */}
-                  <div className="text-right">
-                      <div className="flex items-center justify-end gap-2 text-green-600">
-                          <TrendingUp className="h-5 w-5" />
-                          <p className="text-sm font-semibold uppercase tracking-wider">Toplam Kâr</p>
+                     </div>
+                      <div className="text-left">
+                          <div className="flex items-center gap-2 text-green-600">
+                              <TrendingUp className="h-5 w-5" />
+                              <p className="text-sm font-semibold uppercase tracking-wider">Toplam Kâr</p>
+                          </div>
+                          <p className="font-mono font-bold text-2xl">{formatCurrency(calculatedTotals.grandTotalProfit)}</p>
+                          <p className="font-mono text-sm text-green-700 font-semibold">({(calculatedTotals.grandTotalProfitMargin * 100).toFixed(1)}%)</p>
                       </div>
-                      <p className="font-mono font-bold text-2xl">{formatCurrency(calculatedTotals.grandTotalProfit)}</p>
-                      <p className="font-mono text-sm text-green-700 font-semibold">({(calculatedTotals.grandTotalProfitMargin * 100).toFixed(1)}%)</p>
                   </div>
 
 
                   {/* Sağ Taraf: Kontroller */}
-                  <div className="flex items-center justify-end gap-4">
+                  <div className="col-span-1 flex items-center justify-end gap-4">
                       <div className="flex flex-col gap-2 items-center">
                           <div className="flex items-center space-x-2">
                               <Switch id="vat-switch" checked={includeVAT} onCheckedChange={setIncludeVAT} />

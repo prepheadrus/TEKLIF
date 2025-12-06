@@ -124,6 +124,10 @@
           "type": "string",
           "description": "Date and time when the proposal was created.",
           "format": "date-time"
+        },
+        "termsAndConditions": {
+            "type": "string",
+            "description": "Custom terms and conditions for the proposal, can be a multiline text."
         }
       },
       "required": [
