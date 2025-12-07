@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -82,7 +83,6 @@ type Proposal = {
 type JobAssignment = {
     id: string;
     proposalId: string;
-    personnelId: string;
 }
 
 type ProposalGroup = {
@@ -90,7 +90,6 @@ type ProposalGroup = {
     latestProposal: Proposal;
     versions: Proposal[];
     isAssigned: boolean;
-    assignedTo?: string; // Name of the assigned personnel
 }
 
 function getStatusBadge(status: Proposal['status']) {
@@ -204,11 +203,9 @@ export function QuotesPageContent() {
 
 
   const groupedProposals = useMemo((): ProposalGroup[] => {
-    if (!proposals || !jobAssignments || !personnel) return [];
+    if (!proposals) return [];
   
-    const assignedProposalIds = new Set(jobAssignments.map(j => j.proposalId));
-    const proposalToAssignmentMap = new Map(jobAssignments.map(j => [j.proposalId, j]));
-    const personnelMap = new Map(personnel.map(p => [p.id, p.name]));
+    const assignedProposalIds = new Set(jobAssignments?.map(j => j.proposalId));
     const groups: Record<string, Proposal[]> = {};
     
     proposals.forEach(p => {
@@ -222,28 +219,12 @@ export function QuotesPageContent() {
     return Object.values(groups).map(versions => {
         versions.sort((a, b) => (b.version || 0) - (a.version || 0));
         const latestProposal = versions[0];
-        
-        let isAssigned = false;
-        let assignedTo: string | undefined = undefined;
-  
-        // Check if any version in the group has an assignment
-        for (const version of versions) {
-            if (proposalToAssignmentMap.has(version.id)) {
-                isAssigned = true;
-                const assignment = proposalToAssignmentMap.get(version.id);
-                if (assignment) {
-                    assignedTo = personnelMap.get(assignment.personnelId);
-                }
-                break; // Found an assignment, no need to check further
-            }
-        }
-  
+        const isAssigned = versions.some(v => assignedProposalIds.has(v.id));
         return {
             rootProposalId: latestProposal.rootProposalId,
             latestProposal: latestProposal,
             versions: versions,
             isAssigned,
-            assignedTo,
         };
     }).sort((a, b) => {
         const timeA = a.latestProposal.createdAt?.seconds ?? 0;
@@ -258,7 +239,7 @@ export function QuotesPageContent() {
           return timeA - timeB;
         }
     });
-  }, [proposals, jobAssignments, personnel, sortOrder]);
+  }, [proposals, jobAssignments, sortOrder]);
   
   const flatFilteredProposals = useMemo(() => {
     if (!proposals) return [];
@@ -925,12 +906,7 @@ export function QuotesPageContent() {
                                             <div className="font-semibold text-right">{formatCurrency(group.latestProposal.totalAmount)}</div>
                                         </div>
                                         <div className="flex items-center gap-2 pl-6">
-                                            {group.isAssigned && (
-                                                <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100/80">
-                                                    <HardHat className="mr-2 h-3 w-3"/>
-                                                    {group.assignedTo ? `Atandı: ${group.assignedTo}` : "Atandı"}
-                                                </Badge>
-                                            )}
+                                            {group.isAssigned && <Badge className="bg-orange-100 text-orange-800">Atandı</Badge>}
                                             {getStatusBadge(group.latestProposal.status)}
                                             <Badge variant="secondary">
                                                 <Copy className="mr-2 h-3 w-3"/>
@@ -1166,3 +1142,5 @@ export function QuotesPageContent() {
     </div>
   );
 }
+
+    
