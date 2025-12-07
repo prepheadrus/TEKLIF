@@ -44,12 +44,20 @@ import {
   ArrowUpDown,
   ChevronDown,
   Tag,
+  Users,
+  DollarSign,
+  TrendingUp,
+  BarChart,
+  Award,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { QuickAddCustomer } from '@/components/app/quick-add-customer';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { availableTags, getTagClassName } from '@/lib/tags';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarFallback } from '@/lib/placeholder-images';
 
 // --- Types ---
 type Customer = {
@@ -74,6 +82,7 @@ type Customer = {
 type Proposal = {
     id: string;
     customerId: string;
+    customerName: string;
     totalAmount: number;
     status: 'Draft' | 'Sent' | 'Approved' | 'Rejected';
     createdAt: Timestamp;
@@ -93,6 +102,18 @@ type EditingCell = {
   customerId: string;
   field: 'email' | 'phone';
 } | null;
+
+const StatCard = ({ title, value, icon, isLoading }: { title: string, value: string | number, icon: React.ReactNode, isLoading: boolean }) => (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        {icon}
+      </CardHeader>
+      <CardContent>
+        {isLoading ? <Skeleton className="h-8 w-3/4" /> : <div className="text-2xl font-bold">{value}</div>}
+      </CardContent>
+    </Card>
+);
 
 
 // --- Main Component ---
@@ -119,7 +140,7 @@ export function CustomersPageContent() {
   const { data: customers, isLoading: isLoadingCustomers, refetch: refetchCustomers } = useCollection<Customer>(customersQuery);
 
   const proposalsQuery = useMemoFirebase(
-      () => (firestore ? query(collection(firestore, 'proposals'), where('status', '==', 'Approved')) : null),
+      () => (firestore ? query(collection(firestore, 'proposals')) : null),
       [firestore]
   );
   const { data: proposals, isLoading: isLoadingProposals } = useCollection<Proposal>(proposalsQuery);
@@ -132,7 +153,9 @@ export function CustomersPageContent() {
         if (!acc[proposal.customerId]) {
             acc[proposal.customerId] = { totalSpending: 0, dates: [] };
         }
-        acc[proposal.customerId].totalSpending += proposal.totalAmount;
+        if (proposal.status === 'Approved') {
+            acc[proposal.customerId].totalSpending += proposal.totalAmount;
+        }
         acc[proposal.customerId].dates.push(proposal.createdAt.toDate());
         return acc;
     }, {} as Record<string, { totalSpending: number, dates: Date[] }>);
@@ -151,6 +174,34 @@ export function CustomersPageContent() {
     });
   }, [customers, proposals]);
   
+  const analytics = useMemo(() => {
+    const totalCustomers = customers?.length || 0;
+    const activeCustomers = customers?.filter(c => c.status === 'Aktif').length || 0;
+    const activeCustomerRate = totalCustomers > 0 ? (activeCustomers / totalCustomers) * 100 : 0;
+    
+    const approvedProposals = proposals?.filter(p => p.status === 'Approved') || [];
+    const totalProposalValue = approvedProposals.reduce((sum, p) => sum + p.totalAmount, 0);
+    const averageProposalValue = approvedProposals.length > 0 ? totalProposalValue / approvedProposals.length : 0;
+
+    const topSpenders = [...enrichedCustomers].sort((a,b) => b.totalSpending - a.totalSpending).slice(0, 5).filter(c => c.totalSpending > 0);
+
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const recentProposals = proposals?.filter(p => p.createdAt.toDate() > sevenDaysAgo)
+      .sort((a, b) => b.createdAt.seconds - a.createdAt.seconds)
+      .slice(0, 5);
+
+    return {
+        totalCustomers,
+        activeCustomerRate,
+        averageProposalValue,
+        topSpenders,
+        recentProposals,
+    }
+
+  }, [customers, proposals, enrichedCustomers])
+
+
   const uniqueCities = useMemo(() => {
     if (!customers) return [];
     const cities = customers.map(c => c.address?.city).filter(Boolean) as string[];
@@ -311,6 +362,67 @@ export function CustomersPageContent() {
             </Button>
         </div>
       </div>
+      
+        <Card>
+            <CardHeader>
+                <CardTitle>Müşteri Analitiği</CardTitle>
+                <CardDescription>Müşteri tabanınızın genel durumu ve önemli metrikler.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <StatCard title="Toplam Müşteri" value={analytics.totalCustomers} icon={<Users className="h-4 w-4 text-muted-foreground" />} isLoading={isLoading} />
+                <StatCard title="Aktif Müşteri Oranı" value={`${analytics.activeCustomerRate.toFixed(0)}%`} icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />} isLoading={isLoading} />
+                <StatCard title="Ort. Onaylanan Teklif" value={formatCurrency(analytics.averageProposalValue)} icon={<BarChart className="h-4 w-4 text-muted-foreground" />} isLoading={isLoading} />
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-base flex items-center"><Award className="h-5 w-5 mr-2 text-amber-500"/> En Çok Harcayanlar</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {isLoading ? <Skeleton className="h-24 w-full" /> : (
+                            <div className="space-y-2">
+                                {analytics.topSpenders.map(c => (
+                                    <div key={c.id} className="flex items-center justify-between text-sm">
+                                        <div className="flex items-center gap-2">
+                                            <Avatar className="h-6 w-6"><AvatarFallback>{getAvatarFallback(c.name)}</AvatarFallback></Avatar>
+                                            <span className="font-medium">{c.name}</span>
+                                        </div>
+                                        <span className="font-mono font-semibold">{formatCurrency(c.totalSpending)}</span>
+                                    </div>
+                                ))}
+                                {analytics.topSpenders.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">Henüz veri yok.</p>}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            </CardContent>
+            <CardContent>
+                <Card>
+                    <CardHeader className="pb-2">
+                         <CardTitle className="text-base">Son Teklif Alanlar (7 Gün)</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                         {isLoading ? <Skeleton className="h-24 w-full" /> : (
+                            <div className="space-y-2">
+                                {analytics.recentProposals?.map(p => (
+                                    <div key={p.id} className="flex items-center justify-between text-sm">
+                                        <div className="flex items-center gap-2">
+                                            <Avatar className="h-6 w-6"><AvatarFallback>{getAvatarFallback(p.customerName)}</AvatarFallback></Avatar>
+                                            <span className="font-medium">{p.customerName}</span>
+                                        </div>
+                                        <div className="flex flex-col text-right">
+                                            <span className="font-mono font-semibold">{formatCurrency(p.totalAmount)}</span>
+                                            <span className="text-xs text-muted-foreground">{formatDate(p.createdAt.toDate())}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                                {analytics.recentProposals?.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">Son 7 günde teklif oluşturulmadı.</p>}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            </CardContent>
+        </Card>
+
+
       <Card>
         <CardHeader>
           <CardTitle>Müşteri Listesi</CardTitle>
@@ -407,7 +519,7 @@ export function CustomersPageContent() {
                 ) : filteredAndSortedCustomers.length > 0 ? (
                     filteredAndSortedCustomers.map((customer) => (
                     <TableRow key={customer.id} >
-                        <TableCell className="font-medium" onClick={() => handleOpenEditDialog(customer)}>
+                        <TableCell className="font-medium cursor-pointer" onClick={() => handleOpenEditDialog(customer)}>
                           {customer.name}
                           {(customer.address?.district || customer.address?.city) && (
                             <div className="text-xs text-muted-foreground">
@@ -444,8 +556,8 @@ export function CustomersPageContent() {
                                 <div className="text-xs text-muted-foreground cursor-pointer hover:bg-gray-100 p-1 rounded mt-1" onClick={() => handleCellClick(customer, 'phone')}>{customer.phone}</div>
                            )}
                         </TableCell>
-                         <TableCell onClick={() => handleOpenEditDialog(customer)}>{customer.address?.city || '-'}</TableCell>
-                         <TableCell onClick={() => handleOpenEditDialog(customer)}>
+                         <TableCell className="cursor-pointer" onClick={() => handleOpenEditDialog(customer)}>{customer.address?.city || '-'}</TableCell>
+                         <TableCell className="cursor-pointer" onClick={() => handleOpenEditDialog(customer)}>
                             <div className="flex flex-wrap gap-1">
                                 {customer.tags?.map(tagId => {
                                     const tagInfo = availableTags.find(t => t.id === tagId);
@@ -458,9 +570,9 @@ export function CustomersPageContent() {
                                 })}
                             </div>
                          </TableCell>
-                         <TableCell onClick={() => handleOpenEditDialog(customer)}>{formatDate(customer.lastProposalDate)}</TableCell>
-                         <TableCell onClick={() => handleOpenEditDialog(customer)} className="font-mono text-right">{formatCurrency(customer.totalSpending)}</TableCell>
-                        <TableCell onClick={() => handleOpenEditDialog(customer)}>
+                         <TableCell className="cursor-pointer" onClick={() => handleOpenEditDialog(customer)}>{formatDate(customer.lastProposalDate)}</TableCell>
+                         <TableCell className="cursor-pointer font-mono text-right" onClick={() => handleOpenEditDialog(customer)}>{formatCurrency(customer.totalSpending)}</TableCell>
+                        <TableCell className="cursor-pointer" onClick={() => handleOpenEditDialog(customer)}>
                            <Badge variant={customer.status === 'Aktif' ? 'secondary' : 'outline'} className={customer.status === 'Aktif' ? 'bg-green-100 text-green-800' : ''}>
                              {customer.status}
                            </Badge>
@@ -495,5 +607,3 @@ export function CustomersPageContent() {
 export default function CustomersPage() {
     return <CustomersPageContent />;
 }
-
-    
