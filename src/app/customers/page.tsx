@@ -12,6 +12,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableHead,
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
@@ -103,7 +104,7 @@ export function CustomersPageContent() {
         refetch();
     } catch (error: any) {
         console.error("Müşteri silme hatası:", error);
-        toast({ variant: "destructive", title: "Hata", description: `Müşteri silinemedi: ${error.message}` });
+        toast({ variant: "destructive", title: "Hata", description: `Müşteri silinemedi: ${'error' in error ? error.message : "Bilinmeyen hata"}` });
     }
   }
 
@@ -128,7 +129,7 @@ export function CustomersPageContent() {
         refetch(); // Veriyi yeniden çekerek UI'ı güncelle
     } catch (error: any) {
         console.error("Inline düzenleme hatası:", error);
-        toast({ variant: "destructive", title: "Hata", description: `Güncelleme başarısız: ${error.message}` });
+        toast({ variant: "destructive", title: "Hata", description: `Güncelleme başarısız: ${'error' in error ? error.message : "Bilinmeyen hata"}` });
     } finally {
         setEditingCell(null);
         setEditValue('');
@@ -200,7 +201,7 @@ export function CustomersPageContent() {
               ) : error ? (
                 <TableRow>
                     <TableCell colSpan={4} className="h-24 text-center text-red-600">
-                        Müşteriler yüklenirken bir hata oluştu: {error.message}
+                        Müşteriler yüklenirken bir hata oluştu: {'error' in error ? error.message : "Bilinmeyen hata"}
                     </TableCell>
                 </TableRow>
               ) : filteredCustomers && filteredCustomers.length > 0 ? (
