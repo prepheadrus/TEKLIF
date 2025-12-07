@@ -1,8 +1,12 @@
-'use client';
+
+'use client'; // Bu satır dosyayı bir İstemci Bileşeni'ne dönüştürür.
 
 import dynamic from 'next/dynamic';
 import { Loader2 } from 'lucide-react';
+import type { Metadata } from 'next';
 
+// RecipesPageContent bileşenini ssr: false ile dinamik olarak yüklüyoruz.
+// Bu, sadece istemci tarafında render edilmesini sağlar.
 const RecipesPageContent = dynamic(
     () => import('@/app/recipes/recipes-client-page').then(mod => mod.RecipesPageContent),
     { 
@@ -14,6 +18,12 @@ const RecipesPageContent = dynamic(
         )
     }
 );
+
+// Metadata hala bir Sunucu Bileşeni özelliği gibi dışa aktarılabilir.
+// Ancak, bu sayfada 'use client' olduğu için build sırasında statik olarak analiz edilir.
+// export const metadata: Metadata = {
+//     title: 'Reçeteler',
+// };
 
 export default function RecipesPage() {
     return <RecipesPageContent />;
