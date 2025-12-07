@@ -134,6 +134,7 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
         const batch = writeBatch(firestore);
         const productsCollection = collection(firestore, 'products');
         const suppliersCollection = collection(firestore, 'suppliers');
+        const installationTypesCollection = collection(firestore, 'installation_types');
         
         const columnMapping = form.getValues();
         const requiredFieldsMet = productFields.filter(f => f.required).every(f => !!columnMapping[f.key]);
@@ -170,12 +171,15 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
                           newProduct['supplierId'] = newSupplierRef.id;
                       }
                     } else if (field.key === 'installationCategoryName') {
-                        const categoryName = value.toString().toLowerCase().trim();
-                        if(categoryNameToIdMap.has(categoryName)) {
-                            newProduct['installationTypeId'] = categoryNameToIdMap.get(categoryName);
+                        const categoryName = value.toString().trim();
+                        const lowerCategoryName = categoryName.toLowerCase();
+                        if(categoryNameToIdMap.has(lowerCategoryName)) {
+                            newProduct['installationTypeId'] = categoryNameToIdMap.get(lowerCategoryName);
                         } else {
-                            console.warn(`Tesisat kategorisi bulunamadı: "${value}". Bu ürün için kategori atanmayacak.`);
-                            newProduct['installationTypeId'] = null;
+                            const newCategoryRef = doc(installationTypesCollection);
+                            batch.set(newCategoryRef, { name: categoryName, parentId: null });
+                            categoryNameToIdMap.set(lowerCategoryName, newCategoryRef.id);
+                            newProduct['installationTypeId'] = newCategoryRef.id;
                         }
                     } else {
                       newProduct[field.key] = value;
