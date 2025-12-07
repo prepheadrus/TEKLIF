@@ -16,7 +16,7 @@ import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { calculateItemTotals } from '@/lib/pricing';
 import { ResponsiveContainer, LineChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Line, PieChart, Pie, Cell, Sector } from 'recharts';
-import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
+import { ChartConfig, ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 
 
 // --- Type Definitions ---
@@ -94,6 +94,36 @@ const getStatusBadge = (status: Proposal['status']) => {
       return <Badge variant="outline">Taslak</Badge>;
   }
 }
+
+const lineChartConfig = {
+  total: {
+    label: "Teklif Tutarı",
+    color: "hsl(var(--primary))",
+  },
+} satisfies ChartConfig
+
+const pieChartConfig = {
+    value: {
+        label: "Adet",
+    },
+    Onaylandı: {
+        label: "Onaylandı",
+        color: "hsl(var(--chart-2))",
+    },
+    Gönderildi: {
+        label: "Gönderildi",
+        color: "hsl(var(--chart-1))",
+    },
+    Reddedildi: {
+        label: "Reddedildi",
+        color: "hsl(var(--chart-5))",
+    },
+    Taslak: {
+        label: "Taslak",
+        color: "hsl(var(--chart-4))",
+    },
+} satisfies ChartConfig
+
 
 // --- Main Component ---
 export function DashboardContent() {
@@ -409,16 +439,18 @@ export function DashboardContent() {
             <CardContent>
                 {isLoading ? <Skeleton className="h-[350px] w-full" /> : (
                     <div className="h-[350px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={monthlyTrendData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="month" />
-                                <YAxis tickFormatter={(value) => new Intl.NumberFormat('tr-TR', { notation: 'compact', compactDisplay: 'short' }).format(value as number)} />
-                                <Tooltip content={<ChartTooltipContent formatter={(value) => formatCurrency(value as number)} />} />
-                                <Legend />
-                                <Line type="monotone" dataKey="total" name="Teklif Tutarı" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 8 }} />
-                            </LineChart>
-                        </ResponsiveContainer>
+                        <ChartContainer config={lineChartConfig}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={monthlyTrendData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis dataKey="month" />
+                                    <YAxis tickFormatter={(value) => new Intl.NumberFormat('tr-TR', { notation: 'compact', compactDisplay: 'short' }).format(value as number)} />
+                                    <Tooltip content={<ChartTooltipContent formatter={(value) => formatCurrency(value as number)} />} />
+                                    <Legend />
+                                    <Line type="monotone" dataKey="total" name="Teklif Tutarı" stroke="var(--color-total)" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 8 }} />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        </ChartContainer>
                     </div>
                 )}
             </CardContent>
@@ -431,38 +463,40 @@ export function DashboardContent() {
             <CardContent>
                  {isLoading ? <Skeleton className="h-[350px] w-full" /> : (
                     <div className="h-[350px]">
-                       <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Tooltip content={<ChartTooltipContent formatter={(value, name) => `${value} adet (${name})`} />} />
-                                <Pie
-                                    data={statusDistributionData}
-                                    dataKey="value"
-                                    nameKey="name"
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={80}
-                                    outerRadius={120}
-                                    paddingAngle={5}
-                                    labelLine={false}
-                                    label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
-                                        const RADIAN = Math.PI / 180;
-                                        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-                                        const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                                        const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                                        return (
-                                            <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="font-bold text-sm">
-                                                {`${(percent * 100).toFixed(0)}%`}
-                                            </text>
-                                        );
-                                    }}
-                                >
-                                    {statusDistributionData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                                    ))}
-                                </Pie>
-                                <Legend />
-                            </PieChart>
-                        </ResponsiveContainer>
+                       <ChartContainer config={pieChartConfig}>
+                           <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Tooltip content={<ChartTooltipContent formatter={(value, name) => `${value} adet`} nameKey="name" />} />
+                                    <Pie
+                                        data={statusDistributionData}
+                                        dataKey="value"
+                                        nameKey="name"
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={80}
+                                        outerRadius={120}
+                                        paddingAngle={5}
+                                        labelLine={false}
+                                        label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
+                                            const RADIAN = Math.PI / 180;
+                                            const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                                            const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                                            const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                                            return (
+                                                <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="font-bold text-sm">
+                                                    {`${(percent * 100).toFixed(0)}%`}
+                                                </text>
+                                            );
+                                        }}
+                                    >
+                                        {statusDistributionData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                                        ))}
+                                    </Pie>
+                                    <Legend />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </ChartContainer>
                     </div>
                 )}
             </CardContent>
@@ -587,3 +621,5 @@ export function DashboardContent() {
 export default function DashboardContentPage() {
     return <DashboardContent />;
 }
+
+    
