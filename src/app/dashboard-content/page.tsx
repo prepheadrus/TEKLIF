@@ -235,7 +235,7 @@ export function DashboardContent() {
         <h1 className="text-3xl font-bold tracking-tight">Yönetim Paneli</h1>
         <p className="text-muted-foreground">Genel bakış ve son aktiviteler.</p>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
             title="Toplam Teklif Tutarı"
             value={formatCurrency(stats.totalProposalAmount || 0)}
@@ -384,5 +384,3 @@ export function DashboardContent() {
 export default function DashboardContentPage() {
     return <DashboardContent />;
 }
-
-    
