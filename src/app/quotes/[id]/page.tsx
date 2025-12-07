@@ -6,7 +6,11 @@ import { initializeFirebase } from '@/firebase/server-init';
 async function getProposalData(id: string) {
     try {
         const { firestore } = initializeFirebase();
-        if (!firestore) return null;
+        // If firestore isn't available on the server, we can't fetch data.
+        if (!firestore) {
+            console.warn("Firestore not available on server for metadata generation.");
+            return null;
+        }
 
         const proposalRef = doc(firestore, 'proposals', id);
         const proposalSnap = await getDoc(proposalRef);
@@ -17,6 +21,7 @@ async function getProposalData(id: string) {
         return null;
     } catch (error) {
         console.error("Error fetching proposal for metadata:", error);
+        // Return null instead of letting the error propagate and crash the page
         return null;
     }
 }
@@ -30,6 +35,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
     };
   }
   
+  // Provide a fallback title if the proposal data can't be fetched
   return {
     title: `Teklif Detayı`,
   };
