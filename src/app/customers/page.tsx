@@ -175,9 +175,9 @@ export function CustomersPageContent() {
 
   // --- Data Enrichment and Processing ---
   const enrichedCustomers = useMemo((): EnrichedCustomer[] => {
-    if (!customers) return [];
+    if (!customers || !proposals) return [];
     
-    const proposalDataByCustomer = proposals?.reduce((acc, proposal) => {
+    const proposalDataByCustomer = proposals.reduce((acc, proposal) => {
         if (!acc[proposal.customerId]) {
             acc[proposal.customerId] = { totalSpending: 0, dates: [] };
         }
@@ -227,7 +227,7 @@ export function CustomersPageContent() {
         recentProposals,
     }
 
-  }, [customers, proposals, enrichedCustomers])
+  }, [customers, proposals, enrichedCustomers]);
 
 
   const uniqueCities = useMemo(() => {
@@ -831,5 +831,3 @@ export function CustomersPageContent() {
 export default function CustomersPage() {
     return <CustomersPageContent />;
 }
-
-    
