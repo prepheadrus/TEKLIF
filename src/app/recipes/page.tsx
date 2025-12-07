@@ -1,27 +1,9 @@
-'use client'; // Bu satır dosyayı bir İstemci Bileşeni'ne dönüştürür.
+import { Metadata } from 'next';
+import { RecipesPageContent } from '@/app/recipes/recipes-client-page';
 
-import dynamic from 'next/dynamic';
-import { Loader2 } from 'lucide-react';
-import type { Metadata } from 'next';
-
-// RecipesPageContent bileşenini ssr: false ile dinamik olarak yüklüyoruz.
-// Bu, sadece istemci tarafında render edilmesini sağlar.
-const RecipesPageContent = dynamic(
-    () => import('@/app/recipes/recipes-client-page').then(mod => mod.RecipesPageContent),
-    { 
-        ssr: false, 
-        loading: () => (
-            <div className="flex h-full w-full items-center justify-center p-8">
-                <Loader2 className="h-16 w-16 animate-spin text-primary" />
-            </div>
-        )
-    }
-);
-
-// Metadata bir istemci bileşeninde kullanılamayacağı için yorum satırına alınıyor veya kaldırılıyor.
-// export const metadata: Metadata = {
-//     title: 'Reçeteler',
-// };
+export const metadata: Metadata = {
+    title: 'Reçeteler',
+};
 
 export default function RecipesPage() {
     return <RecipesPageContent />;
