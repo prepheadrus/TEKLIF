@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -31,6 +32,13 @@ import {
   FormLabel,
   FormMessage
 } from '@/components/ui/form';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import {
   PlusCircle,
   Trash2,
@@ -529,9 +537,29 @@ function LaborCostDialog({ isOpen, onOpenChange, laborCosts, onAddLabor, onRefet
                                 <FormField control={form.control} name="role" render={({ field }) => (
                                     <FormItem><FormLabel>Rol</FormLabel><FormControl><Input placeholder="Usta Yevmiye" {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
-                                <FormField control={form.control} name="unit" render={({ field }) => (
-                                    <FormItem><FormLabel>Birim</FormLabel><FormControl><Input placeholder="Gün" {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
+                                <FormField
+                                    control={form.control}
+                                    name="unit"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Birim</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                            <SelectValue placeholder="Birim seçin" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="Gün">Gün</SelectItem>
+                                            <SelectItem value="Saat">Saat</SelectItem>
+                                            <SelectItem value="İş">İş (Götürü)</SelectItem>
+                                            <SelectItem value="Ay">Ay</SelectItem>
+                                        </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
                                 <FormField control={form.control} name="cost" render={({ field }) => (
                                     <FormItem><FormLabel>Maliyet</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
