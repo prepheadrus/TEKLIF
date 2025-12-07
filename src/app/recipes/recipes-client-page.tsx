@@ -130,7 +130,7 @@ export function RecipesPageContent() {
     control: form.control,
     name: 'recipeItems',
   });
-
+  
   useEffect(() => {
     if (selectedProduct) {
       const recipe = recipes?.find(r => r.productId === selectedProduct.id);
