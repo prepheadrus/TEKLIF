@@ -74,7 +74,8 @@ export const PrintDocument = forwardRef<HTMLDivElement, PrintDocumentProps>(
         return acc;
     }, {} as Record<string, typeof teklif.items>);
 
-    console.log('teklif.groupedItems (calculated inside PrintDocument):', groupedItems);
+    console.log('teklif.items (in PrintDocument):', teklif.items);
+    console.log('groupedItems (calculated in PrintDocument):', groupedItems);
 
     const sortedGroups = Object.entries(groupedItems).sort(([a], [b]) => {
         if (a === 'Diğer') return 1;
