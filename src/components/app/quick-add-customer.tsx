@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -11,8 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useFirestore, addDocumentNonBlocking } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { useFirestore, addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
 
 const customerSchema = z.object({
   name: z.string().min(2, "Müşteri adı en az 2 karakter olmalıdır."),
@@ -24,26 +25,53 @@ const customerSchema = z.object({
 
 type CustomerFormValues = z.infer<typeof customerSchema>;
 
+type Customer = {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  address?: string;
+  taxNumber?: string;
+};
+
 interface QuickAddCustomerProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
     onCustomerAdded: () => void;
+    existingCustomer?: Customer | null;
 }
 
-export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded }: QuickAddCustomerProps) {
+export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded, existingCustomer }: QuickAddCustomerProps) {
   const { toast } = useToast();
   const firestore = useFirestore();
 
   const form = useForm<CustomerFormValues>({
     resolver: zodResolver(customerSchema),
-    defaultValues: {
-      name: "",
-      email: "",
-      phone: "",
-      address: "",
-      taxNumber: "",
-    },
   });
+
+  const isEditMode = !!existingCustomer;
+
+  useEffect(() => {
+    if (isOpen) {
+      if (isEditMode) {
+        form.reset({
+          name: existingCustomer.name || "",
+          email: existingCustomer.email || "",
+          phone: existingCustomer.phone || "",
+          address: existingCustomer.address || "",
+          taxNumber: existingCustomer.taxNumber || "",
+        });
+      } else {
+        form.reset({
+          name: "",
+          email: "",
+          phone: "",
+          address: "",
+          taxNumber: "",
+        });
+      }
+    }
+  }, [isOpen, existingCustomer, isEditMode, form]);
 
   const onSubmit = async (values: CustomerFormValues) => {
     if (!firestore) {
@@ -55,17 +83,37 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded }: Quic
       return;
     }
     
-    const customersCollectionRef = collection(firestore, 'customers');
-    addDocumentNonBlocking(customersCollectionRef, values);
-    
-    toast({
-      title: "Başarılı",
-      description: "Yeni müşteri başarıyla eklendi.",
-    });
-    form.reset();
-    onCustomerAdded();
-    onOpenChange(false);
+    try {
+      if (isEditMode) {
+        const customerDocRef = doc(firestore, 'customers', existingCustomer.id);
+        setDocumentNonBlocking(customerDocRef, values, { merge: true });
+        toast({
+          title: "Başarılı",
+          description: "Müşteri bilgileri güncellendi.",
+        });
+      } else {
+        const customersCollectionRef = collection(firestore, 'customers');
+        addDocumentNonBlocking(customersCollectionRef, values);
+        toast({
+          title: "Başarılı",
+          description: "Yeni müşteri başarıyla eklendi.",
+        });
+      }
+      form.reset();
+      onCustomerAdded();
+      onOpenChange(false);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Hata",
+        description: `İşlem sırasında bir hata oluştu: ${error.message}`,
+      });
+    }
   };
+
+  const dialogTitle = isEditMode ? 'Müşteriyi Düzenle' : 'Yeni Müşteri Ekle';
+  const dialogDescription = isEditMode ? 'Müşteri bilgilerini güncelleyin.' : 'Sisteminize yeni bir müşteri kaydedin.';
+  const buttonText = isEditMode ? 'Güncelle' : 'Kaydet';
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -73,10 +121,8 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded }: Quic
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <DialogHeader>
-              <DialogTitle>Yeni Müşteri Ekle</DialogTitle>
-              <DialogDescription>
-                Sisteminize yeni bir müşteri kaydedin.
-              </DialogDescription>
+              <DialogTitle>{dialogTitle}</DialogTitle>
+              <DialogDescription>{dialogDescription}</DialogDescription>
             </DialogHeader>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -103,7 +149,7 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded }: Quic
               </DialogClose>
               <Button type="submit" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Müşteriyi Kaydet
+                {buttonText}
               </Button>
             </DialogFooter>
           </form>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -57,7 +58,8 @@ export function CustomersPageContent() {
   const { toast } = useToast();
   const firestore = useFirestore();
   
-  const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
+  const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const customersQuery = useMemoFirebase(
@@ -65,6 +67,16 @@ export function CustomersPageContent() {
       [firestore]
   );
   const { data: customers, isLoading, error, refetch } = useCollection<Customer>(customersQuery);
+
+  const handleOpenAddDialog = () => {
+    setEditingCustomer(null);
+    setIsCustomerDialogOpen(true);
+  };
+
+  const handleOpenEditDialog = (customer: Customer) => {
+    setEditingCustomer(customer);
+    setIsCustomerDialogOpen(true);
+  };
 
   const handleDeleteCustomer = async (customerId: string) => {
     if (!firestore) return;
@@ -94,7 +106,7 @@ export function CustomersPageContent() {
           </p>
         </div>
         <div className="flex items-center space-x-2">
-            <Button onClick={() => setIsAddCustomerOpen(true)}>
+            <Button onClick={handleOpenAddDialog}>
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Yeni Müşteri Ekle
             </Button>
@@ -153,7 +165,7 @@ export function CustomersPageContent() {
                            </DropdownMenuTrigger>
                            <DropdownMenuContent align="end">
                              <DropdownMenuLabel>İşlemler</DropdownMenuLabel>
-                             <DropdownMenuItem onClick={() => alert('Düzenleme yakında eklenecek.')}>
+                             <DropdownMenuItem onClick={() => handleOpenEditDialog(customer)}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 Düzenle
                              </DropdownMenuItem>
@@ -197,9 +209,10 @@ export function CustomersPageContent() {
         </CardContent>
       </Card>
       <QuickAddCustomer 
-        isOpen={isAddCustomerOpen}
-        onOpenChange={setIsAddCustomerOpen}
+        isOpen={isCustomerDialogOpen}
+        onOpenChange={setIsCustomerDialogOpen}
         onCustomerAdded={refetch}
+        existingCustomer={editingCustomer}
       />
     </div>
   );
