@@ -5,6 +5,6 @@ export const metadata: Metadata = {
   title: 'Teklif Detayı',
 };
 
-export default function QuoteDetailPage({ params }: { params: { id: string } }) {
-    return <QuoteDetailClientPage params={params} />;
+export default function QuoteDetailPage() {
+    return <QuoteDetailClientPage />;
 }
