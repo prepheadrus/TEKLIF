@@ -24,24 +24,26 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc, writeBatch, query, where, getDocs } from 'firebase/firestore';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { FileUp, TableProperties, CheckCircle, ArrowRight, Loader2, Info } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { FileUp, TableProperties, CheckCircle, ArrowRight, Loader2, Info, Download } from 'lucide-react';
 import { ScrollArea } from '../ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import type { Supplier, Product } from '@/app/products/products-client-page';
 
 type Step = 'upload' | 'map' | 'review' | 'importing' | 'done';
 
-const productFields: { key: keyof Omit<Product, 'id'>; label: string, required: boolean }[] = [
-    { key: 'name', label: 'Ürün Adı', required: true },
-    { key: 'brand', label: 'Marka', required: true },
-    { key: 'code', label: 'Ürün Kodu', required: true },
-    { key: 'model', label: 'Model', required: false },
-    { key: 'unit', label: 'Birim', required: true },
-    { key: 'basePrice', label: 'Birim Alış Fiyatı', required: true },
-    { key: 'listPrice', label: 'Birim Satış Fiyatı', required: true },
-    { key: 'currency', label: 'Para Birimi (TRY, USD, EUR)', required: true },
-    { key: 'supplierName', label: 'Tedarikçi Adı', required: false },
+const productFields: { key: keyof Omit<Product, 'id'> | 'supplierName'; label: string, required: boolean, description?: string }[] = [
+    { key: 'code', label: 'Ürün Kodu', required: true, description: "Her ürün için benzersiz bir kod (SKU)." },
+    { key: 'name', label: 'Ürün Adı', required: true, description: "Ürünün tam ve açıklayıcı adı." },
+    { key: 'brand', label: 'Marka', required: true, description: "Ürünün markası." },
+    { key: 'model', label: 'Model', required: false, description: "Ürünün spesifik model numarası veya adı (isteğe bağlı)." },
+    { key: 'unit', label: 'Birim', required: true, description: "Örn: Adet, Metre, Kg, Set." },
+    { key: 'basePrice', label: 'Birim Alış Fiyatı', required: true, description: "Ürünün KDV hariç alış fiyatı." },
+    { key: 'listPrice', label: 'Birim Satış Fiyatı', required: true, description: "Ürünün KDV hariç liste satış fiyatı." },
+    { key: 'currency', label: 'Para Birimi', required: true, description: "Geçerli değerler: TRY, USD, EUR." },
+    { key: 'supplierName', label: 'Tedarikçi Adı', required: false, description: "Bu ürünün tedarikçisinin adı. Sistemde yoksa yeni tedarikçi oluşturulur (isteğe bağlı)." },
+    { key: 'category', label: 'Genel Kategori', required: false, description: "Ürünün genel kategorisi. Örn: Kazan, Pompa (isteğe bağlı)." },
+    { key: 'discountRate', label: 'İskonto Oranı', required: false, description: "Varsayılan satış iskontosu. Örn: %15 için 0.15 (isteğe bağlı)." }
 ];
 
 
@@ -70,7 +72,7 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
           const workbook = XLSX.read(data, { type: 'array' });
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
-          const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false });
           
           if(jsonData.length < 2) {
               toast({variant: 'destructive', title: 'Dosya Hatası', description: 'Excel dosyası başlık satırı ve en az bir veri satırı içermelidir.'})
@@ -97,6 +99,26 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
       reader.readAsArrayBuffer(selectedFile);
     }
   };
+  
+  const handleDownloadTemplate = () => {
+    const headers = productFields.map(f => f.label);
+    const exampleRow = productFields.map(f => {
+        if(f.key === 'code') return 'PRD-001';
+        if(f.key === 'name') return 'Örnek Ürün Adı';
+        if(f.key === 'brand') return 'Örnek Marka';
+        if(f.key === 'unit') return 'Adet';
+        if(f.key === 'basePrice') return 100;
+        if(f.key === 'listPrice') return 150;
+        if(f.key === 'currency') return 'TRY';
+        if(f.key === 'supplierName') return 'Örnek Tedarikçi A.Ş.';
+        return ''; // Diğerleri için boş bırak
+    });
+    
+    const ws = XLSX.utils.aoa_to_sheet([headers, exampleRow]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Ürün Listesi");
+    XLSX.writeFile(wb, "Urun_Yukleme_Sablonu.xlsx");
+  }
 
   const handleImport = async () => {
     if (!firestore) return;
@@ -124,18 +146,18 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
 
             for (const field of productFields) {
                 const excelHeader = columnMapping[field.key];
-                if (excelHeader && row[excelHeader] !== undefined) {
+                if (excelHeader && row[excelHeader] !== undefined && row[excelHeader] !== null && row[excelHeader] !== '') {
                     let value = row[excelHeader];
-                    if (['basePrice', 'listPrice'].includes(field.key)) {
-                        value = parseFloat(value) || 0;
+                    if (['basePrice', 'listPrice', 'discountRate'].includes(field.key)) {
+                        value = parseFloat(String(value).replace(',', '.')) || 0;
                     }
                     if (field.key === 'supplierName') {
-                      const supplierName = value.toString().toLowerCase();
+                      const supplierName = value.toString().toLowerCase().trim();
                       if (supplierNameToIdMap.has(supplierName)) {
                           newProduct['supplierId'] = supplierNameToIdMap.get(supplierName);
                       } else {
                           const newSupplierRef = doc(suppliersCollection);
-                          batch.set(newSupplierRef, { name: value.toString() });
+                          batch.set(newSupplierRef, { name: value.toString().trim() });
                           supplierNameToIdMap.set(supplierName, newSupplierRef.id);
                           newProduct['supplierId'] = newSupplierRef.id;
                       }
@@ -150,6 +172,7 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
             // Set defaults for non-mapped optional fields
             newProduct.discountRate = newProduct.discountRate || 0;
             newProduct.category = newProduct.category || 'Genel';
+            newProduct.model = newProduct.model || '';
 
 
             batch.set(productDocRef, newProduct);
@@ -204,14 +227,26 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
             <FileUp className="w-12 h-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium mb-2">Excel Dosyanızı Buraya Sürükleyin</h3>
             <p className="text-muted-foreground mb-4">veya</p>
-            <input type="file" id="file-upload" className="hidden" accept=".xlsx, .xls, .csv" onChange={handleFileChange} />
-            <label htmlFor="file-upload" className="cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2">
-                Dosya Seç
-            </label>
-            <Alert variant="default" className="mt-8">
+            <div className='flex gap-2'>
+              <input type="file" id="file-upload" className="hidden" accept=".xlsx, .xls, .csv" onChange={handleFileChange} />
+              <label htmlFor="file-upload" className="cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2">
+                  Dosya Seç
+              </label>
+              <Button variant="secondary" onClick={handleDownloadTemplate}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Örnek Şablonu İndir
+              </Button>
+            </div>
+            <Alert variant="default" className="mt-8 text-left">
               <Info className="h-4 w-4" />
+              <AlertTitle>Nasıl Çalışır?</AlertTitle>
               <AlertDescription>
-                Dosyanızın ilk satırı başlıkları içermelidir: Ürün Adı, Marka, Birim Fiyat gibi.
+                <ol className="list-decimal list-inside space-y-1 mt-2">
+                    <li><b>Örnek Şablonu İndirin:</b> Doğru formatı kullanmak için şablonu indirin.</li>
+                    <li><b>Verilerinizi Girin:</b> Ürün bilgilerinizi şablondaki ilgili sütunlara doldurun.</li>
+                    <li><b>Dosyayı Yükleyin:</b> Hazırladığınız dosyayı seçin veya sürükleyip bırakın.</li>
+                    <li><b>Eşleştirin ve Kontrol Edin:</b> Sonraki adımlarda sütunları doğrulayın ve verileri gözden geçirin.</li>
+                </ol>
               </AlertDescription>
             </Alert>
           </div>
@@ -332,8 +367,8 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0">
+        <DialogHeader className="p-6 pb-4">
           <DialogTitle className="flex items-center gap-2">
             {step === 'upload' && <FileUp className="h-6 w-6" />}
             {step === 'map' && <TableProperties className="h-6 w-6" />}
@@ -342,11 +377,11 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
           </DialogTitle>
            {step !== 'importing' && step !== 'done' && <DialogDescription>Excel dosyanızdaki ürünleri sisteme hızlıca aktarın.</DialogDescription>}
         </DialogHeader>
-        <div className="flex-1 overflow-auto -mx-6 px-6">
+        <div className="flex-1 overflow-auto -mx-6 px-6 border-y">
             {renderContent()}
         </div>
-        {!['importing', 'done'].includes(step) && renderFooter()}
-         {['importing', 'done'].includes(step) && <div className="pt-6 border-t">{renderFooter()}</div>}
+        {!['importing', 'done'].includes(step) && <div className="p-6 pt-4">{renderFooter()}</div>}
+         {['importing', 'done'].includes(step) && <div className="p-6 pt-4">{renderFooter()}</div>}
       </DialogContent>
     </Dialog>
   );
