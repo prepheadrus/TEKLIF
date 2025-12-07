@@ -31,12 +31,13 @@ import {
     X,
     ChevronLeft,
     ChevronRight,
+    ChevronDown,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, query, orderBy, doc, writeBatch, getDocs, where } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { QuickAddProduct } from '@/components/app/quick-add-product';
 import { productSeedData } from '@/lib/product-seed-data';
@@ -106,6 +107,34 @@ const buildCategoryNameMap = (categories: InstallationType[]): Map<string, strin
     return nameMap;
 };
 
+const buildCategoryTreeForFilter = (categories: InstallationType[]): { id: string; name: string }[] => {
+    if (!categories) return [];
+
+    const categoryMap: { [id: string]: { id: string; name: string; children: any[] } } = {};
+    categories.forEach(cat => {
+        categoryMap[cat.id] = { ...cat, children: [] };
+    });
+
+    const roots: { id: string; name: string; children: any[] }[] = [];
+    categories.forEach(cat => {
+        if (cat.parentId && categoryMap[cat.parentId]) {
+            categoryMap[cat.parentId].children.push(categoryMap[cat.id]);
+        } else {
+            roots.push(categoryMap[cat.id]);
+        }
+    });
+
+    const flattenedList: { id: string; name: string }[] = [];
+    const traverse = (node: { id: string; name: string; children: any[] }, prefix: string) => {
+        const currentName = prefix ? `${prefix} > ${node.name}` : node.name;
+        flattenedList.push({ id: node.id, name: currentName });
+        node.children.sort((a,b) => a.name.localeCompare(b.name, 'tr')).forEach(child => traverse(child, currentName));
+    };
+
+    roots.sort((a, b) => a.name.localeCompare(b.name, 'tr')).forEach(root => traverse(root, ''));
+    return flattenedList;
+};
+
 export function ProductsPageContent() {
   const { toast } = useToast();
   const firestore = useFirestore();
@@ -115,6 +144,10 @@ export function ProductsPageContent() {
   const [isSeeding, setIsSeeding] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
+  const [supplierFilter, setSupplierFilter] = useState<string[]>([]);
+  const [brandFilter, setBrandFilter] = useState<string[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
+
 
   // --- Data Fetching ---
   const productsQuery = useMemoFirebase(
@@ -138,10 +171,10 @@ export function ProductsPageContent() {
   // --- Effects ---
    useEffect(() => {
     setCurrentPage(1); // Reset page on filter change
-  }, [searchTerm]);
+  }, [searchTerm, supplierFilter, brandFilter, categoryFilter]);
 
 
-  // --- Memoized Maps for Display ---
+  // --- Memoized Maps and Lists for Display and Filtering ---
   const categoryNameMap = useMemo(() => {
     if (!installationTypes) return new Map();
     return buildCategoryNameMap(installationTypes);
@@ -151,18 +184,34 @@ export function ProductsPageContent() {
     if (!suppliers) return new Map<string, string>();
     return new Map(suppliers.map(s => [s.id, s.name]));
   }, [suppliers]);
+
+  const uniqueBrands = useMemo(() => {
+    if (!products) return [];
+    const brands = products.map(p => p.brand).filter(Boolean);
+    return [...new Set(brands)].sort((a,b) => a.localeCompare(b, 'tr'));
+  }, [products]);
+
+  const hierarchicalCategoriesForFilter = useMemo(() => {
+    if (!installationTypes) return [];
+    return buildCategoryTreeForFilter(installationTypes);
+  }, [installationTypes]);
   
     const filteredProducts = useMemo(() => {
         if (!products) return [];
-        return products.filter(p => 
-            p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (p.model && p.model.toLowerCase().includes(searchTerm.toLowerCase())) ||
-            p.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (p.installationTypeId && categoryNameMap.get(p.installationTypeId)?.toLowerCase().includes(searchTerm.toLowerCase()))
-        )
-    }, [products, searchTerm, categoryNameMap]);
+        return products.filter(p => {
+            const searchMatch = searchTerm === '' ||
+                p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                p.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                p.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (p.model && p.model.toLowerCase().includes(searchTerm.toLowerCase()));
+
+            const supplierMatch = supplierFilter.length === 0 || (p.supplierId && supplierFilter.includes(p.supplierId));
+            const brandMatch = brandFilter.length === 0 || brandFilter.includes(p.brand);
+            const categoryMatch = categoryFilter.length === 0 || (p.installationTypeId && categoryFilter.includes(p.installationTypeId));
+
+            return searchMatch && supplierMatch && brandMatch && categoryMatch;
+        });
+    }, [products, searchTerm, supplierFilter, brandFilter, categoryFilter]);
 
     // --- Pagination Logic ---
     const paginatedProducts = useMemo(() => {
@@ -344,6 +393,13 @@ export function ProductsPageContent() {
     );
   }
 
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setSupplierFilter([]);
+    setBrandFilter([]);
+    setCategoryFilter([]);
+  }
+
   return (
     <div className="flex flex-col gap-4 p-8">
       <div className="flex items-center justify-between space-y-2">
@@ -365,15 +421,64 @@ export function ProductsPageContent() {
       <Card>
         <CardHeader>
           <CardTitle>Ürün Listesi</CardTitle>
-          <CardDescription>Tüm ürün, malzeme ve hizmetleriniz.</CardDescription>
-          <div className="relative pt-2">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Ürün adı, kodu, marka, model veya kategori ara..."
-              className="pl-8"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+          <CardDescription>
+            Tüm ürün, malzeme ve hizmetleriniz. Gelişmiş filtreleri kullanarak listeyi daraltabilirsiniz.
+          </CardDescription>
+          <div className="pt-4 flex flex-col gap-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Ürün adı, kodu, marka veya model ara..."
+                className="pl-8"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+                {/* Supplier Filter */}
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline">Tedarikçi <ChevronDown className="ml-2 h-4 w-4" /></Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        {suppliers?.map(supplier => (
+                             <DropdownMenuCheckboxItem key={supplier.id} checked={supplierFilter.includes(supplier.id)} onCheckedChange={(checked) => setSupplierFilter(prev => checked ? [...prev, supplier.id] : prev.filter(id => id !== supplier.id))}>
+                                {supplier.name}
+                            </DropdownMenuCheckboxItem>
+                        ))}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+
+                {/* Brand Filter */}
+                 <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline">Marka <ChevronDown className="ml-2 h-4 w-4" /></Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        {uniqueBrands.map(brand => (
+                             <DropdownMenuCheckboxItem key={brand} checked={brandFilter.includes(brand)} onCheckedChange={(checked) => setBrandFilter(prev => checked ? [...prev, brand] : prev.filter(b => b !== brand))}>
+                                {brand}
+                            </DropdownMenuCheckboxItem>
+                        ))}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+
+                 {/* Category Filter */}
+                 <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline">Kategori <ChevronDown className="ml-2 h-4 w-4" /></Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="max-h-96 overflow-y-auto">
+                        {hierarchicalCategoriesForFilter.map(cat => (
+                             <DropdownMenuCheckboxItem key={cat.id} checked={categoryFilter.includes(cat.id)} onCheckedChange={(checked) => setCategoryFilter(prev => checked ? [...prev, cat.id] : prev.filter(id => id !== cat.id))}>
+                                {cat.name}
+                            </DropdownMenuCheckboxItem>
+                        ))}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+
+                <Button variant="ghost" onClick={handleClearFilters}>Filtreleri Temizle</Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -517,7 +622,7 @@ export function ProductsPageContent() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={9} className="h-24 text-center">
-                    Henüz ürün bulunmuyor. Örnek verileri yükleyebilir veya yeni ürün ekleyebilirsiniz.
+                    Henüz ürün bulunmuyor veya arama kriterlerinize uyan ürün yok.
                   </TableCell>
                 </TableRow>
               )}
@@ -542,3 +647,5 @@ export function ProductsPageContent() {
     </div>
   );
 }
+
+    
