@@ -36,7 +36,16 @@ interface PrintDocumentProps {
     name: string;
     email?: string;
     phone?: string;
-    address?: string;
+    address?: {
+        street?: string;
+        neighborhood?: string;
+        postalCode?: string;
+        buildingName?: string;
+        city?: string;
+        buildingNumber?: string;
+        apartmentNumber?: string;
+        district?: string;
+    };
     taxNumber?: string;
   };
   firma: {
@@ -59,11 +68,32 @@ const formatDate = (timestamp?: { seconds: number }) => {
     return new Date(timestamp.seconds * 1000).toLocaleDateString('tr-TR');
 };
 
+const formatAddress = (address: PrintDocumentProps['customer']['address']): string => {
+    if (!address) return '';
+    const parts: string[] = [];
+    if(address.neighborhood) parts.push(address.neighborhood);
+    if(address.street) parts.push(address.street);
+    if(address.buildingName) parts.push(address.buildingName);
+    
+    let numberPart = '';
+    if(address.buildingNumber) numberPart += `No: ${address.buildingNumber}`;
+    if(address.apartmentNumber) numberPart += `/${address.apartmentNumber}`;
+    if(numberPart) parts.push(numberPart);
+
+    let cityPart = '';
+    if(address.district) cityPart += address.district;
+    if(address.district && address.city) cityPart += ' / ';
+    if(address.city) cityPart += address.city;
+    if(cityPart) parts.push(cityPart);
+
+    if(address.postalCode) parts.push(address.postalCode);
+    
+    return parts.join(', ');
+}
+
 
 export const PrintDocument = forwardRef<HTMLDivElement, PrintDocumentProps>(
   ({ teklif, firma, customer }, ref) => {
-
-    console.log('PrintDocument props:', { teklif, customer, firma });
     
     const groupedItems = teklif.items.reduce((acc, item) => {
         const groupName = item.groupName || 'Diğer';
@@ -74,14 +104,13 @@ export const PrintDocument = forwardRef<HTMLDivElement, PrintDocumentProps>(
         return acc;
     }, {} as Record<string, typeof teklif.items>);
 
-    console.log('teklif.items (in PrintDocument):', teklif.items);
-    console.log('groupedItems (calculated in PrintDocument):', groupedItems);
-
     const sortedGroups = Object.entries(groupedItems).sort(([a], [b]) => {
         if (a === 'Diğer') return 1;
         if (b === 'Diğer') return -1;
         return a.localeCompare(b);
     });
+
+    const formattedAddress = formatAddress(customer.address);
 
     return (
       <div ref={ref} className="bg-white p-8 max-w-[210mm] mx-auto text-[10pt] leading-relaxed screen:shadow-lg screen:my-8 print:p-0">
@@ -97,7 +126,7 @@ export const PrintDocument = forwardRef<HTMLDivElement, PrintDocumentProps>(
             </div>
           </div>
           <div className="text-right flex-shrink-0 text-gray-700">
-            <p className="text-2xl font-bold text-black">TEKLİF</p>
+            <p className="text-2xl font-bold text-gray-800">TEKLİF</p>
             <p className="text-sm">Teklif No: {teklif.quoteNumber}</p>
             <p className="text-sm">Tarih: {formatDate(teklif.createdAt)}</p>
           </div>
@@ -107,7 +136,7 @@ export const PrintDocument = forwardRef<HTMLDivElement, PrintDocumentProps>(
           <div className="border rounded p-3 bg-slate-50/50">
             <h3 className="font-bold border-b pb-1 mb-2 text-gray-800">MÜŞTERİ BİLGİLERİ</h3>
             <p className="font-semibold text-primary">{customer.name}</p>
-            {customer.address && <p className="text-gray-600">{customer.address}</p>}
+            {formattedAddress && <p className="text-gray-600">{formattedAddress}</p>}
             {(customer.email || customer.phone) && <p className="text-gray-600">{customer.email} {customer.email && customer.phone && '|'} {customer.phone}</p>}
             {customer.taxNumber && <p className="text-gray-500">Vergi No: {customer.taxNumber}</p>}
           </div>
