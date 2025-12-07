@@ -311,7 +311,7 @@ export function QuoteDetailClientPage() {
            handleFetchRates();
         }
     }
-  }, [proposal, initialItems, form, defaultTerms]);
+  }, [proposal, initialItems]);
 
 
   useEffect(() => {
