@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { ThemeToggle } from '@/components/app/theme-toggle';
+import dynamic from 'next/dynamic';
+
+const MobileNav = dynamic(() => import('@/components/app/app-layout').then(mod => mod.MobileNav), { ssr: false });
 
 const navItems = [
     { href: '/', label: 'Anasayfa', icon: Home, target: '/' },
@@ -43,7 +46,7 @@ const NavItem = ({ href, label, target }: { href: string, label: string, target:
     )
 }
 
-const MobileNav = () => {
+export const MobileNavComponent = () => {
     const [open, setOpen] = useState(false);
 
     const handleLinkClick = (e: React.MouseEvent, href: string, target: string) => {
@@ -104,7 +107,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
                      <div id="exchange-rate-portal"></div>
                      <ThemeToggle />
                     <div className="md:hidden">
-                        <MobileNav />
+                        <MobileNavComponent />
                     </div>
                 </div>
             </div>
