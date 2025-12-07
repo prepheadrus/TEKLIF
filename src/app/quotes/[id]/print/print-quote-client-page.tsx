@@ -53,6 +53,7 @@ type Customer = {
 type CalculatedItem = ProposalItem & {
     unitPrice: number;
     total: number;
+    id: string;
 };
 
 // --- Main Component ---
@@ -252,5 +253,3 @@ export function PrintQuoteClientPage() {
         </div>
     );
 }
-
-    
