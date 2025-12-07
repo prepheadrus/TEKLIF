@@ -8,7 +8,9 @@ import {
   query,
   orderBy,
   where,
-  Timestamp
+  Timestamp,
+  updateDoc,
+  doc
 } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import {
@@ -41,10 +43,13 @@ import {
   Search,
   ArrowUpDown,
   ChevronDown,
+  Tag,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { QuickAddCustomer } from '@/components/app/quick-add-customer';
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
+import { availableTags, getTagClassName } from '@/lib/tags';
 
 // --- Types ---
 type Customer = {
@@ -54,6 +59,7 @@ type Customer = {
   phone?: string;
   city?: string;
   status: 'Aktif' | 'Pasif';
+  tags?: string[];
 };
 
 type Proposal = {
@@ -70,9 +76,15 @@ type EnrichedCustomer = Customer & {
 }
 
 type SortConfig = {
-    key: keyof EnrichedCustomer;
+    key: keyof EnrichedCustomer | 'tags';
     direction: 'ascending' | 'descending';
 }
+
+type EditingCell = {
+  customerId: string;
+  field: 'email' | 'phone';
+} | null;
+
 
 // --- Main Component ---
 export function CustomersPageContent() {
@@ -85,7 +97,10 @@ export function CustomersPageContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<('Aktif' | 'Pasif')[]>(['Aktif']);
   const [cityFilter, setCityFilter] = useState<string[]>([]);
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'name', direction: 'ascending' });
+  const [editingCell, setEditingCell] = useState<EditingCell>(null);
+  const [editValue, setEditValue] = useState('');
 
   // --- Data Fetching ---
   const customersQuery = useMemoFirebase(
@@ -120,6 +135,7 @@ export function CustomersPageContent() {
         return {
             ...customer,
             status: customer.status || 'Aktif', // Default to Aktif if not set
+            tags: customer.tags || [],
             lastProposalDate,
             totalSpending: customerData?.totalSpending || 0
         };
@@ -144,32 +160,39 @@ export function CustomersPageContent() {
 
         const statusMatch = statusFilter.length === 0 || statusFilter.includes(c.status);
         const cityMatch = cityFilter.length === 0 || (c.city && cityFilter.includes(c.city));
+        const tagMatch = tagFilter.length === 0 || c.tags?.some(tag => tagFilter.includes(tag));
         
-        return searchMatch && statusMatch && cityMatch;
+        return searchMatch && statusMatch && cityMatch && tagMatch;
       })
       .sort((a, b) => {
-        const aValue = a[sortConfig.key];
-        const bValue = b[sortConfig.key];
+        const aValue = a[sortConfig.key as keyof EnrichedCustomer];
+        const bValue = b[sortConfig.key as keyof EnrichedCustomer];
         
         let comparison = 0;
-        if (aValue === null || aValue === undefined) comparison = 1;
-        else if (bValue === null || bValue === undefined) comparison = -1;
-        else if (typeof aValue === 'string' && typeof bValue === 'string') {
+
+        if (sortConfig.key === 'tags') {
+            const aTags = (a.tags || []).join(', ');
+            const bTags = (b.tags || []).join(', ');
+            comparison = aTags.localeCompare(bTags, 'tr');
+        } else if (aValue === null || aValue === undefined) {
+            comparison = 1;
+        } else if (bValue === null || bValue === undefined) {
+            comparison = -1;
+        } else if (typeof aValue === 'string' && typeof bValue === 'string') {
             comparison = aValue.localeCompare(bValue, 'tr');
         } else if (aValue instanceof Date && bValue instanceof Date) {
             comparison = aValue.getTime() - bValue.getTime();
-        }
-        else {
-           if (aValue < bValue) comparison = -1;
-           if (aValue > bValue) comparison = 1;
+        } else {
+           if ((aValue as any) < (bValue as any)) comparison = -1;
+           if ((aValue as any) > (bValue as any)) comparison = 1;
         }
 
         return sortConfig.direction === 'ascending' ? comparison : -comparison;
       });
-  }, [enrichedCustomers, searchTerm, statusFilter, cityFilter, sortConfig]);
+  }, [enrichedCustomers, searchTerm, statusFilter, cityFilter, tagFilter, sortConfig]);
 
   // --- Handlers ---
-  const handleSort = (key: keyof EnrichedCustomer) => {
+  const handleSort = (key: SortConfig['key']) => {
     setSortConfig(prev => ({
         key,
         direction: prev.key === key && prev.direction === 'ascending' ? 'descending' : 'ascending'
@@ -198,8 +221,37 @@ export function CustomersPageContent() {
     if (!date) return '-';
     return date.toLocaleDateString('tr-TR');
   }
+
+  const handleCellClick = (customer: Customer, field: 'email' | 'phone') => {
+    setEditingCell({ customerId: customer.id, field });
+    setEditValue(customer[field] || '');
+  }
+
+  const handleInlineEditSave = async () => {
+    if (!editingCell || !firestore) return;
+    const { customerId, field } = editingCell;
+    const docRef = doc(firestore, 'customers', customerId);
+    try {
+        await updateDoc(docRef, { [field]: editValue });
+        refetchCustomers();
+    } catch (error) {
+        console.error("Inline edit failed:", error);
+    }
+    setEditingCell(null);
+    setEditValue('');
+  }
+
+  const handleInlineEditKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+        handleInlineEditSave();
+    } else if (e.key === 'Escape') {
+        setEditingCell(null);
+        setEditValue('');
+    }
+  }
+
   
-  const SortableHeader = ({ title, sortKey }: { title: string; sortKey: keyof EnrichedCustomer }) => (
+  const SortableHeader = ({ title, sortKey }: { title: string; sortKey: SortConfig['key'] }) => (
     <TableHead onClick={() => handleSort(sortKey)} className="cursor-pointer hover:bg-accent">
         <div className="flex items-center gap-2">
             {title}
@@ -271,8 +323,27 @@ export function CustomersPageContent() {
                             ))}
                        </DropdownMenuContent>
                     </DropdownMenu>
+                    
+                    <DropdownMenu>
+                       <DropdownMenuTrigger asChild>
+                           <Button variant="outline">
+                               <Tag className="mr-2 h-4 w-4" />
+                                Etiketler <ChevronDown className="ml-2 h-4 w-4" />
+                           </Button>
+                       </DropdownMenuTrigger>
+                       <DropdownMenuContent>
+                            <DropdownMenuLabel>Etikete Göre Filtrele</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {availableTags.map(tag => (
+                                <DropdownMenuCheckboxItem key={tag.id} checked={tagFilter.includes(tag.id)} onCheckedChange={(checked) => setTagFilter(prev => checked ? [...prev, tag.id] : prev.filter(t => t !== tag.id))}>
+                                    {tag.name}
+                                </DropdownMenuCheckboxItem>
+                            ))}
+                       </DropdownMenuContent>
+                    </DropdownMenu>
 
-                    <Button variant="outline" onClick={() => { setSearchTerm(''); setStatusFilter(['Aktif']); setCityFilter([]) }}>
+
+                    <Button variant="outline" onClick={() => { setSearchTerm(''); setStatusFilter(['Aktif']); setCityFilter([]); setTagFilter([]); }}>
                         Filtreleri Temizle
                     </Button>
                 </div>
@@ -286,39 +357,79 @@ export function CustomersPageContent() {
                     <SortableHeader title="Ad / Unvan" sortKey="name" />
                     <TableHead>İletişim</TableHead>
                     <SortableHeader title="Şehir" sortKey="city" />
+                    <SortableHeader title="Etiketler" sortKey="tags" />
                     <SortableHeader title="Son Teklif Tarihi" sortKey="lastProposalDate" />
                     <SortableHeader title="Toplam Harcama" sortKey="totalSpending" />
                     <SortableHeader title="Durum" sortKey="status" />
+                    <TableHead>Eylemler</TableHead>
                 </TableRow>
                 </TableHeader>
                 <TableBody>
                 {isLoading ? (
                     <TableRow>
-                    <TableCell colSpan={6} className="text-center">
+                    <TableCell colSpan={8} className="text-center">
                         <Loader2 className="mx-auto my-4 h-6 w-6 animate-spin" />
                     </TableCell>
                     </TableRow>
                 ) : filteredAndSortedCustomers.length > 0 ? (
                     filteredAndSortedCustomers.map((customer) => (
-                    <TableRow key={customer.id} onClick={() => handleOpenEditDialog(customer)} className="cursor-pointer">
-                        <TableCell className="font-medium">{customer.name}</TableCell>
+                    <TableRow key={customer.id} >
+                        <TableCell className="font-medium" onClick={() => handleOpenEditDialog(customer)}>{customer.name}</TableCell>
                         <TableCell>
-                            <div className="text-sm">{customer.email}</div>
-                            <div className="text-xs text-muted-foreground">{customer.phone}</div>
+                           {editingCell?.customerId === customer.id && editingCell?.field === 'email' ? (
+                                <Input 
+                                    value={editValue}
+                                    onChange={(e) => setEditValue(e.target.value)}
+                                    onBlur={handleInlineEditSave}
+                                    onKeyDown={handleInlineEditKeyDown}
+                                    autoFocus
+                                    className="h-8"
+                                />
+                           ) : (
+                                <div className="text-sm cursor-pointer hover:bg-gray-100 p-1 rounded" onClick={() => handleCellClick(customer, 'email')}>{customer.email}</div>
+                           )}
+                           {editingCell?.customerId === customer.id && editingCell?.field === 'phone' ? (
+                                <Input 
+                                    value={editValue}
+                                    onChange={(e) => setEditValue(e.target.value)}
+                                    onBlur={handleInlineEditSave}
+                                    onKeyDown={handleInlineEditKeyDown}
+                                    autoFocus
+                                    className="h-8 mt-1"
+                                />
+                           ) : (
+                                <div className="text-xs text-muted-foreground cursor-pointer hover:bg-gray-100 p-1 rounded mt-1" onClick={() => handleCellClick(customer, 'phone')}>{customer.phone}</div>
+                           )}
                         </TableCell>
-                         <TableCell>{customer.city || '-'}</TableCell>
-                         <TableCell>{formatDate(customer.lastProposalDate)}</TableCell>
-                         <TableCell className="font-mono text-right">{formatCurrency(customer.totalSpending)}</TableCell>
-                        <TableCell>
+                         <TableCell onClick={() => handleOpenEditDialog(customer)}>{customer.city || '-'}</TableCell>
+                         <TableCell onClick={() => handleOpenEditDialog(customer)}>
+                            <div className="flex flex-wrap gap-1">
+                                {customer.tags?.map(tagId => {
+                                    const tagInfo = availableTags.find(t => t.id === tagId);
+                                    if (!tagInfo) return null;
+                                    return (
+                                        <Badge key={tagId} className={cn("text-xs", getTagClassName(tagInfo.color))}>
+                                            {tagInfo.name}
+                                        </Badge>
+                                    )
+                                })}
+                            </div>
+                         </TableCell>
+                         <TableCell onClick={() => handleOpenEditDialog(customer)}>{formatDate(customer.lastProposalDate)}</TableCell>
+                         <TableCell onClick={() => handleOpenEditDialog(customer)} className="font-mono text-right">{formatCurrency(customer.totalSpending)}</TableCell>
+                        <TableCell onClick={() => handleOpenEditDialog(customer)}>
                            <Badge variant={customer.status === 'Aktif' ? 'secondary' : 'outline'} className={customer.status === 'Aktif' ? 'bg-green-100 text-green-800' : ''}>
                              {customer.status}
                            </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button variant="outline" size="sm" onClick={() => handleOpenEditDialog(customer)}>Düzenle</Button>
                         </TableCell>
                     </TableRow>
                     ))
                 ) : (
                     <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
+                    <TableCell colSpan={8} className="h-24 text-center">
                        Arama kriterlerine uygun müşteri bulunamadı.
                     </TableCell>
                     </TableRow>

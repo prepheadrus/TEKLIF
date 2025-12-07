@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from "@/components/ui/button";
@@ -11,10 +11,13 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
+import { availableTags } from '@/lib/tags';
+import { Separator } from '../ui/separator';
 
 const customerSchema = z.object({
   name: z.string().min(2, "Müşteri adı en az 2 karakter olmalıdır."),
@@ -24,6 +27,7 @@ const customerSchema = z.object({
   taxNumber: z.string().optional(),
   city: z.string().optional(),
   status: z.enum(['Aktif', 'Pasif']),
+  tags: z.array(z.string()).default([]),
 });
 
 type CustomerFormValues = z.infer<typeof customerSchema>;
@@ -37,6 +41,7 @@ type Customer = {
   taxNumber?: string;
   city?: string;
   status: 'Aktif' | 'Pasif';
+  tags?: string[];
 };
 
 interface QuickAddCustomerProps {
@@ -50,14 +55,14 @@ const formatPhoneNumber = (value: string) => {
     if (!value) return value;
     const phoneNumber = value.replace(/[^\d]/g, '');
     const phoneNumberLength = phoneNumber.length;
-    if (phoneNumberLength < 5) return `(${phoneNumber}`;
-    if (phoneNumberLength < 8) {
-        return `(${phoneNumber.slice(0, 4)}) ${phoneNumber.slice(4)}`;
+    if (phoneNumberLength < 4) return phoneNumber;
+    if (phoneNumberLength < 7) {
+        return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3)}`;
     }
-    if (phoneNumberLength < 10) {
-        return `(${phoneNumber.slice(0, 4)}) ${phoneNumber.slice(4, 7)} ${phoneNumber.slice(7)}`;
+    if (phoneNumberLength < 11) {
+        return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)} ${phoneNumber.slice(6, 8)} ${phoneNumber.slice(8)}`;
     }
-    return `(${phoneNumber.slice(0, 4)}) ${phoneNumber.slice(4, 7)} ${phoneNumber.slice(7, 9)} ${phoneNumber.slice(9, 11)}`;
+    return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)} ${phoneNumber.slice(6, 8)} ${phoneNumber.slice(8, 10)}`;
 };
 
 
@@ -69,6 +74,7 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded, existi
     resolver: zodResolver(customerSchema),
     defaultValues: {
         status: 'Aktif',
+        tags: [],
     }
   });
 
@@ -85,6 +91,7 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded, existi
           taxNumber: existingCustomer.taxNumber || "",
           city: existingCustomer.city || "",
           status: existingCustomer.status || 'Aktif',
+          tags: existingCustomer.tags || [],
         });
       } else {
         form.reset({
@@ -95,6 +102,7 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded, existi
           taxNumber: "",
           city: "",
           status: 'Aktif',
+          tags: [],
         });
       }
     }
@@ -157,7 +165,7 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded, existi
               <DialogDescription>{dialogDescription}</DialogDescription>
             </DialogHeader>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4 max-h-[60vh] overflow-y-auto px-1">
                 <FormField control={form.control} name="name" render={({ field }) => (
                     <FormItem className="md:col-span-2"><FormLabel>Müşteri Adı / Firma Unvanı</FormLabel><FormControl><Input placeholder="Örn: ABC İnşaat A.Ş." {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
@@ -173,7 +181,7 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded, existi
                                 placeholder="(5xx) xxx xx xx" 
                                 {...field} 
                                 onChange={handlePhoneChange}
-                                maxLength={16}
+                                maxLength={15}
                             />
                         </FormControl>
                         <FormMessage />
@@ -182,7 +190,16 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded, existi
                  <FormField control={form.control} name="city" render={({ field }) => (
                     <FormItem><FormLabel>Şehir</FormLabel><FormControl><Input placeholder="Ankara" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
-                <FormField control={form.control} name="status" render={({ field }) => (
+                <FormField control={form.control} name="taxNumber" render={({ field }) => (
+                    <FormItem><FormLabel>Vergi No / TCKN</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                 <FormField control={form.control} name="address" render={({ field }) => (
+                    <FormItem className="md:col-span-2"><FormLabel>Adres</FormLabel><FormControl><Textarea placeholder="Müşteri adresi..." {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                
+                <Separator className="md:col-span-2 my-2" />
+                
+                 <FormField control={form.control} name="status" render={({ field }) => (
                     <FormItem>
                         <FormLabel>Durum</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
@@ -197,12 +214,54 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded, existi
                         <FormMessage />
                     </FormItem>
                 )} />
-                 <FormField control={form.control} name="taxNumber" render={({ field }) => (
-                    <FormItem><FormLabel>Vergi No / TCKN</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="address" render={({ field }) => (
-                    <FormItem className="md:col-span-2"><FormLabel>Adres</FormLabel><FormControl><Textarea placeholder="Müşteri adresi..." {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
+
+                 <FormField
+                    control={form.control}
+                    name="tags"
+                    render={() => (
+                        <FormItem className="md:col-span-2">
+                        <div className="mb-4">
+                            <FormLabel className="text-base">Etiketler</FormLabel>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                            {availableTags.map((tag) => (
+                            <FormField
+                                key={tag.id}
+                                control={form.control}
+                                name="tags"
+                                render={({ field }) => {
+                                return (
+                                    <FormItem
+                                        key={tag.id}
+                                        className="flex flex-row items-start space-x-3 space-y-0"
+                                    >
+                                        <FormControl>
+                                        <Checkbox
+                                            checked={field.value?.includes(tag.id)}
+                                            onCheckedChange={(checked) => {
+                                            return checked
+                                                ? field.onChange([...(field.value || []), tag.id])
+                                                : field.onChange(
+                                                    field.value?.filter(
+                                                    (value) => value !== tag.id
+                                                    )
+                                                )
+                                            }}
+                                        />
+                                        </FormControl>
+                                        <FormLabel className="font-normal">
+                                            {tag.name}
+                                        </FormLabel>
+                                    </FormItem>
+                                )
+                                }}
+                            />
+                            ))}
+                        </div>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
             </div>
             
             <DialogFooter>

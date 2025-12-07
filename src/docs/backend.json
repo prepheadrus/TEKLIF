@@ -239,6 +239,13 @@
             "type": "string",
             "description": "The status of the customer.",
             "enum": ["Aktif", "Pasif"]
+        },
+        "tags": {
+          "type": "array",
+          "description": "A list of tags for segmenting the customer.",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "required": [
