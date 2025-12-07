@@ -249,7 +249,7 @@ export function QuoteDetailClientPage({ params }: { params: { id: string } }) {
     () => (firestore && proposalId ? collection(firestore, 'proposals', proposalId, 'proposal_items') : null),
     [firestore, proposalId]
   );
-  const { data: initialItems, isLoading: isLoadingItems, refetch: refetchItems } = useCollection<ProposalItem>(proposalItemsRef as CollectionReference<DocumentData> | null | undefined);
+  const { data: initialItems, isLoading: isLoadingItems, refetch: refetchItems } = useCollection<ProposalItem>(proposalItemsRef);
 
   const installationTypesRef = useMemoFirebase(
     () => (firestore ? collection(firestore, 'installation_types') : null),
@@ -555,7 +555,7 @@ export function QuoteDetailClientPage({ params }: { params: { id: string } }) {
   };
 
   const isLoading = isLoadingProposal || isLoadingItems || isLoadingInstallationTypes;
-
+  
   const formatCurrency = (amount: number, currency: 'TRY' | 'USD' | 'EUR' = 'TRY') => {
       return new Intl.NumberFormat('tr-TR', { style: 'currency', currency, minimumFractionDigits: 2 }).format(amount)
   }
