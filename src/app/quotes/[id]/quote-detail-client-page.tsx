@@ -312,8 +312,7 @@ export function QuoteDetailClientPage({ params }: { params: { id: string } }) {
            handleFetchRates();
         }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [proposal, initialItems, form.reset]);
+  }, [proposal, initialItems, form, defaultTerms]);
 
 
   useEffect(() => {
