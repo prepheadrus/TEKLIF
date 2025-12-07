@@ -28,7 +28,7 @@ type Proposal = {
 };
 
 type ProposalItem = {
-    id?: string; // This is added by useCollection
+    id: string;
     name: string;
     brand: string;
     model?: string;
@@ -89,7 +89,7 @@ export function PrintQuoteClientPage() {
         teklifNo: proposal?.quoteNumber || 'teklif',
     });
 
-    const calculateData = () => {
+    const calculatedData = (() => {
         if (!proposal || !items) {
             return null;
         }
@@ -109,34 +109,34 @@ export function PrintQuoteClientPage() {
             };
         });
 
-        const grouped = calculatedItems.reduce((acc, item) => {
-          const groupName = item.groupName || 'Diğer';
-          if (!acc[groupName]) {
-            acc[groupName] = [];
-          }
-          acc[groupName].push(item);
-          return acc;
-        }, {} as Record<string, CalculatedItem[]>);
-        
-        const sortedGroups = Object.entries(grouped).sort(([a], [b]) => {
-            if (a === 'Diğer') return 1;
-            if (b === 'Diğer') return -1;
-            return a.localeCompare(b);
-        });
-
         const calculatedVat = subtotal * 0.20;
         const totalWithVat = subtotal + calculatedVat;
         
-        return { ...proposal, items: calculatedItems, groupedItems: sortedGroups, grandTotal: subtotal, grandTotalWithVAT: totalWithVat, vatAmount: calculatedVat };
-    }
+        return { ...proposal, items: calculatedItems, grandTotal: subtotal, grandTotalWithVAT: totalWithVat, vatAmount: calculatedVat };
+    })();
 
-    const calculatedData = calculateData();
+
+    console.log('===== PRINT PAGE DEBUG =====');
+    console.log('proposal:', proposal);
+    console.log('items:', items);
+    console.log('calculatedData:', calculatedData);
+    console.log('=============================');
 
 
     const handleExportToExcel = useCallback(() => {
         if (!calculatedData || !customer) return;
 
         const wb = XLSX.utils.book_new();
+        
+        const groupedItems = calculatedData.items.reduce((acc, item) => {
+            const groupName = item.groupName || 'Diğer';
+            if (!acc[groupName]) {
+                acc[groupName] = [];
+            }
+            acc[groupName].push(item);
+            return acc;
+        }, {} as Record<string, CalculatedItem[]>);
+        
         const wsData: (string | number)[][] = [];
 
         // Header
@@ -151,7 +151,7 @@ export function PrintQuoteClientPage() {
         wsData.push(['#', 'Grup', 'Açıklama', 'Marka', 'Model', 'Miktar', 'Birim', 'Birim Fiyat (TL)', 'Toplam Fiyat (TL)']);
         
         let itemIndex = 1;
-        calculatedData.groupedItems.forEach(([groupName, items]) => {
+        Object.entries(groupedItems).forEach(([groupName, items]) => {
             items.forEach(item => {
                 wsData.push([
                     itemIndex++,
@@ -199,8 +199,9 @@ export function PrintQuoteClientPage() {
                 <div className="flex flex-col items-center gap-4 text-center p-8">
                     <h1 className="text-xl font-semibold text-destructive">Veri Hatası</h1>
                     <p className="text-muted-foreground max-w-md">
-                       Teklif, müşteri veya kalem bilgileri yüklenemedi.
+                       Teklif, müşteri veya kalem bilgileri yüklenemedi. Lütfen tekrar deneyin.
                     </p>
+                    <Button onClick={() => router.back()}>Geri Dön</Button>
                 </div>
             </div>
          );
