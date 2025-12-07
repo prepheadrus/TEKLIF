@@ -42,6 +42,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { QuickAddProduct } from '@/components/app/quick-add-product';
 import { productSeedData } from '@/lib/product-seed-data';
 import { Checkbox } from '@/components/ui/checkbox';
+import { BulkProductImporter } from '@/components/app/bulk-product-importer';
 
 // Combined type for a product/material
 export type Product = {
@@ -147,6 +148,7 @@ export function ProductsPageContent() {
   const [supplierFilter, setSupplierFilter] = useState<string[]>([]);
   const [brandFilter, setBrandFilter] = useState<string[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
+  const [isImporterOpen, setIsImporterOpen] = useState(false);
 
 
   // --- Data Fetching ---
@@ -408,9 +410,9 @@ export function ProductsPageContent() {
           <p className="text-muted-foreground">Tekliflerinizde kullandığınız tüm ürün, malzeme ve hizmetleri yönetin.</p>
         </div>
         <div className="flex items-center space-x-2">
-           <Button onClick={handleSeedProducts} disabled={isSeeding || isLoadingInstallationTypes} variant="outline">
-                {isSeeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
-                Örnek Ürünleri Yükle
+            <Button onClick={() => setIsImporterOpen(true)} variant="outline">
+              <UploadCloud className="mr-2 h-4 w-4" />
+              Toplu Ürün Yükle
             </Button>
           <Button onClick={handleOpenAddDialog}>
             <PlusCircle className="mr-2 h-4 w-4" />
@@ -644,8 +646,14 @@ export function ProductsPageContent() {
         }}
         existingProduct={editingProduct}
       />
+      <BulkProductImporter
+        isOpen={isImporterOpen}
+        onOpenChange={setIsImporterOpen}
+        onSuccess={() => {
+            refetchProducts();
+            refetchSuppliers();
+        }}
+      />
     </div>
   );
 }
-
-    
