@@ -137,18 +137,18 @@ const getGroupIcon = (groupName: string) => {
 
 export const ExchangeRateDisplay = ({ form, onRefresh, isFetching }: { form: any, onRefresh: () => void, isFetching: boolean }) => {
     return (
-        <div className="flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">
+        <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-700">
             <FormField control={form.control} name="exchangeRates.EUR" render={({ field }) => (
                 <div className="text-right">
-                    <span className="block text-[10px] text-blue-600 uppercase font-bold">EUR</span>
-                    <Input {...field} type="number" step="any" className="h-auto p-0 border-0 rounded-none bg-transparent text-right font-mono text-sm font-bold text-blue-800 focus-visible:ring-0 w-20" />
+                    <span className="block text-[10px] text-blue-600 dark:text-blue-400 uppercase font-bold">EUR</span>
+                    <Input {...field} type="number" step="any" className="h-auto p-0 border-0 rounded-none bg-transparent text-right font-mono text-sm font-bold text-blue-800 dark:text-blue-300 focus-visible:ring-0 w-20" />
                 </div>
             )} />
-            <div className="w-px h-6 bg-slate-300"></div>
+            <div className="w-px h-6 bg-slate-300 dark:bg-slate-600"></div>
             <FormField control={form.control} name="exchangeRates.USD" render={({ field }) => (
                 <div className="text-right">
-                    <span className="block text-[10px] text-green-600 uppercase font-bold">USD</span>
-                    <Input {...field} type="number" step="any" className="h-auto p-0 border-0 rounded-none bg-transparent text-right font-mono text-sm font-bold text-green-800 focus-visible:ring-0 w-20" />
+                    <span className="block text-[10px] text-green-600 dark:text-green-400 uppercase font-bold">USD</span>
+                    <Input {...field} type="number" step="any" className="h-auto p-0 border-0 rounded-none bg-transparent text-right font-mono text-sm font-bold text-green-800 dark:text-green-300 focus-visible:ring-0 w-20" />
                 </div>
             )} />
             <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={onRefresh} disabled={isFetching}>
@@ -593,14 +593,14 @@ export function QuoteDetailClientPage() {
             exchangeRatePortal
         )}
         {subHeaderPortal && proposal && createPortal(
-            <div className="relative bg-white/95 backdrop-blur-sm px-8 py-3 flex justify-between items-center w-full border-b">
+            <div className="relative bg-background/95 backdrop-blur-sm px-8 py-3 flex justify-between items-center w-full border-b">
                 <div className="flex-1 min-w-0">
-                    <h1 className="text-xl font-bold text-slate-800 truncate" title={proposal.projectName}>
+                    <h1 className="text-xl font-bold text-foreground truncate" title={proposal.projectName}>
                         {proposal.projectName}
                     </h1>
-                    <p className="text-sm text-slate-500 mt-1">
-                      <span className="font-medium text-slate-600">{proposal.customerName}</span>
-                      <span className="mx-2 text-slate-300">|</span>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      <span className="font-medium text-secondary-foreground">{proposal.customerName}</span>
+                      <span className="mx-2 text-border">|</span>
                       {proposal.quoteNumber} (v{proposal.version})
                     </p>
                 </div>
@@ -612,7 +612,7 @@ export function QuoteDetailClientPage() {
                             <Input
                             {...field}
                             placeholder="Bu versiyonla ilgili bir not ekleyin (örn: Isıtma kalemleri revize edildi)"
-                            className="w-full bg-slate-100"
+                            className="w-full bg-secondary"
                             />
                         )}
                         />
@@ -620,7 +620,7 @@ export function QuoteDetailClientPage() {
             </div>,
             subHeaderPortal
         )}
-        <main className="flex-1 overflow-y-auto px-8 py-8 space-y-6 bg-slate-100/70">
+        <main className="flex-1 overflow-y-auto px-8 py-8 space-y-6 bg-slate-100/70 dark:bg-slate-900/50">
           
               <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
                   
@@ -633,11 +633,11 @@ export function QuoteDetailClientPage() {
                       
                       return (
                       <Collapsible key={groupName} defaultOpen={true} asChild>
-                        <section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                          <div className="flex justify-between items-center w-full group bg-slate-900">
+                        <section className="bg-card rounded-xl shadow-sm border">
+                          <div className="flex justify-between items-center w-full group bg-slate-900 dark:bg-slate-800">
                             <CollapsibleTrigger className="px-4 py-2 flex-1 flex items-center cursor-pointer">
                                   <div className="flex items-center gap-3">
-                                      <div className="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center">
+                                      <div className="w-8 h-8 rounded-lg bg-slate-700 dark:bg-slate-700 flex items-center justify-center">
                                           {getGroupIcon(groupName)}
                                       </div>
                                       <div>
@@ -709,7 +709,7 @@ export function QuoteDetailClientPage() {
                           <CollapsibleContent>
                               <div className="overflow-x-auto">
                                   <Table>
-                                      <TableHeader className="bg-slate-50">
+                                      <TableHeader className="bg-slate-50 dark:bg-white/5">
                                       <TableRow>
                                           <TableHead className="py-2 pl-4 text-xs uppercase text-slate-500 font-semibold tracking-wider w-[30%]">Ürün Tanımı</TableHead>
                                           <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Marka</TableHead>
@@ -724,7 +724,7 @@ export function QuoteDetailClientPage() {
                                           <TableHead className="w-10 py-2 pr-4"></TableHead>
                                       </TableRow>
                                       </TableHeader>
-                                      <TableBody className="text-sm divide-y divide-slate-100">
+                                      <TableBody className="text-sm divide-y divide-slate-100 dark:divide-white/5">
                                           {fields.map((field, index) => {
                                               if (field.groupName !== groupName) return null;
                                               
@@ -737,8 +737,8 @@ export function QuoteDetailClientPage() {
                                               });
 
                                           return (
-                                              <TableRow key={field.formId} className="hover:bg-slate-50/50 group/row odd:bg-slate-50/50">
-                                                  <TableCell className="py-1.5 pl-4 font-medium text-slate-800 w-[30%]">
+                                              <TableRow key={field.formId} className="hover:bg-slate-50/50 dark:hover:bg-white/5 group/row odd:bg-slate-50/50 dark:odd:bg-white/[.02]">
+                                                  <TableCell className="py-1.5 pl-4 font-medium text-card-foreground w-[30%]">
                                                       <FormField control={form.control} name={`items.${index}.name`} render={({ field }) => <Input {...field} className="w-full h-7 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
                                                   </TableCell>
                                                   <TableCell className="py-1.5">
@@ -762,8 +762,8 @@ export function QuoteDetailClientPage() {
                                                                   variant={value === 'USD' ? 'secondary' : value === 'EUR' ? 'default' : 'outline'}
                                                                   className={cn(
                                                                       "cursor-pointer font-bold w-12 justify-center",
-                                                                      value === 'USD' && "bg-green-100 text-green-800 border-green-200",
-                                                                      value === 'EUR' && "bg-blue-100 text-blue-800 border-blue-200"
+                                                                      value === 'USD' && "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/50 dark:text-green-300 dark:border-green-800",
+                                                                      value === 'EUR' && "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-800"
                                                                   )}
                                                               >
                                                                   {value}
@@ -797,8 +797,8 @@ export function QuoteDetailClientPage() {
                                                           <span>{formatNumber(itemTotals.cost)}</span>
                                                           <span className={cn(
                                                           "font-semibold text-xs",
-                                                          currentItem.currency === 'USD' && "text-green-600",
-                                                          currentItem.currency === 'EUR' && "text-blue-600",
+                                                          currentItem.currency === 'USD' && "text-green-600 dark:text-green-400",
+                                                          currentItem.currency === 'EUR' && "text-blue-600 dark:text-blue-400",
                                                           currentItem.currency === 'TRY' && "text-slate-500",
                                                           )}>{currentItem.currency}</span>
                                                       </div>
@@ -828,8 +828,8 @@ export function QuoteDetailClientPage() {
                                                           <span className="text-xs font-mono text-green-600 font-semibold tabular-nums w-20 text-left">+{formatCurrency(itemTotals.totalProfit)}</span>
                                                       </div>
                                                   </TableCell>
-                                                  <TableCell className="text-right font-mono tabular-nums font-semibold text-slate-600 py-1.5">{formatCurrency(itemTotals.tlSellPrice)}</TableCell>
-                                                  <TableCell className="text-right font-bold font-mono tabular-nums text-slate-800 py-1.5">{formatCurrency(itemTotals.totalTlSell)}</TableCell>
+                                                  <TableCell className="text-right font-mono tabular-nums font-semibold text-slate-600 dark:text-slate-300 py-1.5">{formatCurrency(itemTotals.tlSellPrice)}</TableCell>
+                                                  <TableCell className="text-right font-bold font-mono tabular-nums text-slate-800 dark:text-slate-100 py-1.5">{formatCurrency(itemTotals.totalTlSell)}</TableCell>
                                                   <TableCell className="px-2 text-center py-1.5">
                                                       <Button variant="ghost" size="icon" onClick={() => remove(index)} className="h-7 w-7 text-slate-400 hover:text-red-500 opacity-0 group-hover/row:opacity-100 transition-opacity">
                                                       <Trash2 className="h-4 w-4" />
@@ -841,13 +841,13 @@ export function QuoteDetailClientPage() {
                                       </TableBody>
                                   </Table>
                               </div>
-                              <div className="bg-slate-50 px-4 py-2 border-t">
+                              <div className="bg-slate-50 dark:bg-white/5 px-4 py-2 border-t dark:border-white/5">
                                   <Button type="button" size="sm" variant="secondary" onClick={() => openProductSelectorForGroup(groupName)}>
                                       <PlusCircle className="mr-2 h-4 w-4"/>
                                       Bu Gruba Ürün Ekle
                                   </Button>
                               </div>
-                              <div className="bg-slate-900 text-white px-4 py-3 grid grid-cols-3 items-center gap-8">
+                              <div className="bg-slate-900 dark:bg-slate-800 text-white px-4 py-3 grid grid-cols-3 items-center gap-8">
                                   <div className="col-span-1">
                                       <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Döviz Dağılımı (KDV Hariç)</h4>
                                       <div className="space-y-1">
@@ -891,7 +891,7 @@ export function QuoteDetailClientPage() {
                       </Button>
                   </div>
                   
-                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                  <div className="bg-card rounded-xl shadow-sm border p-6">
                       <FormField
                           control={form.control}
                           name="termsAndConditions"
@@ -902,7 +902,7 @@ export function QuoteDetailClientPage() {
                                       <Textarea
                                           {...field}
                                           placeholder="Teklifin kapsamı, ödeme koşulları ve diğer notlar..."
-                                          className="h-40 text-sm bg-slate-50"
+                                          className="h-40 text-sm bg-secondary"
                                       />
                                   </FormControl>
                                   <FormMessage />
@@ -914,7 +914,7 @@ export function QuoteDetailClientPage() {
         </main>
 
         <div className="sticky bottom-0 left-0 right-0 z-20">
-            <div className="bg-white/80 backdrop-blur-md shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.05)] rounded-t-2xl max-w-7xl mx-auto px-6 py-3 grid grid-cols-2 gap-x-8">
+            <div className="bg-background/80 backdrop-blur-md shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.05)] rounded-t-2xl max-w-7xl mx-auto px-6 py-3 grid grid-cols-2 gap-x-8">
                   {/* Sol: Finansal Özet */}
                   <div className="col-span-1 flex items-center justify-between">
                      <div className="flex items-center gap-x-4">
@@ -926,15 +926,15 @@ export function QuoteDetailClientPage() {
                       ) : (
                           <div className="flex items-end gap-x-2">
                               <div>
-                                  <p className="text-xs text-slate-500">Ara Toplam</p>
-                                  <p className="font-mono text-lg font-bold text-slate-800">{formatCurrency(calculatedTotals.grandTotalSellExVAT)}</p>
+                                  <p className="text-xs text-muted-foreground">Ara Toplam</p>
+                                  <p className="font-mono text-lg font-bold text-foreground">{formatCurrency(calculatedTotals.grandTotalSellExVAT)}</p>
                               </div>
-                              <div className="text-lg text-slate-400">+</div>
+                              <div className="text-lg text-muted-foreground">+</div>
                               <div>
-                                  <p className="text-xs text-slate-500">KDV (%{new Intl.NumberFormat('tr-TR').format(0.20 * 100)})</p>
-                                  <p className="font-mono text-lg font-bold text-slate-800">{formatCurrency(calculatedTotals.vatAmount)}</p>
+                                  <p className="text-xs text-muted-foreground">KDV (%{new Intl.NumberFormat('tr-TR').format(0.20 * 100)})</p>
+                                  <p className="font-mono text-lg font-bold text-foreground">{formatCurrency(calculatedTotals.vatAmount)}</p>
                               </div>
-                              <div className="text-lg text-slate-400">=</div>
+                              <div className="text-lg text-muted-foreground">=</div>
                               <div>
                                   <p className="text-sm font-semibold text-blue-600">Toplam</p>
                                   <p className="font-mono text-3xl font-extrabold text-blue-700">{formatCurrency(calculatedTotals.grandTotalSellWithVAT)}</p>
@@ -988,5 +988,3 @@ export function QuoteDetailClientPage() {
     </Form>
   );
 }
-
-    
