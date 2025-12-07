@@ -28,7 +28,7 @@ type Proposal = {
 };
 
 type ProposalItem = {
-    id:string;
+    id: string; // This is added by useCollection
     name: string;
     brand: string;
     model?: string;
@@ -53,7 +53,6 @@ type Customer = {
 type CalculatedItem = ProposalItem & {
     unitPrice: number;
     total: number;
-    id: string;
 };
 
 // --- Main Component ---
@@ -246,10 +245,12 @@ export function PrintQuoteClientPage() {
             
             <PrintDocument 
                 ref={printRef}
-                teklif={calculatedData as any}
+                teklif={calculatedData}
                 customer={customer}
                 firma={firmaData}
             />
         </div>
     );
 }
+
+    
