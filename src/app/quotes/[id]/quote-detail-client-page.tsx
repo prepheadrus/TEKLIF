@@ -290,25 +290,27 @@ export function QuoteDetailClientPage({ params }: { params: { id: string } }) {
   }, []);
 
   useEffect(() => {
-    if (initialFetchDone.current || !proposal || !initialItems) return;
-    
-    const newItems = initialItems.map(dbItem => ({
-        ...dbItem,
-        id: dbItem.id,
-        productId: dbItem.productId || '',
-        groupName: dbItem.groupName || 'Diğer',
-      }));
+    if (proposal && initialItems && !initialFetchDone.current) {
+        const newItems = initialItems.map(dbItem => ({
+            ...dbItem,
+            id: dbItem.id,
+            productId: dbItem.productId || '',
+            groupName: dbItem.groupName || 'Diğer',
+        }));
 
-    form.reset({
-      versionNote: proposal.versionNote || '',
-      termsAndConditions: proposal.termsAndConditions || defaultTerms,
-      items: newItems,
-      exchangeRates: proposal.exchangeRates || { USD: 32.5, EUR: 35.0 }
-    });
-    
-     if (proposal.exchangeRates) {
-        handleFetchRates();
-        initialFetchDone.current = true;
+        form.reset({
+            versionNote: proposal.versionNote || '',
+            termsAndConditions: proposal.termsAndConditions || defaultTerms,
+            items: newItems,
+            exchangeRates: proposal.exchangeRates || { USD: 32.5, EUR: 35.0 }
+        });
+        
+        initialFetchDone.current = true; // Mark as done
+
+        // Only fetch rates if they seem old or uninitialized
+        if (!proposal.exchangeRates?.USD) {
+           handleFetchRates();
+        }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proposal, initialItems, form.reset]);
@@ -562,16 +564,21 @@ export function QuoteDetailClientPage({ params }: { params: { id: string } }) {
   }
 
   
-  if (isLoading) {
+  if (isLoading || !initialFetchDone.current) {
     return (
       <div className="h-full w-full flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-4">Teklif verileri yükleniyor...</span>
       </div>
     );
   }
 
   if (!proposal) {
-    return <div>Teklif bulunamadı.</div>;
+    return (
+        <div className="h-full w-full flex items-center justify-center">
+            <p>Teklif bulunamadı veya yüklenemedi.</p>
+        </div>
+    );
   }
 
   const currencyCycle: Record<'TRY' | 'USD' | 'EUR', 'TRY' | 'USD' | 'EUR'> = {
