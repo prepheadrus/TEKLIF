@@ -924,12 +924,7 @@ export function QuotesPageContent() {
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuLabel>İşlemler</DropdownMenuLabel>
-                                                    {group.latestProposal.status === 'Approved' && !group.isAssigned && (
-                                                        <DropdownMenuItem onClick={() => handleOpenAssignJobDialog(group.latestProposal)}>
-                                                            <HardHat className="mr-2 h-4 w-4" />
-                                                            İş Ata
-                                                        </DropdownMenuItem>
-                                                    )}
+                                                    
                                                     <DropdownMenuItem onClick={() => handleDuplicateProposal(group.latestProposal)} disabled={isRevising === group.rootProposalId}>
                                                         <Copy className="mr-2 h-4 w-4" />
                                                         Yeni Revizyon Oluştur
@@ -1019,6 +1014,11 @@ export function QuotesPageContent() {
                                                             <TableCell className="text-muted-foreground text-xs py-1.5">{v.versionNote}</TableCell>
                                                             <TableCell className="text-right py-1.5">
                                                                 <div className="flex items-center justify-end gap-1">
+                                                                    {v.status === 'Approved' && !group.isAssigned && (
+                                                                        <Button variant="default" size="sm" onClick={() => handleOpenAssignJobDialog(v)}>
+                                                                            <HardHat className="mr-2 h-3 w-3" /> Ata
+                                                                        </Button>
+                                                                    )}
                                                                     <Button variant="ghost" size="sm" onClick={(e) => handleViewClick(e, v.id)}>Görüntüle</Button>
                                                                     <Button variant="ghost" size="sm" onClick={(e) => {e.preventDefault(); window.open(`/quotes/${v.id}/print?customerId=${v.customerId}`, `print_${v.id}`)}}>Yazdır</Button>
                                                                     <Button variant="outline" size="sm" onClick={() => handleDuplicateProposal(v)} disabled={isRevising === group.rootProposalId}><Copy className="mr-2 h-3 w-3"/>Revize Et</Button>
