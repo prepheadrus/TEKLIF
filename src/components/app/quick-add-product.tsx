@@ -119,6 +119,8 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
         if (existingProduct) {
             form.reset({
                 ...existingProduct,
+                description: existingProduct.description || '',
+                technicalSpecifications: existingProduct.technicalSpecifications || '',
                 installationTypeId: existingProduct.installationTypeId || null,
                 supplierId: existingProduct.supplierId || null,
                 brochureUrl: existingProduct.brochureUrl || '',
@@ -317,7 +319,7 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
                 )} />
             </div>
             
-            <DialogFooter className="pt-4 border-t">
+            <DialogFooter className="pt-4 border-t sticky bottom-0 bg-background py-4">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>İptal</Button>
               <Button type="submit" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
