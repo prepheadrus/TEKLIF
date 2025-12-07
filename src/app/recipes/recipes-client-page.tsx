@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
-import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import { useState, useMemo, useEffect } from 'react';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
@@ -25,9 +25,6 @@ import {
   Form,
   FormControl,
   FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
 } from '@/components/ui/form';
 import {
   PlusCircle,
@@ -35,9 +32,7 @@ import {
   Loader2,
   BookCopy,
   Search,
-  DollarSign,
   Clock,
-  Wrench,
   Package,
 } from 'lucide-react';
 import {
@@ -115,13 +110,21 @@ export function RecipesPageContent() {
   );
 
   const productsWithRecipeStatus = useMemo(() => {
+    if (!products) return [];
     const recipeProductIds = new Set(recipes?.map(r => r.productId));
     return products
-      ?.map(p => ({ ...p, hasRecipe: recipeProductIds.has(p.id) }))
+      .map(p => ({ ...p, hasRecipe: recipeProductIds.has(p.id) }))
       .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.brand.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [products, recipes, searchTerm]);
 
-  const form = useForm<RecipeFormValues>();
+  const form = useForm<RecipeFormValues>({
+    resolver: zodResolver(recipeSchema),
+    defaultValues: {
+        id: undefined,
+        productId: '',
+        recipeItems: [],
+    }
+  });
 
   const { fields, append, remove, reset } = useFieldArray({
     control: form.control,
@@ -136,7 +139,7 @@ export function RecipesPageContent() {
       if (recipe && recipe.recipeItems && products && laborCosts) {
         itemsToSet = recipe.recipeItems.map(item => {
           let name = 'Bilinmeyen';
-          let unit = 'adet';
+          let unit: string | undefined = 'adet';
           let cost = 0;
           if (item.type === 'material') {
             const product = products.find(p => p.id === item.itemId);
@@ -149,7 +152,7 @@ export function RecipesPageContent() {
             unit = 'saat';
             cost = labor?.hourlyRate || 0;
           }
-          return { ...item, name, unit, cost };
+          return { ...item, id: Math.random().toString(), name, unit, cost };
         });
       }
 
