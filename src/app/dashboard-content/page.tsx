@@ -4,7 +4,7 @@
 import { useMemo, useEffect, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Skeleton } from '@/components/ui/skeleton';
-import { DollarSign, Users, FileText, Package, TrendingUp, Award, Target, CalendarDays, Coins } from "lucide-react";
+import { DollarSign, Users, FileText, Package, TrendingUp, Award, Target, CalendarDays, Coins, ShoppingCart } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
 import { Progress } from '@/components/ui/progress';
@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { calculateItemTotals } from '@/lib/pricing';
 
 
 // --- Type Definitions ---
@@ -25,6 +26,7 @@ type Proposal = {
   customerName: string;
   projectName: string;
   createdAt: Timestamp; // Changed to Timestamp for easier date comparison
+  exchangeRates: { USD: number, EUR: number };
 };
 
 type ProposalItem = {
@@ -32,6 +34,10 @@ type ProposalItem = {
     name: string;
     brand: string;
     quantity: number;
+    listPrice: number;
+    currency: 'TRY' | 'USD' | 'EUR';
+    discountRate: number;
+    profitMargin: number;
 }
 
 type Customer = {};
@@ -42,6 +48,7 @@ type TopProduct = {
     name: string;
     brand: string;
     totalQuantity: number;
+    totalRevenue: number;
 };
 
 type TopCustomer = {
@@ -202,30 +209,42 @@ export function DashboardContent() {
             return;
         }
 
-        const productQuantities: Record<string, number> = {};
+        const productStats: Record<string, { totalQuantity: number; totalRevenue: number; }> = {};
 
         for (const proposal of approvedProposals) {
             const itemsRef = collection(firestore, 'proposals', proposal.id, 'proposal_items');
             const itemsSnapshot = await getDocs(itemsRef);
+            
             itemsSnapshot.forEach(doc => {
                 const item = doc.data() as ProposalItem;
                 if (item.productId && item.quantity) {
-                    productQuantities[item.productId] = (productQuantities[item.productId] || 0) + item.quantity;
+                    if (!productStats[item.productId]) {
+                        productStats[item.productId] = { totalQuantity: 0, totalRevenue: 0 };
+                    }
+                    
+                    productStats[item.productId].totalQuantity += item.quantity;
+                    
+                    const itemTotals = calculateItemTotals({
+                        ...item,
+                        exchangeRate: item.currency === 'USD' ? (proposal.exchangeRates?.USD || 1) : item.currency === 'EUR' ? (proposal.exchangeRates?.EUR || 1) : 1,
+                    });
+                    productStats[item.productId].totalRevenue += itemTotals.totalTlSell;
                 }
             });
         }
         
-        const sortedProductIds = Object.entries(productQuantities)
-            .sort(([, a], [, b]) => b - a)
-            .slice(0, 5);
+        const sortedProductIds = Object.entries(productStats)
+            .sort(([, a], [, b]) => b.totalQuantity - a.totalQuantity)
+            .slice(0, 6); // Get top 6
         
-        const topProductsData: TopProduct[] = sortedProductIds.map(([productId, totalQuantity]) => {
+        const topProductsData: TopProduct[] = sortedProductIds.map(([productId, stats]) => {
             const productDetails = allProducts?.find(p => p.id === productId);
             return {
                 id: productId,
                 name: productDetails?.name || 'Bilinmeyen Ürün',
                 brand: productDetails?.brand || 'Bilinmeyen Marka',
-                totalQuantity,
+                totalQuantity: stats.totalQuantity,
+                totalRevenue: stats.totalRevenue
             };
         });
         
@@ -337,41 +356,41 @@ export function DashboardContent() {
         />
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="lg:col-span-4">
-            <CardHeader>
-                <CardTitle>En Çok Tercih Edilen Ürünler (Top 5)</CardTitle>
-                 <CardDescription>Onaylanmış tekliflerde en çok kullanılan ürünler.</CardDescription>
+        <div className="lg:col-span-4">
+            <CardHeader className="p-0 mb-4">
+                <CardTitle>En Çok Tercih Edilen Ürünler</CardTitle>
+                <CardDescription>Onaylanmış tekliflerde en çok kullanılan ürünler.</CardDescription>
             </CardHeader>
-            <CardContent>
-                 {isLoadingTopProducts ? (
-                    <div className="space-y-4">
-                        {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
-                    </div>
-                ) : topProducts.length > 0 ? (
-                    <div className="space-y-4">
-                        {topProducts.map((product, index) => (
-                        <div key={product.id} className="flex items-center">
-                            <div className="w-1/2">
-                            <p className="font-medium truncate">{product.name}</p>
-                            <p className="text-xs text-muted-foreground">{product.brand}</p>
-                            </div>
-                            <div className="w-1/2 flex items-center justify-end gap-4">
-                                <Badge variant="secondary" className="w-24 justify-center">
-                                    {product.totalQuantity} adet
-                                </Badge>
-                                <Progress 
-                                    value={(product.totalQuantity / (topProducts[0]?.totalQuantity || 1)) * 100} 
-                                    className="w-[100px] h-2" 
-                                />
-                            </div>
-                        </div>
-                        ))}
-                    </div>
-                ) : (
-                    <p className="p-4 text-sm text-center text-muted-foreground">Henüz analiz edilecek onaylanmış teklif bulunmuyor.</p>
-                )}
-            </CardContent>
-        </Card>
+            {isLoadingTopProducts ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-36 w-full" />)}
+                </div>
+            ) : topProducts.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {topProducts.map(product => (
+                        <Card key={product.id}>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-base truncate" title={product.name}>{product.name}</CardTitle>
+                                <CardDescription>{product.brand}</CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex flex-col gap-2">
+                                <div className="flex justify-between items-baseline">
+                                    <span className="text-sm text-muted-foreground">Satış Adedi</span>
+                                    <span className="font-bold text-lg">{product.totalQuantity}</span>
+                                </div>
+                                <div className="flex justify-between items-baseline">
+                                    <span className="text-sm text-muted-foreground">Toplam Gelir</span>
+                                    <span className="font-bold text-lg text-green-600">{formatCurrency(product.totalRevenue)}</span>
+                                </div>
+                                <Button variant="outline" size="sm" className="mt-2">Detay</Button>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+            ) : (
+                <Card><CardContent className="p-8 text-center text-muted-foreground">Analiz edilecek ürün verisi bulunamadı.</CardContent></Card>
+            )}
+        </div>
          <Card className="col-span-3">
             <CardHeader>
                 <CardTitle>En Değerli Müşteriler</CardTitle>
