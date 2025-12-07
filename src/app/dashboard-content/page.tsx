@@ -156,14 +156,14 @@ export function DashboardContent() {
   
   // --- Memoized Stats Calculation ---
   const { stats, recentProposals, monthlyTarget, monthlyTrendData, statusDistributionData } = useMemo(() => {
-    if (!proposals) return { stats: {}, recentProposals: [], monthlyTarget: {}, monthlyTrendData: [], statusDistributionData: [] };
+    if (!proposals || !customers || !allProducts) return { stats: {}, recentProposals: [], monthlyTarget: {}, monthlyTrendData: [], statusDistributionData: [] };
     
     // --- General Stats ---
     const approvedProposals = proposals.filter(p => p.status === 'Approved');
     const totalProposalAmount = approvedProposals.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
     const approvedQuotesCount = approvedProposals.length;
-    const customerCount = customers?.length || 0;
-    const productCount = allProducts?.length || 0;
+    const customerCount = customers.length;
+    const productCount = allProducts.length;
     
     const sortedRecentProposals = proposals.slice(0, 5);
     
@@ -242,7 +242,7 @@ export function DashboardContent() {
 
   // --- Top Products & Customers Calculation Effect ---
   useEffect(() => {
-    if (!proposals || isLoadingProposals || !firestore) {
+    if (!proposals || isLoadingProposals || !firestore || !allProducts) {
         return;
     }
     
@@ -313,7 +313,7 @@ export function DashboardContent() {
             .slice(0, 6); // Get top 6
         
         const topProductsData: TopProduct[] = sortedProductIds.map(([productId, stats]) => {
-            const productDetails = allProducts?.find(p => p.id === productId);
+            const productDetails = allProducts.find(p => p.id === productId);
             return {
                 id: productId,
                 name: productDetails?.name || 'Bilinmeyen Ürün',
@@ -529,7 +529,7 @@ export function DashboardContent() {
                                     <span className="text-sm text-muted-foreground">Toplam Gelir</span>
                                     <span className="font-bold text-lg text-green-600">{formatCurrency(product.totalRevenue)}</span>
                                 </div>
-                                <Button variant="outline" size="sm" className="mt-2">Detay</Button>
+                                <Button variant="outline" size="sm" className="mt-2" onClick={() => router.push(`/products/${product.id}`)}>Detay</Button>
                             </CardContent>
                         </Card>
                     ))}
@@ -622,4 +622,5 @@ export default function DashboardContentPage() {
     return <DashboardContent />;
 }
 
+    
     
