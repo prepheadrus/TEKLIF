@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -22,20 +21,13 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, PlusCircle, Trash2 } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2, Edit } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, setDocumentNonBlocking } from '@/firebase';
-import { collection, serverTimestamp, doc, arrayUnion, updateDoc } from 'firebase/firestore';
-import { JobAssignment } from '@/app/assignments/assignments-client-page';
+import { doc, updateDoc } from 'firebase/firestore';
+import { JobAssignment, type Payment } from '@/app/assignments/assignments-client-page';
 import { Card, CardContent } from '../ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { ScrollArea } from '../ui/scroll-area';
@@ -74,6 +66,7 @@ export function ManagePaymentsDialog({
   const { toast } = useToast();
   const firestore = useFirestore();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingPaymentIndex, setEditingPaymentIndex] = useState<number | null>(null);
 
   const form = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentSchema),
@@ -87,8 +80,22 @@ export function ManagePaymentsDialog({
   useEffect(() => {
     if (!isOpen) {
       form.reset();
+      setEditingPaymentIndex(null);
     }
   }, [isOpen, form]);
+
+  const handleEditClick = (payment: Payment, index: number) => {
+    setEditingPaymentIndex(index);
+    form.reset({
+        ...payment,
+        date: payment.date.seconds ? new Date(payment.date.seconds * 1000) : new Date(),
+    });
+  };
+  
+  const cancelEdit = () => {
+    setEditingPaymentIndex(null);
+    form.reset({ amount: 0, date: new Date(), note: '' });
+  }
 
   const onPaymentSubmit = async (values: PaymentFormValues) => {
     if (!firestore || !assignment) return;
@@ -97,35 +104,38 @@ export function ManagePaymentsDialog({
     try {
       const assignmentRef = doc(firestore, 'job_assignments', assignment.id);
       
-      const newPayment = {
-          ...values,
-          date: values.date, // Already a Date object
-      };
+      const newPaymentHistory = [...(assignment.paymentHistory || [])];
+
+      if (editingPaymentIndex !== null) {
+        // Update existing payment
+        newPaymentHistory[editingPaymentIndex] = values;
+      } else {
+        // Add new payment
+        newPaymentHistory.push(values);
+      }
+
+      const newTotalPaid = newPaymentHistory.reduce((sum, p) => sum + p.amount, 0);
+      let newStatus: JobAssignment['paymentStatus'] = 'Kısmi Ödendi';
+      if (newTotalPaid >= assignment.assignedAmount) {
+        newStatus = 'Ödendi';
+      } else if (newTotalPaid <= 0) {
+        newStatus = 'Ödenmedi';
+      }
 
       await updateDoc(assignmentRef, {
-          paymentHistory: arrayUnion(newPayment)
+          paymentHistory: newPaymentHistory,
+          paymentStatus: newStatus
       });
 
       toast({
           title: 'Başarılı!',
-          description: 'Yeni ödeme kaydı eklendi.',
+          description: `Ödeme kaydı ${editingPaymentIndex !== null ? 'güncellendi' : 'eklendi'}.`,
       });
-
-      // Recalculate status and update if necessary
-      const currentTotalPaid = (assignment.paymentHistory || []).reduce((sum, p) => sum + p.amount, 0) + newPayment.amount;
-      let newStatus: JobAssignment['paymentStatus'] = 'Kısmi Ödendi';
-      if (currentTotalPaid >= assignment.assignedAmount) {
-          newStatus = 'Ödendi';
-      } else if (currentTotalPaid === 0) {
-          newStatus = 'Ödenmedi';
-      }
       
-      await updateDoc(assignmentRef, { paymentStatus: newStatus });
-      
-      form.reset({ amount: 0, date: new Date(), note: '' });
+      cancelEdit();
       onSuccess();
     } catch (error: any) {
-        toast({ variant: 'destructive', title: 'Hata', description: `Ödeme eklenemedi: ${error.message}` });
+        toast({ variant: 'destructive', title: 'Hata', description: `İşlem başarısız: ${error.message}` });
     } finally {
         setIsSubmitting(false);
     }
@@ -134,23 +144,26 @@ export function ManagePaymentsDialog({
   const handleDeletePayment = async (paymentIndex: number) => {
     if (!firestore || !assignment || !assignment.paymentHistory) return;
 
-    const paymentToDelete = assignment.paymentHistory[paymentIndex];
-    if (!paymentToDelete) return;
-
+    const updatedHistory = [...(assignment.paymentHistory || [])];
+    updatedHistory.splice(paymentIndex, 1);
+    
     try {
       const assignmentRef = doc(firestore, 'job_assignments', assignment.id);
       
-      const updatedHistory = [...(assignment.paymentHistory || [])];
-      updatedHistory.splice(paymentIndex, 1);
+      const newTotalPaid = updatedHistory.reduce((sum, p) => sum + p.amount, 0);
+      let newStatus: JobAssignment['paymentStatus'] = 'Kısmi Ödendi';
+      if (newTotalPaid >= assignment.assignedAmount) {
+        newStatus = 'Ödendi';
+      } else if (newTotalPaid <= 0) {
+        newStatus = 'Ödenmedi';
+      }
       
       await updateDoc(assignmentRef, {
         paymentHistory: updatedHistory,
+        paymentStatus: newStatus
       });
 
-      toast({
-        title: 'Başarılı',
-        description: 'Ödeme kaydı silindi.',
-      });
+      toast({ title: 'Başarılı', description: 'Ödeme kaydı silindi.' });
       onSuccess();
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Hata', description: `Ödeme silinemedi: ${error.message}` });
@@ -202,7 +215,7 @@ export function ManagePaymentsDialog({
                                 <TableHead>Tarih</TableHead>
                                 <TableHead>Not</TableHead>
                                 <TableHead className="text-right">Tutar</TableHead>
-                                <TableHead className="w-12"></TableHead>
+                                <TableHead className="w-24 text-right">Eylemler</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -212,10 +225,15 @@ export function ManagePaymentsDialog({
                                         <TableCell>{format(p.date.seconds * 1000, 'dd MMMM yyyy', { locale: tr })}</TableCell>
                                         <TableCell className="text-muted-foreground">{p.note}</TableCell>
                                         <TableCell className="text-right font-mono">{formatCurrency(p.amount)}</TableCell>
-                                        <TableCell>
-                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => handleDeletePayment(index)}>
-                                                <Trash2 className="h-4 w-4"/>
-                                            </Button>
+                                        <TableCell className="text-right">
+                                            <div className="flex gap-1 justify-end">
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600" onClick={() => handleEditClick(p, index)}>
+                                                    <Edit className="h-4 w-4"/>
+                                                </Button>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => handleDeletePayment(index)}>
+                                                    <Trash2 className="h-4 w-4"/>
+                                                </Button>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))
@@ -231,7 +249,7 @@ export function ManagePaymentsDialog({
                 </ScrollArea>
             </div>
             <div>
-                 <h4 className="font-semibold mb-2">Yeni Ödeme Ekle</h4>
+                 <h4 className="font-semibold mb-2">{editingPaymentIndex !== null ? 'Ödemeyi Düzenle' : 'Yeni Ödeme Ekle'}</h4>
                  <Form {...form}>
                     <form onSubmit={form.handleSubmit(onPaymentSubmit)} className="space-y-4 rounded-md border p-4">
                         <FormField control={form.control} name="amount" render={({ field }) => (
@@ -269,10 +287,17 @@ export function ManagePaymentsDialog({
                         <FormField control={form.control} name="note" render={({ field }) => (
                             <FormItem><FormLabel>Not (Opsiyonel)</FormLabel><FormControl><Input placeholder="İş avansı" {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
-                        <Button type="submit" className="w-full" disabled={isSubmitting}>
-                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
-                            Ödemeyi Kaydet
-                        </Button>
+                        <div className="space-y-2">
+                             <Button type="submit" className="w-full" disabled={isSubmitting}>
+                                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : editingPaymentIndex !== null ? <Edit className="mr-2 h-4 w-4" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+                                {editingPaymentIndex !== null ? 'Güncelle' : 'Ödemeyi Kaydet'}
+                            </Button>
+                            {editingPaymentIndex !== null && (
+                                <Button type="button" variant="outline" className="w-full" onClick={cancelEdit}>
+                                    İptal et ve Yeni Kayda Geç
+                                </Button>
+                            )}
+                        </div>
                     </form>
                  </Form>
             </div>
@@ -287,5 +312,3 @@ export function ManagePaymentsDialog({
     </Dialog>
   );
 }
-
-    
