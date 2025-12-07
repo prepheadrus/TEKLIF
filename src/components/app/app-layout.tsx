@@ -1,15 +1,16 @@
+
 'use client';
 
 import { useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
-import { Building, Home, Users, Package, FileText, Layers, BookCopy, Menu } from 'lucide-react';
+import { Building, Home, Users, Package, FileText, Layers, BookCopy, Menu, HardHat } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { ThemeToggle } from '@/components/app/theme-toggle';
 import dynamic from 'next/dynamic';
 
-const MobileNav = dynamic(() => import('@/components/app/app-layout').then(mod => mod.MobileNav), { ssr: false });
+const MobileNav = dynamic(() => import('@/components/app/app-layout').then(mod => mod.MobileNavComponent), { ssr: false });
 
 const navItems = [
     { href: '/', label: 'Anasayfa', icon: Home, target: '/' },
@@ -18,6 +19,7 @@ const navItems = [
     { href: '/products', label: 'Ürünler', icon: Package, target: '/products' },
     { href: '/installation-types', label: 'Kategoriler', icon: Layers, target: '/installation-types' },
     { href: '/recipes', label: 'Reçeteler', icon: BookCopy, target: '/recipes' },
+    { href: '/personnel', label: 'Ustalar', icon: HardHat, target: '/personnel' },
 ];
 
 const NavItem = ({ href, label, target }: { href: string, label: string, target: string }) => {
@@ -120,3 +122,5 @@ export function AppLayout({ children }: { children: ReactNode }) {
     </div>
   );
 }
+
+    

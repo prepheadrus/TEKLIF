@@ -54,20 +54,25 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "LaborCost",
       "type": "object",
-      "description": "Represents the cost of labor for a specific role.",
+      "description": "Represents the cost of a specific type of labor.",
       "properties": {
         "role": {
           "type": "string",
-          "description": "The role of the laborer (e.g., usta/kalfa)."
+          "description": "The name or role of the labor (e.g., Usta Yevmiye, Kaynak İşçiliği)."
         },
-        "hourlyRate": {
+        "cost": {
           "type": "number",
-          "description": "The hourly rate for the labor role."
+          "description": "The cost for the specified unit of labor."
+        },
+        "unit": {
+          "type": "string",
+          "description": "The unit of measurement for the labor cost (e.g., Gün, Saat, İş)."
         }
       },
       "required": [
         "role",
-        "hourlyRate"
+        "cost",
+        "unit"
       ]
     },
     "Recipe": {
@@ -97,7 +102,7 @@
               },
               "quantity": {
                 "type": "number",
-                "description": "The quantity of the material or the number of hours for labor."
+                "description": "The quantity of the material or the number of labor units."
               }
             },
             "required": ["type", "itemId", "quantity"]
@@ -377,6 +382,35 @@
         }
       },
       "required": ["name"]
+    },
+    "Personnel": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Personnel",
+      "type": "object",
+      "description": "Represents a worker, technician, or master (Usta).",
+      "properties": {
+        "name": { "type": "string", "description": "Full name of the personnel." },
+        "role": { "type": "string", "description": "The primary role or title (e.g., Usta, Kalfa, Tesisatçı)." },
+        "phone": { "type": "string", "description": "Contact phone number." },
+        "email": { "type": "string", "format": "email", "description": "Contact email address." },
+        "status": { "type": "string", "enum": ["Aktif", "Pasif"], "description": "Current status of the personnel."}
+      },
+      "required": ["name", "role", "status"]
+    },
+    "JobAssignment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "JobAssignment",
+      "type": "object",
+      "description": "Links an approved proposal to a personnel member and tracks payment.",
+      "properties": {
+        "proposalId": { "type": "string", "description": "The ID of the approved proposal." },
+        "personnelId": { "type": "string", "description": "The ID of the assigned personnel." },
+        "assignedAmount": { "type": "number", "description": "The agreed payment amount for this job." },
+        "paymentStatus": { "type": "string", "enum": ["Ödenmedi", "Kısmi Ödendi", "Ödendi"], "description": "Status of the payment." },
+        "notes": { "type": "string", "description": "Notes regarding the assignment or payment." },
+        "assignedAt": { "type": "string", "format": "date-time", "description": "Timestamp of when the job was assigned." }
+      },
+      "required": ["proposalId", "personnelId", "assignedAmount", "paymentStatus", "assignedAt"]
     }
   },
   "auth": {
@@ -458,12 +492,28 @@
           "description": "Stores notes and comments for a specific product."
         }
       },
-       {
+      {
         "path": "/installation_types/{installationTypeId}",
         "definition": {
           "entityName": "InstallationType",
           "schema": { "$ref": "#/backend/entities/InstallationType" },
           "description": "Stores the different disciplines of mechanical installations."
+        }
+      },
+      {
+        "path": "/personnel/{personnelId}",
+        "definition": {
+          "entityName": "Personnel",
+          "schema": { "$ref": "#/backend/entities/Personnel" },
+          "description": "Stores information about workers (ustalar)."
+        }
+      },
+      {
+        "path": "/job_assignments/{assignmentId}",
+        "definition": {
+          "entityName": "JobAssignment",
+          "schema": { "$ref": "#/backend/entities/JobAssignment" },
+          "description": "Tracks job assignments to personnel and their payments."
         }
       }
     ],
