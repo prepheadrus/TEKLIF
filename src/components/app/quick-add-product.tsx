@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,7 @@ const productSchema = z.object({
   // Sales Info
   listPrice: z.coerce.number().min(0, "Liste fiyatı 0'dan büyük olmalıdır."),
   currency: z.enum(["TRY", "USD", "EUR"]),
-  discountRate: z.coerce.number().min(0).max(1, "İskonto oranı 0 ile 1 arasında olmalıdır."),
+  discountRate: z.coerce.number().min(0).max(1, "İskonto oranı 0 ile 100 arasında olmalıdır."),
   
   // Categorization
   category: z.string().min(1, "Kategori zorunludur."),
@@ -276,9 +276,27 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
                         </Select>
                     <FormMessage /></FormItem>
                 )} />
-                 <FormField control={form.control} name="discountRate" render={({ field }) => (
-                    <FormItem><FormLabel>Genel İskonto Oranı (%15 için 0.15)</FormLabel><FormControl><Input type="number" step="0.01" min="0" max="1" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
+                <Controller
+                    control={form.control}
+                    name="discountRate"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Genel İskonto Oranı (%)</FormLabel>
+                        <FormControl>
+                            <Input
+                            type="number"
+                            placeholder="15"
+                            value={(field.value || 0) * 100}
+                            onChange={(e) => {
+                                const numValue = parseFloat(e.target.value);
+                                field.onChange(isNaN(numValue) ? 0 : numValue / 100);
+                            }}
+                            />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
 
                 <Separator className="md:col-span-2 my-4" />
                  <h4 className="md:col-span-2 text-lg font-semibold text-primary border-b pb-2 mb-2">Detaylı Bilgiler</h4>
@@ -307,5 +325,3 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
     </Dialog>
   );
 }
-
-    
