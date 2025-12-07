@@ -6,6 +6,9 @@ export * from './product-selector';
 export * from './app-provider';
 export * from './bulk-product-importer';
 export * from './assign-job-dialog';
+export * from './manage-payments-dialog';
 
 // Print-specific Components
 export * from './print-document';
+
+    

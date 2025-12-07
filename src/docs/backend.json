@@ -407,7 +407,6 @@
         "personnelId": { "type": "string", "description": "The ID of the assigned personnel." },
         "assignedAmount": { "type": "number", "description": "The agreed payment amount for this job." },
         "paymentStatus": { "type": "string", "enum": ["Ödenmedi", "Kısmi Ödendi", "Ödendi"], "description": "Status of the payment." },
-        "paymentNotes": { "type": "string", "description": "Notes regarding the payments made." },
         "paymentHistory": {
           "type": "array",
           "description": "A history of payments made for this assignment.",
@@ -417,7 +416,8 @@
               "amount": { "type": "number", "description": "Amount of the payment." },
               "date": { "type": "string", "format": "date-time", "description": "Date of the payment." },
               "note": { "type": "string", "description": "A note for this specific payment." }
-            }
+            },
+            "required": ["amount", "date"]
           }
         },
         "notes": { "type": "string", "description": "General notes regarding the assignment." },
@@ -533,3 +533,5 @@
     "reasoning": "The Firestore structure is simplified by merging 'Materials' into 'Products'. Now, the `products` collection serves as the master list for all sellable or costed items. The `suppliers` collection remains to manage vendor information. This unified approach simplifies data management and aligns better with the user's workflow of picking items from a single master list for proposals."
   }
 }
+
+    
