@@ -1,10 +1,19 @@
 import { Metadata } from "next";
-import { RecipesPage } from '@/app/recipes/recipes-client-page';
+import dynamic from 'next/dynamic';
+import { Loader2 } from 'lucide-react';
+
+const RecipesPageContent = dynamic(
+    () => import('@/app/recipes/recipes-client-page').then(mod => mod.RecipesPageContent),
+    { 
+        ssr: false, 
+        loading: () => <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-16 w-16 animate-spin text-primary" /></div> 
+    }
+);
 
 export const metadata: Metadata = {
     title: 'Reçeteler',
 };
 
 export default function Page() {
-    return <RecipesPage />;
+    return <RecipesPageContent />;
 }

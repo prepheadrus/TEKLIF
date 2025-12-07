@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import dynamic from 'next/dynamic';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -90,7 +89,7 @@ type LaborCost = {
 };
 
 // --- Main Component ---
-function RecipesPageContent() {
+export function RecipesPageContent() {
   const { toast } = useToast();
   const firestore = useFirestore();
 
@@ -132,9 +131,9 @@ function RecipesPageContent() {
     name: 'recipeItems',
   });
 
-   const resetForm = useCallback((product: Product | null) => {
-    if (product) {
-      const recipe = recipes?.find(r => r.productId === product.id);
+  useEffect(() => {
+    if (selectedProduct) {
+      const recipe = recipes?.find(r => r.productId === selectedProduct.id);
       
       let itemsToSet: RecipeItemForm[] = [];
       if (recipe && recipe.recipeItems && products && laborCosts) {
@@ -158,18 +157,13 @@ function RecipesPageContent() {
       }
       reset({
         id: recipe?.id,
-        productId: product.id,
+        productId: selectedProduct.id,
         recipeItems: itemsToSet,
       });
     } else {
         reset({ id: undefined, productId: '', recipeItems: [] });
     }
-  }, [recipes, products, laborCosts, reset]);
-
-  useEffect(() => {
-    resetForm(selectedProduct);
-  }, [selectedProduct, resetForm]);
-
+  }, [selectedProduct, recipes, products, laborCosts, reset]);
 
   const watchedItems = form.watch('recipeItems');
 
@@ -382,9 +376,3 @@ function RecipesPageContent() {
     </>
   );
 }
-
-
-export const RecipesPage = dynamic(() => Promise.resolve(RecipesPageContent), {
-  ssr: false,
-  loading: () => <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-16 w-16 animate-spin text-primary" /></div>,
-});
