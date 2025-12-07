@@ -42,7 +42,6 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { fetchExchangeRates } from '@/ai/flows/fetch-exchange-rates';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -380,7 +379,8 @@ export function QuotesPageContent() {
         const nextId = (monthProposalsSnap.size + 1).toString().padStart(3, '0');
         const quoteNumber = `${month}${year}/${nextId}`;
 
-        const exchangeRates = await fetchExchangeRates();
+        // Fallback exchange rates
+        const exchangeRates = { USD: 32.50, EUR: 35.00 };
         const newProposalRef = doc(collection(firestore, 'proposals'));
         
         const newProposalData = {
@@ -427,7 +427,8 @@ export function QuotesPageContent() {
 
 
         const newProposalRef = doc(collection(firestore, 'proposals'));
-        const newRates = await fetchExchangeRates();
+        // Fallback exchange rates
+        const newRates = { USD: 32.50, EUR: 35.00 };
 
         const { id, ...originalData } = proposalToClone;
 

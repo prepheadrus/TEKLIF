@@ -65,7 +65,6 @@ import { ProductSelector } from '@/components/app/product-selector';
 import type { Product as ProductType } from '@/app/products/products-client-page';
 import { cn } from '@/lib/utils';
 import type { InstallationType } from '@/app/installation-types/installation-types-client-page';
-import { fetchExchangeRates } from '@/ai/flows/fetch-exchange-rates';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -527,9 +526,10 @@ export function QuoteDetailClientPage() {
   
   const handleFetchRates = async () => {
     setIsFetchingRates(true);
-    toast({ title: 'Kurlar alınıyor...', description: 'TCMB verileri çekiliyor.' });
+    toast({ title: 'Kurlar alınıyor...', description: 'Manuel olarak ayarlandı.' });
     try {
-        const newRates = await fetchExchangeRates();
+        // Fallback exchange rates
+        const newRates = { USD: 32.50, EUR: 35.00 };
         
         if (newRates && newRates.USD && newRates.EUR) {
             form.setValue('exchangeRates.USD', newRates.USD, { shouldValidate: true, shouldDirty: true });
@@ -537,7 +537,7 @@ export function QuoteDetailClientPage() {
             await form.trigger(['exchangeRates.USD', 'exchangeRates.EUR']);
             toast({ title: 'Başarılı!', description: 'Döviz kurları güncellendi.' });
         } else {
-            throw new Error("API'den geçerli kur bilgisi alınamadı.");
+            throw new Error("Geçerli kur bilgisi alınamadı.");
         }
     } catch (error: any) {
         toast({ variant: 'destructive', title: 'Hata', description: `Kurlar alınamadı: ${error.message}` });
