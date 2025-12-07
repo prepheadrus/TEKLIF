@@ -6,10 +6,13 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { DollarSign, Users, FileText, Package, TrendingUp, Award } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
 
 
 // --- Type Definitions ---
@@ -19,6 +22,8 @@ type Proposal = {
   status: 'Draft' | 'Sent' | 'Approved' | 'Rejected';
   customerId: string;
   customerName: string;
+  projectName: string;
+  createdAt: { seconds: number };
 };
 
 type ProposalItem = {
@@ -44,9 +49,35 @@ type TopCustomer = {
     totalAmount: number;
 };
 
+// --- Helper Functions ---
+const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(amount);
+};
+
+const formatDate = (timestamp?: { seconds: number }) => {
+    if (!timestamp) return '-';
+    return new Date(timestamp.seconds * 1000).toLocaleDateString('tr-TR');
+};
+
+const getStatusBadge = (status: Proposal['status']) => {
+  switch (status) {
+    case 'Approved':
+      return <Badge variant="default" className="bg-green-600 hover:bg-green-600/80">Onaylandı</Badge>;
+    case 'Sent':
+      return <Badge variant="secondary">Gönderildi</Badge>;
+    case 'Rejected':
+      return <Badge variant="destructive">Reddedildi</Badge>;
+    case 'Draft':
+    default:
+      return <Badge variant="outline">Taslak</Badge>;
+  }
+}
+
 // --- Main Component ---
 export function DashboardContent() {
   const firestore = useFirestore();
+  const router = useRouter();
+
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [isLoadingTopProducts, setIsLoadingTopProducts] = useState(true);
   const [topCustomers, setTopCustomers] = useState<TopCustomer[]>([]);
@@ -54,7 +85,7 @@ export function DashboardContent() {
 
   // --- Data Fetching ---
   const proposalsRef = useMemoFirebase(
-    () => (firestore ? collection(firestore, 'proposals') : null),
+    () => (firestore ? query(collection(firestore, 'proposals'), orderBy('createdAt', 'desc')) : null),
     [firestore]
   );
   const { data: proposals, isLoading: isLoadingProposals } = useCollection<Proposal>(proposalsRef);
@@ -72,31 +103,39 @@ export function DashboardContent() {
   const { data: allProducts, isLoading: isLoadingProducts } = useCollection<Product>(productsRef);
   
   // --- Memoized Stats Calculation ---
-  const stats = useMemo(() => {
-    const totalProposalAmount = proposals?.filter(p => p.status === 'Approved').reduce((sum, p) => sum + (p.totalAmount || 0), 0) || 0;
-    const approvedQuotesCount = proposals?.filter(p => p.status === 'Approved').length || 0;
+  const { stats, recentProposals } = useMemo(() => {
+    if (!proposals) return { stats: {}, recentProposals: [] };
+    
+    const approvedProposals = proposals.filter(p => p.status === 'Approved');
+    const totalProposalAmount = approvedProposals.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+    const approvedQuotesCount = approvedProposals.length;
     const customerCount = customers?.length || 0;
     const productCount = allProducts?.length || 0;
+    
+    const sortedRecentProposals = proposals.slice(0, 5);
 
     return {
-      totalProposalAmount,
-      approvedQuotesCount,
-      customerCount,
-      productCount,
+      stats: {
+        totalProposalAmount,
+        approvedQuotesCount,
+        customerCount,
+        productCount,
+      },
+      recentProposals: sortedRecentProposals
     };
   }, [proposals, customers, allProducts]);
 
   // --- Top Products & Customers Calculation Effect ---
   useEffect(() => {
-    if (!proposals || isLoadingProposals) {
+    if (!proposals || isLoadingProposals || !firestore) {
         return;
     }
     
+    const approvedProposals = proposals.filter(p => p.status === 'Approved');
+
     // --- Top Customers Calculation ---
     const calculateTopCustomers = () => {
         setIsLoadingTopCustomers(true);
-        const approvedProposals = proposals.filter(p => p.status === 'Approved');
-
         const customerTotals: Record<string, { name: string, total: number }> = {};
 
         approvedProposals.forEach(proposal => {
@@ -123,9 +162,7 @@ export function DashboardContent() {
 
     // --- Top Products Calculation ---
     const calculateTopProducts = async () => {
-        if (!firestore) return;
         setIsLoadingTopProducts(true);
-        const approvedProposals = proposals.filter(p => p.status === 'Approved');
         if (approvedProposals.length === 0) {
             setTopProducts([]);
             setIsLoadingTopProducts(false);
@@ -169,10 +206,6 @@ export function DashboardContent() {
   }, [proposals, allProducts, firestore, isLoadingProposals]);
 
   const isLoading = isLoadingProposals || isLoadingCustomers || isLoadingProducts;
-  
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(amount);
-  };
 
   const StatCard = ({ title, value, icon, description, isLoading }: { title: string, value: string, icon: React.ReactNode, description: string, isLoading: boolean }) => (
     <Card>
@@ -205,28 +238,28 @@ export function DashboardContent() {
       <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
         <StatCard
             title="Toplam Teklif Tutarı"
-            value={formatCurrency(stats.totalProposalAmount)}
+            value={formatCurrency(stats.totalProposalAmount || 0)}
             description="Onaylanmış tüm teklifler"
             isLoading={isLoading}
             icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
         />
          <StatCard
             title="Onaylanan Teklifler"
-            value={`${stats.approvedQuotesCount}`}
+            value={`${stats.approvedQuotesCount || 0}`}
             description="Toplam onaylanan teklif sayısı"
             isLoading={isLoading}
             icon={<FileText className="h-4 w-4 text-muted-foreground" />}
         />
         <StatCard
             title="Müşteriler"
-            value={`${stats.customerCount}`}
+            value={`${stats.customerCount || 0}`}
             description="Toplam kayıtlı müşteri"
             isLoading={isLoading}
             icon={<Users className="h-4 w-4 text-muted-foreground" />}
         />
         <StatCard
             title="Toplam Ürün"
-            value={`${stats.productCount}`}
+            value={`${stats.productCount || 0}`}
             description="Toplam kayıtlı ürün"
             isLoading={isLoading}
             icon={<Package className="h-4 w-4 text-muted-foreground" />}
@@ -256,7 +289,7 @@ export function DashboardContent() {
                                     {product.totalQuantity} adet
                                 </Badge>
                                 <Progress 
-                                    value={(product.totalQuantity / topProducts[0].totalQuantity) * 100} 
+                                    value={(product.totalQuantity / (topProducts[0]?.totalQuantity || 1)) * 100} 
                                     className="w-[100px] h-2" 
                                 />
                             </div>
@@ -302,6 +335,48 @@ export function DashboardContent() {
             </CardContent>
         </Card>
       </div>
+      <Card>
+        <CardHeader>
+            <CardTitle>Son Aktiviteler</CardTitle>
+            <CardDescription>En son oluşturulan veya güncellenen teklifler.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            {isLoadingProposals ? (
+                 <div className="space-y-2">
+                    {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+                </div>
+            ) : recentProposals.length > 0 ? (
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Müşteri</TableHead>
+                            <TableHead>Proje</TableHead>
+                            <TableHead>Durum</TableHead>
+                            <TableHead>Tarih</TableHead>
+                            <TableHead className="text-right">Tutar</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {recentProposals.map(p => (
+                            <TableRow key={p.id} className="cursor-pointer" onClick={() => router.push(`/quotes/${p.id}`)}>
+                                <TableCell>
+                                    <div className="font-medium">{p.customerName}</div>
+                                </TableCell>
+                                <TableCell>{p.projectName}</TableCell>
+                                <TableCell>{getStatusBadge(p.status)}</TableCell>
+                                <TableCell>{formatDate(p.createdAt)}</TableCell>
+                                <TableCell className="text-right font-medium">{formatCurrency(p.totalAmount)}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            ) : (
+                <div className="text-center text-muted-foreground p-8">
+                    Henüz hiç teklif oluşturulmamış.
+                </div>
+            )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -309,3 +384,5 @@ export function DashboardContent() {
 export default function DashboardContentPage() {
     return <DashboardContent />;
 }
+
+    
