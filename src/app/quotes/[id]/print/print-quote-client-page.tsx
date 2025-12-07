@@ -28,7 +28,7 @@ type Proposal = {
 };
 
 type ProposalItem = {
-    id: string; // This is added by useCollection
+    id?: string; // This is added by useCollection
     name: string;
     brand: string;
     model?: string;
@@ -252,5 +252,3 @@ export function PrintQuoteClientPage() {
         </div>
     );
 }
-
-    
