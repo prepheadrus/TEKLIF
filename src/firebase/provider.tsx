@@ -80,10 +80,12 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       auth,
       (firebaseUser) => { // Auth state determined
         setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
+        console.log('[Auth] isUserLoading:', false, 'user:', firebaseUser?.uid);
       },
       (error) => { // Auth listener error
         console.error("FirebaseProvider: onAuthStateChanged error:", error);
         setUserAuthState({ user: null, isUserLoading: false, userError: error });
+        console.log('[Auth] isUserLoading:', false, 'user:', null);
       }
     );
     return () => unsubscribe(); // Cleanup

@@ -53,6 +53,7 @@ export function useDoc<T = any>(
 
 
   useEffect(() => {
+    console.log('[useDoc] ref:', memoizedDocRef?.path, 'isUserLoading:', isUserLoading);
     // Wait for user to be loaded and for the docRef to be available
     if (isUserLoading || !memoizedDocRef) {
       setData(null);

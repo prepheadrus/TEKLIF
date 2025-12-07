@@ -551,6 +551,30 @@ export function QuoteDetailClientPage({ params }: { params: { id: string } }) {
     window.open(url, '_blank');
   };
 
+  // ===== DEBUG BAŞLANGIÇ =====
+    console.log('===== QUOTE DETAIL DEBUG =====');
+    console.log('params.id:', params?.id);
+
+    // Auth durumu
+    console.log('isUserLoading:', isUserLoading);
+    console.log('user:', user?.uid);
+
+    // Firestore durumu  
+    console.log('firestore:', firestore ? 'MEVCUT' : 'YOK');
+
+    // Proposal durumu
+    console.log('proposalRef:', proposalRef?.path);
+    console.log('isProposalLoading:', isProposalLoading);
+    console.log('proposal:', proposal);
+
+    // Items durumu
+    console.log('itemsRef:', proposalItemsRef?.path);
+    console.log('isItemsLoading:', isLoadingItems);
+    console.log('items:', initialItems?.length);
+
+    console.log('===== DEBUG BİTİŞ =====');
+    // ===== DEBUG BİTİŞ =====
+
   const isLoading = isProposalLoading || isLoadingItems || isLoadingInstallationTypes;
   
   const formatCurrency = (amount: number, currency: 'TRY' | 'USD' | 'EUR' = 'TRY') => {
