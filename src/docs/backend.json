@@ -407,7 +407,20 @@
         "personnelId": { "type": "string", "description": "The ID of the assigned personnel." },
         "assignedAmount": { "type": "number", "description": "The agreed payment amount for this job." },
         "paymentStatus": { "type": "string", "enum": ["Ödenmedi", "Kısmi Ödendi", "Ödendi"], "description": "Status of the payment." },
-        "notes": { "type": "string", "description": "Notes regarding the assignment or payment." },
+        "paymentNotes": { "type": "string", "description": "Notes regarding the payments made." },
+        "paymentHistory": {
+          "type": "array",
+          "description": "A history of payments made for this assignment.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "amount": { "type": "number", "description": "Amount of the payment." },
+              "date": { "type": "string", "format": "date-time", "description": "Date of the payment." },
+              "note": { "type": "string", "description": "A note for this specific payment." }
+            }
+          }
+        },
+        "notes": { "type": "string", "description": "General notes regarding the assignment." },
         "assignedAt": { "type": "string", "format": "date-time", "description": "Timestamp of when the job was assigned." }
       },
       "required": ["proposalId", "personnelId", "assignedAmount", "paymentStatus", "assignedAt"]
