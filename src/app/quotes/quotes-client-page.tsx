@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { PlusCircle, MoreHorizontal, Copy, Trash2, Loader2, Search, ChevronDown, Eye, AlertTriangle, FileText, DollarSign, Calculator, CheckSquare, X, FileSpreadsheet, ChevronLeft, ChevronRight } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Copy, Trash2, Loader2, Search, ChevronDown, Eye, AlertTriangle, FileText, DollarSign, Calculator, CheckSquare, X, FileSpreadsheet, ChevronLeft, ChevronRight, HardHat } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Badge } from '@/components/ui/badge';
@@ -49,6 +49,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
+import { AssignJobDialog } from '@/components/app/assign-job-dialog';
+import type { Personnel } from '@/app/personnel/personnel-client-page';
 
 
 const newQuoteSchema = z.object({
@@ -78,10 +80,16 @@ type Proposal = {
     versionNote: string;
 };
 
+type JobAssignment = {
+    id: string;
+    proposalId: string;
+}
+
 type ProposalGroup = {
     rootProposalId: string;
     latestProposal: Proposal;
     versions: Proposal[];
+    isAssigned: boolean;
 }
 
 function getStatusBadge(status: Proposal['status']) {
@@ -161,6 +169,8 @@ export function QuotesPageContent() {
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
+  const [isAssignJobDialogOpen, setIsAssignJobDialogOpen] = useState(false);
+  const [proposalToAssign, setProposalToAssign] = useState<Proposal | null>(null);
 
 
   const form = useForm<NewQuoteFormValues>({
@@ -180,6 +190,12 @@ export function QuotesPageContent() {
   const customersRef = useMemoFirebase(() => (firestore ? collection(firestore, 'customers') : null), [firestore]);
   const { data: customers, isLoading: isLoadingCustomers } = useCollection<Customer>(customersRef);
 
+  const jobAssignmentsRef = useMemoFirebase(() => (firestore ? collection(firestore, 'job_assignments') : null), [firestore]);
+  const { data: jobAssignments, isLoading: isLoadingAssignments, refetch: refetchAssignments } = useCollection<JobAssignment>(jobAssignmentsRef);
+  
+  const personnelRef = useMemoFirebase(() => (firestore ? query(collection(firestore, 'personnel'), where('status', '==', 'Aktif')) : null), [firestore]);
+  const { data: activePersonnel, isLoading: isLoadingPersonnel } = useCollection<Personnel>(personnelRef);
+
   useEffect(() => {
     setSelectedIds(new Set());
     setCurrentPage(1); // Reset page on filter change
@@ -187,8 +203,9 @@ export function QuotesPageContent() {
 
 
   const groupedProposals = useMemo((): ProposalGroup[] => {
-    if (!proposals) return [];
+    if (!proposals || !jobAssignments) return [];
 
+    const assignedProposalIds = new Set(jobAssignments.map(j => j.proposalId));
     const groups: Record<string, Proposal[]> = {};
     
     proposals.forEach(p => {
@@ -201,10 +218,15 @@ export function QuotesPageContent() {
 
     return Object.values(groups).map(versions => {
         versions.sort((a, b) => (b.version || 0) - (a.version || 0));
+        const latestProposal = versions[0];
+        // A group is considered "assigned" if any of its versions have been assigned.
+        const isAssigned = versions.some(v => assignedProposalIds.has(v.id));
+
         return {
-            rootProposalId: versions[0].rootProposalId,
-            latestProposal: versions[0],
-            versions: versions
+            rootProposalId: latestProposal.rootProposalId,
+            latestProposal: latestProposal,
+            versions: versions,
+            isAssigned: isAssigned,
         };
     }).sort((a, b) => {
         const timeA = a.latestProposal.createdAt?.seconds ?? 0;
@@ -219,7 +241,7 @@ export function QuotesPageContent() {
           return timeA - timeB;
         }
     });
-}, [proposals, sortOrder]);
+}, [proposals, jobAssignments, sortOrder]);
   
   const flatFilteredProposals = useMemo(() => {
     if (!proposals) return [];
@@ -596,6 +618,11 @@ export function QuotesPageContent() {
         });
     };
 
+    const handleOpenAssignJobDialog = (proposal: Proposal) => {
+        setProposalToAssign(proposal);
+        setIsAssignJobDialogOpen(true);
+    }
+
     const PaginationControls = () => {
         if (totalPages <= 1) return null;
 
@@ -879,6 +906,7 @@ export function QuotesPageContent() {
                                             <div className="font-semibold text-right">{formatCurrency(group.latestProposal.totalAmount)}</div>
                                         </div>
                                         <div className="flex items-center gap-2 pl-6">
+                                            {group.isAssigned && <Badge className="bg-orange-100 text-orange-800"><HardHat className="mr-1 h-3 w-3"/> Atandı</Badge>}
                                             {getStatusBadge(group.latestProposal.status)}
                                             <Badge variant="secondary">
                                                 <Copy className="mr-2 h-3 w-3"/>
@@ -896,6 +924,12 @@ export function QuotesPageContent() {
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuLabel>İşlemler</DropdownMenuLabel>
+                                                    {group.latestProposal.status === 'Approved' && !group.isAssigned && (
+                                                        <DropdownMenuItem onClick={() => handleOpenAssignJobDialog(group.latestProposal)}>
+                                                            <HardHat className="mr-2 h-4 w-4" />
+                                                            İş Ata
+                                                        </DropdownMenuItem>
+                                                    )}
                                                     <DropdownMenuItem onClick={() => handleDuplicateProposal(group.latestProposal)} disabled={isRevising === group.rootProposalId}>
                                                         <Copy className="mr-2 h-4 w-4" />
                                                         Yeni Revizyon Oluştur
@@ -1095,6 +1129,16 @@ export function QuotesPageContent() {
             </CardFooter>
         )}
       </Card>
+        <AssignJobDialog
+            isOpen={isAssignJobDialogOpen}
+            onOpenChange={setIsAssignJobDialogOpen}
+            proposal={proposalToAssign}
+            personnelList={activePersonnel || []}
+            onSuccess={() => {
+                refetchAssignments();
+                setIsAssignJobDialogOpen(false);
+            }}
+      />
     </div>
   );
 }
