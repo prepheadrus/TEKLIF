@@ -127,7 +127,7 @@ export function RecipesPageContent() {
     }
   });
 
-  const { fields, append, remove, reset } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: 'recipeItems',
   });
@@ -156,15 +156,15 @@ export function RecipesPageContent() {
           return { ...item, id: Math.random().toString(), name, unit, cost };
         });
       }
-      reset({
+      form.reset({
         id: recipe?.id,
         productId: selectedProduct.id,
         recipeItems: itemsToSet,
       });
     } else {
-        reset({ id: undefined, productId: '', recipeItems: [] });
+        form.reset({ id: undefined, productId: '', recipeItems: [] });
     }
-  }, [selectedProduct, recipes, products, laborCosts, reset]);
+  }, [selectedProduct, recipes, products, laborCosts, form]);
 
   const watchedItems = form.watch('recipeItems');
 
@@ -377,3 +377,5 @@ export function RecipesPageContent() {
     </>
   );
 }
+
+    
