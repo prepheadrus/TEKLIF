@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -122,11 +122,14 @@ export function RecipesPageContent() {
   }, [products, recipes, searchTerm]);
 
   const form = useForm<RecipeFormValues>();
+  const { reset } = form;
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: 'recipeItems',
   });
+  
+  const resetForm = useCallback(reset, [reset]);
 
   useEffect(() => {
     if (selectedProduct) {
@@ -153,15 +156,15 @@ export function RecipesPageContent() {
         });
       }
 
-      form.reset({
+      resetForm({
         id: recipe?.id,
         productId: selectedProduct.id,
         recipeItems: itemsToSet,
       });
     } else {
-        form.reset({ id: undefined, productId: '', recipeItems: [] });
+        resetForm({ id: undefined, productId: '', recipeItems: [] });
     }
-  }, [selectedProduct, recipes, products, laborCosts, form]);
+  }, [selectedProduct, recipes, products, laborCosts, resetForm]);
 
   const watchedItems = form.watch('recipeItems');
 
