@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from '@/components/ui/textarea';
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, addDocumentNonBlocking, setDocumentNonBlocking, useCollection, useMemoFirebase } from '@/firebase';
@@ -37,6 +38,11 @@ const productSchema = z.object({
   // Categorization
   category: z.string().min(1, "Kategori zorunludur."),
   installationTypeId: z.string().optional().nullable(),
+
+  // Detailed Info
+  description: z.string().optional(),
+  technicalSpecifications: z.string().optional(),
+  brochureUrl: z.string().url("Geçerli bir URL girin.").optional().or(z.literal('')),
 });
 
 type ProductFormValues = z.infer<typeof productSchema>;
@@ -44,8 +50,7 @@ type ProductFormValues = z.infer<typeof productSchema>;
 interface QuickAddProductProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
-    onProductAdded?: () => void; // Renamed from onSuccess for clarity
-    onSuccess?: () => void; // Keep for backward compatibility if needed
+    onSuccess?: () => void;
     existingProduct?: Product | null;
 }
 
@@ -83,7 +88,7 @@ const buildCategoryTree = (categories: InstallationType[]): { id: string; name: 
     return flattenedList;
 };
 
-export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, onProductAdded, existingProduct }: QuickAddProductProps) {
+export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProduct }: QuickAddProductProps) {
   const { toast } = useToast();
   const firestore = useFirestore();
 
@@ -116,11 +121,13 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, onProductAdde
                 ...existingProduct,
                 installationTypeId: existingProduct.installationTypeId || null,
                 supplierId: existingProduct.supplierId || null,
+                brochureUrl: existingProduct.brochureUrl || '',
             });
         } else {
             form.reset({
                 code: "", name: "", brand: "", model: "", category: "Genel", installationTypeId: null, unit: "Adet",
                 listPrice: 0, currency: "TRY", discountRate: 0, basePrice: 0, supplierId: null,
+                description: "", technicalSpecifications: "", brochureUrl: "",
             });
         }
     }
@@ -150,7 +157,6 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, onProductAdde
         }
         
         onSuccess?.();
-        onProductAdded?.();
         onOpenChange(false);
     } catch(error: any) {
          toast({ variant: "destructive", title: "Hata", description: `İşlem başarısız oldu: ${error.message}` });
@@ -161,17 +167,17 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, onProductAdde
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl grid-rows-[auto,1fr,auto]">
+      <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>{isEditMode ? 'Ürünü Düzenle' : 'Yeni Ürün/Malzeme Ekle'}</DialogTitle>
+          <DialogDescription>
+             {isEditMode ? 'Ürün bilgilerini güncelleyin.' : 'Sisteme yeni bir ürün, malzeme veya hizmet ekleyin.'}
+          </DialogDescription>
+        </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <DialogHeader>
-              <DialogTitle>{isEditMode ? 'Ürünü Düzenle' : 'Yeni Ürün/Malzeme Ekle'}</DialogTitle>
-              <DialogDescription>
-                 {isEditMode ? 'Ürün bilgilerini güncelleyin.' : 'Sisteme yeni bir ürün, malzeme veya hizmet ekleyin.'}
-              </DialogDescription>
-            </DialogHeader>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 flex-1 overflow-y-auto pr-2">
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3 py-4 max-h-[60vh] overflow-y-auto px-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3 py-4 px-1">
                 <h4 className="md:col-span-2 text-lg font-semibold text-primary border-b pb-2 mb-2">Genel Bilgiler</h4>
                 <FormField control={form.control} name="name" render={({ field }) => (
                     <FormItem className="md:col-span-2"><FormLabel>Ad</FormLabel><FormControl><Input placeholder="Duvar Tipi Yoğuşmalı Kazan 50 kW" {...field} /></FormControl><FormMessage /></FormItem>
@@ -273,9 +279,22 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, onProductAdde
                  <FormField control={form.control} name="discountRate" render={({ field }) => (
                     <FormItem><FormLabel>Genel İskonto Oranı (%15 için 0.15)</FormLabel><FormControl><Input type="number" step="0.01" min="0" max="1" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
+
+                <Separator className="md:col-span-2 my-4" />
+                 <h4 className="md:col-span-2 text-lg font-semibold text-primary border-b pb-2 mb-2">Detaylı Bilgiler</h4>
+                 
+                 <FormField control={form.control} name="description" render={({ field }) => (
+                    <FormItem className="md:col-span-2"><FormLabel>Açıklama</FormLabel><FormControl><Textarea placeholder="Ürünle ilgili genel açıklamalar, kullanım alanları vb." {...field} /></FormControl><FormMessage /></FormItem>
+                 )} />
+                 <FormField control={form.control} name="technicalSpecifications" render={({ field }) => (
+                    <FormItem className="md:col-span-2"><FormLabel>Teknik Özellikler</FormLabel><FormControl><Textarea placeholder="Kapasite: 50 kW, Verim: %109, Ağırlık: 45 kg..." {...field} /></FormControl><FormMessage /></FormItem>
+                 )} />
+                 <FormField control={form.control} name="brochureUrl" render={({ field }) => (
+                    <FormItem className="md:col-span-2"><FormLabel>Broşür/Döküman Linki</FormLabel><FormControl><Input type="url" placeholder="https://example.com/urun-brosuru.pdf" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
             </div>
             
-            <DialogFooter>
+            <DialogFooter className="pt-4 border-t">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>İptal</Button>
               <Button type="submit" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -288,3 +307,5 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, onProductAdde
     </Dialog>
   );
 }
+
+    
