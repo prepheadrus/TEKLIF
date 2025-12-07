@@ -19,6 +19,7 @@ import {
   ChevronRight,
   AlertTriangle,
   UploadCloud,
+  Search,
 } from 'lucide-react';
 import {
   useFirestore,
@@ -59,6 +60,7 @@ import { QuickAddInstallationType } from '@/components/app/quick-add-installatio
 import { cn } from '@/lib/utils';
 import { initialInstallationTypesData } from '@/lib/seed-data';
 import type { InitialInstallationType } from '@/lib/seed-data';
+import { Input } from '@/components/ui/input';
 
 
 export type InstallationType = {
@@ -231,6 +233,7 @@ export function InstallationTypesPageContent() {
   const [editingCategory, setEditingCategory] = useState<InstallationType | null>(null);
   const [defaultParentId, setDefaultParentId] = useState<string | null>(null);
   const [isSeeding, setIsSeeding] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
 
   const categoriesQuery = useMemoFirebase(
@@ -247,7 +250,33 @@ export function InstallationTypesPageContent() {
     refetch,
   } = useCollection<InstallationType>(categoriesQuery);
   
-  const categoryTree = useMemo(() => buildTree(categories || []), [categories]);
+  const categoryTree = useMemo(() => {
+    if (!categories) return [];
+
+    if (!searchTerm) {
+        return buildTree(categories);
+    }
+    
+    const lowercasedFilter = searchTerm.toLowerCase();
+    
+    const categoriesMap = new Map(categories.map(c => [c.id, c]));
+    const visibleIds = new Set<string>();
+
+    for(const category of categories) {
+        if(category.name.toLowerCase().includes(lowercasedFilter)) {
+            let currentId: string | null | undefined = category.id;
+            while(currentId && !visibleIds.has(currentId)) {
+                visibleIds.add(currentId);
+                const currentCategory = categoriesMap.get(currentId);
+                currentId = currentCategory?.parentId;
+            }
+        }
+    }
+    
+    const filteredCategories = categories.filter(c => visibleIds.has(c.id));
+    return buildTree(filteredCategories);
+
+  }, [categories, searchTerm]);
 
   const handleOpenDialogForNew = (parentId: string | null = null) => {
     setEditingCategory(null);
@@ -412,9 +441,17 @@ export function InstallationTypesPageContent() {
         <Card>
           <CardHeader>
             <CardTitle>Kategori Hiyerarşisi</CardTitle>
-            <CardDescription>
-              Tüm disiplinler ve alt kategorileriniz.
-            </CardDescription>
+            <div className="pt-4 flex justify-between items-center">
+                 <div className="relative w-full max-w-sm">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Kategori adı ara..."
+                        className="pl-8"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+            </div>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -439,7 +476,10 @@ export function InstallationTypesPageContent() {
               </div>
             ) : (
               <div className="p-8 text-center text-muted-foreground">
-                Henüz kategori oluşturulmamış. Yeni bir ana disiplin ekleyerek başlayın veya örnek verileri yükleyin.
+                {searchTerm 
+                    ? 'Arama kriterlerine uygun kategori bulunamadı.' 
+                    : 'Henüz kategori oluşturulmamış. Yeni bir ana disiplin ekleyerek başlayın veya örnek verileri yükleyin.'
+                }
               </div>
             )}
           </CardContent>
