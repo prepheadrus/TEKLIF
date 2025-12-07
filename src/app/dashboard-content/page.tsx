@@ -1,25 +1,47 @@
+
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Skeleton } from '@/components/ui/skeleton';
 import { DollarSign, Users, FileText, Package, TrendingUp } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 
-// Define types for our Firestore documents
+
+// --- Type Definitions ---
 type Proposal = {
+  id: string;
   totalAmount: number;
   status: 'Draft' | 'Sent' | 'Approved' | 'Rejected';
 };
 
-type Customer = {}; // We only need to count them
-type Product = {};  // We only need to count them
+type ProposalItem = {
+    productId: string;
+    name: string;
+    brand: string;
+    quantity: number;
+}
 
+type Customer = {};
+type Product = { id: string; name: string; brand: string };
+
+type TopProduct = {
+    id: string;
+    name: string;
+    brand: string;
+    totalQuantity: number;
+};
+
+// --- Main Component ---
 export function DashboardContent() {
   const firestore = useFirestore();
+  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [isLoadingTopProducts, setIsLoadingTopProducts] = useState(true);
 
-  // Fetch all necessary data collections
+  // --- Data Fetching ---
   const proposalsRef = useMemoFirebase(
     () => (firestore ? collection(firestore, 'proposals') : null),
     [firestore]
@@ -36,13 +58,14 @@ export function DashboardContent() {
     () => (firestore ? collection(firestore, 'products') : null),
     [firestore]
   );
-  const { data: products, isLoading: isLoadingProducts } = useCollection<Product>(productsRef);
+  const { data: allProducts, isLoading: isLoadingProducts } = useCollection<Product>(productsRef);
   
+  // --- Memoized Stats Calculation ---
   const stats = useMemo(() => {
-    const totalProposalAmount = proposals?.reduce((sum, p) => sum + (p.totalAmount || 0), 0) || 0;
+    const totalProposalAmount = proposals?.filter(p => p.status === 'Approved').reduce((sum, p) => sum + (p.totalAmount || 0), 0) || 0;
     const approvedQuotesCount = proposals?.filter(p => p.status === 'Approved').length || 0;
     const customerCount = customers?.length || 0;
-    const productCount = products?.length || 0;
+    const productCount = allProducts?.length || 0;
 
     return {
       totalProposalAmount,
@@ -50,7 +73,57 @@ export function DashboardContent() {
       customerCount,
       productCount,
     };
-  }, [proposals, customers, products]);
+  }, [proposals, customers, allProducts]);
+
+  // --- Top Products Calculation Effect ---
+  useEffect(() => {
+    if (!firestore || !proposals || isLoadingProposals) {
+        return;
+    }
+
+    const calculateTopProducts = async () => {
+        setIsLoadingTopProducts(true);
+        const approvedProposals = proposals.filter(p => p.status === 'Approved');
+        if (approvedProposals.length === 0) {
+            setTopProducts([]);
+            setIsLoadingTopProducts(false);
+            return;
+        }
+
+        const productQuantities: Record<string, number> = {};
+
+        for (const proposal of approvedProposals) {
+            const itemsRef = collection(firestore, 'proposals', proposal.id, 'proposal_items');
+            const itemsSnapshot = await getDocs(itemsRef);
+            itemsSnapshot.forEach(doc => {
+                const item = doc.data() as ProposalItem;
+                if (item.productId && item.quantity) {
+                    productQuantities[item.productId] = (productQuantities[item.productId] || 0) + item.quantity;
+                }
+            });
+        }
+        
+        const sortedProductIds = Object.entries(productQuantities)
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, 5);
+        
+        const topProductsData: TopProduct[] = sortedProductIds.map(([productId, totalQuantity]) => {
+            const productDetails = allProducts?.find(p => p.id === productId);
+            return {
+                id: productId,
+                name: productDetails?.name || 'Bilinmeyen Ürün',
+                brand: productDetails?.brand || 'Bilinmeyen Marka',
+                totalQuantity,
+            };
+        });
+        
+        setTopProducts(topProductsData);
+        setIsLoadingTopProducts(false);
+    };
+
+    calculateTopProducts();
+
+  }, [proposals, allProducts, firestore, isLoadingProposals]);
 
   const isLoading = isLoadingProposals || isLoadingCustomers || isLoadingProducts;
   
@@ -120,9 +193,36 @@ export function DashboardContent() {
         <Card className="col-span-4">
             <CardHeader>
                 <CardTitle>En Çok Tercih Edilen Ürünler (Top 5)</CardTitle>
+                 <CardDescription>Onaylanmış tekliflerde en çok kullanılan ürünler.</CardDescription>
             </CardHeader>
-            <CardContent className="pl-2">
-                 <p className="p-4 text-sm text-muted-foreground">Yakında burada en çok satan ürünleriniz listelenecektir.</p>
+            <CardContent>
+                 {isLoadingTopProducts ? (
+                    <div className="space-y-4">
+                        {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+                    </div>
+                ) : topProducts.length > 0 ? (
+                    <div className="space-y-4">
+                        {topProducts.map((product, index) => (
+                        <div key={product.id} className="flex items-center">
+                            <div className="w-1/2">
+                            <p className="font-medium truncate">{product.name}</p>
+                            <p className="text-xs text-muted-foreground">{product.brand}</p>
+                            </div>
+                            <div className="w-1/2 flex items-center justify-end gap-4">
+                                <Badge variant="secondary" className="w-24 justify-center">
+                                    {product.totalQuantity} adet
+                                </Badge>
+                                <Progress 
+                                    value={(product.totalQuantity / topProducts[0].totalQuantity) * 100} 
+                                    className="w-[100px] h-2" 
+                                />
+                            </div>
+                        </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="p-4 text-sm text-center text-muted-foreground">Henüz analiz edilecek onaylanmış teklif bulunmuyor.</p>
+                )}
             </CardContent>
         </Card>
          <Card className="col-span-3">
