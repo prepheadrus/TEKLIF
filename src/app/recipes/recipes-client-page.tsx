@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
@@ -11,6 +11,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +27,9 @@ import {
   Form,
   FormControl,
   FormField,
+  FormItem,
+  FormLabel,
+  FormMessage
 } from '@/components/ui/form';
 import {
   PlusCircle,
@@ -35,6 +39,8 @@ import {
   Search,
   Clock,
   Package,
+  Wrench,
+  X,
 } from 'lucide-react';
 import {
   ResizablePanelGroup,
@@ -48,10 +54,13 @@ import {
   useCollection,
   useMemoFirebase,
   setDocumentNonBlocking,
+  addDocumentNonBlocking,
+  deleteDocumentNonBlocking
 } from '@/firebase';
 import { collection, query, doc } from 'firebase/firestore';
 import type { Product } from '@/app/products/products-client-page';
 import { ProductSelector } from '@/components/app/product-selector';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 
 // --- Types ---
 const recipeItemSchema = z.object({
@@ -70,8 +79,16 @@ const recipeSchema = z.object({
   recipeItems: z.array(recipeItemSchema),
 });
 
+const laborCostSchema = z.object({
+    role: z.string().min(2, "Rol en az 2 karakter olmalıdır."),
+    cost: z.coerce.number().min(0, "Maliyet negatif olamaz."),
+    unit: z.string().min(1, "Birim zorunludur (örn: Gün, İş, Saat)."),
+});
+
 type RecipeFormValues = z.infer<typeof recipeSchema>;
 type RecipeItemForm = z.infer<typeof recipeItemSchema>;
+type LaborCostFormValues = z.infer<typeof laborCostSchema>;
+
 
 type Recipe = {
   id: string;
@@ -86,7 +103,8 @@ type Recipe = {
 type LaborCost = {
   id: string;
   role: string;
-  hourlyRate: number;
+  cost: number;
+  unit: string;
 };
 
 // --- Main Component ---
@@ -98,6 +116,8 @@ export function RecipesPageContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isProductSelectorOpen, setIsProductSelectorOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLaborCostDialogOpen, setIsLaborCostDialogOpen] = useState(false);
+
 
   // --- Data Fetching ---
   const { data: products, isLoading: isLoadingProducts } = useCollection<Product>(
@@ -106,7 +126,7 @@ export function RecipesPageContent() {
   const { data: recipes, isLoading: isLoadingRecipes, refetch: refetchRecipes } = useCollection<Recipe>(
     useMemoFirebase(() => (firestore ? query(collection(firestore, 'recipes')) : null), [firestore])
   );
-  const { data: laborCosts, isLoading: isLoadingLabor } = useCollection<LaborCost>(
+  const { data: laborCosts, isLoading: isLoadingLabor, refetch: refetchLabor } = useCollection<LaborCost>(
     useMemoFirebase(() => (firestore ? query(collection(firestore, 'labor_costs')) : null), [firestore])
   );
 
@@ -127,7 +147,7 @@ export function RecipesPageContent() {
     }
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, update } = useFieldArray({
     control: form.control,
     name: 'recipeItems',
   });
@@ -150,8 +170,8 @@ export function RecipesPageContent() {
           } else { // labor
             const labor = laborCosts.find(l => l.id === item.itemId);
             name = labor?.role || 'Silinmiş İşçilik';
-            unit = 'saat';
-            cost = labor?.hourlyRate || 0;
+            unit = labor?.unit;
+            cost = labor?.cost || 0;
           }
           return { ...item, id: Math.random().toString(), name, unit, cost };
         });
@@ -193,8 +213,8 @@ export function RecipesPageContent() {
         itemId: labor.id,
         name: labor.role,
         quantity: 1,
-        unit: 'saat',
-        cost: labor.hourlyRate,
+        unit: labor.unit,
+        cost: labor.cost,
     })
   }
 
@@ -223,6 +243,21 @@ export function RecipesPageContent() {
         setIsSaving(false);
     }
   };
+
+  const handleLaborCostUpdated = (updatedLabor: LaborCost) => {
+      // Find all items in the current recipe form that use this labor cost and update them
+      const currentItems = form.getValues('recipeItems');
+      currentItems.forEach((item, index) => {
+          if (item.type === 'labor' && item.itemId === updatedLabor.id) {
+              update(index, {
+                  ...item,
+                  cost: updatedLabor.cost,
+                  unit: updatedLabor.unit,
+                  name: updatedLabor.role,
+              });
+          }
+      });
+  }
 
   const isLoading = isLoadingProducts || isLoadingRecipes || isLoadingLabor;
 
@@ -280,6 +315,9 @@ export function RecipesPageContent() {
                                             <CardDescription>Bu ürünü oluşturmak için gereken malzemeleri ve işçilikleri tanımlayın.</CardDescription>
                                         </div>
                                         <div className="flex items-center gap-2">
+                                            <Button type="button" variant="outline" onClick={() => setIsLaborCostDialogOpen(true)}>
+                                                <Wrench className="mr-2 h-4 w-4" /> İşçilik Maliyetleri
+                                            </Button>
                                             <Button type="button" variant="outline" onClick={() => setIsProductSelectorOpen(true)}>
                                                 <PlusCircle className="mr-2" /> Malzeme Ekle
                                             </Button>
@@ -290,34 +328,20 @@ export function RecipesPageContent() {
                                         </div>
                                     </div>
                                 </CardHeader>
-                                <CardContent className="flex-1 overflow-hidden flex flex-col">
-                                    <div className="grid grid-cols-2 gap-4 mb-4">
-                                        <Card>
-                                            <CardHeader className="pb-2">
-                                                <CardTitle className="text-base">İşçilikler</CardTitle>
-                                            </CardHeader>
-                                            <CardContent className="flex flex-wrap gap-2">
-                                                {laborCosts?.map(l => (
-                                                    <Button key={l.id} size="sm" type="button" variant="secondary" onClick={() => handleAddLabor(l)}>
-                                                        <PlusCircle className="mr-2 h-3 w-3" /> {l.role}
-                                                    </Button>
-                                                ))}
-                                            </CardContent>
-                                        </Card>
-                                         <Card className="bg-slate-800 text-white">
-                                            <CardHeader className="pb-2">
-                                                <CardTitle className="text-base">Toplam Reçete Maliyeti</CardTitle>
-                                            </CardHeader>
-                                            <CardContent>
-                                                <p className="text-3xl font-bold font-mono">{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(totalRecipeCost)}</p>
-                                                <p className="text-sm text-slate-300">Bu maliyet, tekliflerdeki kar hesaplaması için kullanılacaktır.</p>
-                                            </CardContent>
-                                        </Card>
-                                    </div>
+                                <CardContent className="flex-1 overflow-hidden flex flex-col gap-4">
+                                     <Card className="bg-slate-800 text-white">
+                                        <CardHeader className="pb-2 flex-row items-center justify-between">
+                                            <CardTitle className="text-base">Toplam Reçete Maliyeti</CardTitle>
+                                            <p className="text-sm text-slate-300">Bu maliyet, tekliflerdeki kar hesaplaması için kullanılacaktır.</p>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <p className="text-4xl font-bold font-mono">{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(totalRecipeCost)}</p>
+                                        </CardContent>
+                                    </Card>
 
-                                    <div className="border rounded-md flex-1 overflow-hidden">
+                                    <div className="border rounded-md flex-1 overflow-auto">
                                         <Table>
-                                             <TableHeader className="bg-muted/50">
+                                             <TableHeader className="bg-muted/50 sticky top-0">
                                                 <TableRow>
                                                     <TableHead className="w-12"></TableHead>
                                                     <TableHead className="w-2/5">Kalem (Malzeme/İşçilik)</TableHead>
@@ -329,8 +353,15 @@ export function RecipesPageContent() {
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
+                                                {fields.length === 0 && (
+                                                    <TableRow>
+                                                        <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
+                                                            Bu reçeteye malzeme veya işçilik ekleyin.
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )}
                                                 {fields.map((field, index) => {
-                                                    const itemTotalCost = watchedItems[index].quantity * watchedItems[index].cost;
+                                                    const itemTotalCost = watchedItems[index]?.quantity * watchedItems[index]?.cost;
                                                     return (
                                                     <TableRow key={field.id}>
                                                         <TableCell className="text-center">
@@ -344,7 +375,7 @@ export function RecipesPageContent() {
                                                         </TableCell>
                                                         <TableCell>{field.unit}</TableCell>
                                                         <TableCell className="text-right font-mono">{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(field.cost)}</TableCell>
-                                                        <TableCell className="text-right font-mono font-semibold">{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(itemTotalCost)}</TableCell>
+                                                        <TableCell className="text-right font-mono font-semibold">{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(itemTotalCost || 0)}</TableCell>
                                                         <TableCell>
                                                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => remove(index)}>
                                                                 <Trash2 className="h-4 w-4" />
@@ -374,8 +405,160 @@ export function RecipesPageContent() {
         onOpenChange={setIsProductSelectorOpen}
         onProductsSelected={handleAddProductsAsMaterials}
     />
+     <LaborCostDialog
+        isOpen={isLaborCostDialogOpen}
+        onOpenChange={setIsLaborCostDialogOpen}
+        laborCosts={laborCosts || []}
+        onAddLabor={handleAddLabor}
+        onRefetch={refetchLabor}
+        onLaborCostUpdated={handleLaborCostUpdated}
+      />
     </>
   );
 }
 
+
+// --- LaborCostDialog Component ---
+
+interface LaborCostDialogProps {
+    isOpen: boolean;
+    onOpenChange: (open: boolean) => void;
+    laborCosts: LaborCost[];
+    onAddLabor: (labor: LaborCost) => void;
+    onRefetch: () => void;
+    onLaborCostUpdated: (labor: LaborCost) => void;
+}
+
+function LaborCostDialog({ isOpen, onOpenChange, laborCosts, onAddLabor, onRefetch, onLaborCostUpdated }: LaborCostDialogProps) {
+    const { toast } = useToast();
+    const firestore = useFirestore();
+    const [editingLabor, setEditingLabor] = useState<LaborCost | null>(null);
+
+    const form = useForm<LaborCostFormValues>({
+        resolver: zodResolver(laborCostSchema),
+        defaultValues: { role: "", cost: 0, unit: "Gün" },
+    });
     
+    useEffect(() => {
+        if(editingLabor) {
+            form.reset(editingLabor);
+        } else {
+            form.reset({ role: "", cost: 0, unit: "Gün" });
+        }
+    }, [editingLabor, form])
+
+    const handleSaveLaborCost = async (values: LaborCostFormValues) => {
+        if (!firestore) return;
+        
+        try {
+            const docRef = editingLabor 
+                ? doc(firestore, 'labor_costs', editingLabor.id) 
+                : doc(collection(firestore, 'labor_costs'));
+                
+            const dataToSave = { ...values };
+
+            setDocumentNonBlocking(docRef, dataToSave, { merge: true });
+            
+            toast({ title: 'Başarılı!', description: `İşçilik maliyeti ${editingLabor ? 'güncellendi' : 'kaydedildi'}.` });
+            
+            // Pass the updated/new data back to the main component
+            onLaborCostUpdated({ id: docRef.id, ...dataToSave });
+
+            onRefetch();
+            setEditingLabor(null);
+
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Hata', description: `İşlem başarısız oldu: ${error.message}` });
+        }
+    };
+    
+    const handleDeleteLaborCost = (id: string) => {
+        if(!firestore) return;
+        deleteDocumentNonBlocking(doc(firestore, 'labor_costs', id));
+        toast({title: 'Silindi', description: 'İşçilik maliyeti silindi.'});
+        onRefetch();
+    }
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>İşçilik Maliyetlerini Yönet</DialogTitle>
+                    <DialogDescription>
+                        Reçetelerde kullanmak üzere işçilik rollerini ve maliyetlerini tanımlayın.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="grid grid-cols-3 gap-6 py-4">
+                    {/* Left side: List */}
+                    <div className="col-span-2">
+                        <h4 className="font-medium mb-2">Tanımlı İşçilikler</h4>
+                        <ScrollArea className="h-64 border rounded-md">
+                           <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Rol</TableHead>
+                                        <TableHead>Birim</TableHead>
+                                        <TableHead className="text-right">Maliyet</TableHead>
+                                        <TableHead className="w-24"></TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {laborCosts.map(l => (
+                                        <TableRow key={l.id}>
+                                            <TableCell className="font-medium">{l.role}</TableCell>
+                                            <TableCell>{l.unit}</TableCell>
+                                            <TableCell className="text-right font-mono">{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(l.cost)}</TableCell>
+                                            <TableCell className="text-right">
+                                                <div className="flex gap-1 justify-end">
+                                                     <Button variant="outline" size="sm" onClick={() => onAddLabor(l)}>Ekle</Button>
+                                                     <Button variant="ghost" size="sm" onClick={() => setEditingLabor(l)}>Düzenle</Button>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                           </Table>
+                        </ScrollArea>
+                    </div>
+
+                    {/* Right side: Form */}
+                    <div className="col-span-1">
+                         <h4 className="font-medium mb-2">{editingLabor ? 'Düzenle' : 'Yeni Ekle'}</h4>
+                         <Form {...form}>
+                            <form onSubmit={form.handleSubmit(handleSaveLaborCost)} className="space-y-4 bg-slate-50 dark:bg-slate-800 p-4 rounded-md border">
+                                <FormField control={form.control} name="role" render={({ field }) => (
+                                    <FormItem><FormLabel>Rol</FormLabel><FormControl><Input placeholder="Usta Yevmiye" {...field} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                                <FormField control={form.control} name="unit" render={({ field }) => (
+                                    <FormItem><FormLabel>Birim</FormLabel><FormControl><Input placeholder="Gün" {...field} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                                <FormField control={form.control} name="cost" render={({ field }) => (
+                                    <FormItem><FormLabel>Maliyet</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                                <div className="flex flex-col gap-2">
+                                     <Button type="submit" disabled={form.formState.isSubmitting}>
+                                        {form.formState.isSubmitting && <Loader2 className="animate-spin mr-2 h-4 w-4"/>}
+                                        {editingLabor ? 'Güncelle' : 'Kaydet'}
+                                     </Button>
+                                     {editingLabor && (
+                                         <>
+                                            <Button type="button" variant="secondary" onClick={() => setEditingLabor(null)}>Yeni Kayda Geç</Button>
+                                            <Button type="button" variant="destructive" size="sm" onClick={() => handleDeleteLaborCost(editingLabor.id)}>
+                                                <Trash2 className="mr-2 h-4 w-4" /> Sil
+                                            </Button>
+                                         </>
+                                     )}
+                                </div>
+                            </form>
+                         </Form>
+                    </div>
+                </div>
+                 <DialogFooter>
+                    <DialogClose asChild>
+                        <Button variant="outline">Kapat</Button>
+                    </DialogClose>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
