@@ -139,8 +139,13 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
       return;
     }
     
+    // Convert undefined optional fields to null to prevent Firestore errors
     const dataToSave = { 
-        ...values, 
+        ...values,
+        description: values.description || null,
+        technicalSpecifications: values.technicalSpecifications || null,
+        brochureUrl: values.brochureUrl || null,
+        model: values.model || null,
         installationTypeId: values.installationTypeId || null,
         supplierId: values.supplierId || null,
     };
