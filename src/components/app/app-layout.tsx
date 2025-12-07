@@ -6,6 +6,7 @@ import { Building, Home, Users, Package, FileText, Layers, BookCopy, Menu } from
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { ThemeToggle } from '@/components/app/theme-toggle';
 
 const navItems = [
     { href: '/', label: 'Anasayfa', icon: Home, target: '/' },
@@ -34,7 +35,7 @@ const NavItem = ({ href, label, target }: { href: string, label: string, target:
                 "px-3 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer",
                 isActive 
                     ? "text-primary bg-primary/10" 
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-slate-50 dark:hover:bg-slate-800"
             )}
         >
             {label}
@@ -60,7 +61,7 @@ const MobileNav = () => {
                 </Button>
             </SheetTrigger>
             <SheetContent side="left">
-                 <a href="/" onClick={(e) => handleLinkClick(e, '/', '/')} className="flex items-center gap-2 font-bold text-slate-800 mb-8">
+                 <a href="/" onClick={(e) => handleLinkClick(e, '/', '/')} className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200 mb-8">
                     <Building className="h-6 w-6 text-primary" />
                     <span className="text-lg">MechQuote</span>
                 </a>
@@ -70,7 +71,7 @@ const MobileNav = () => {
                             key={item.href}
                             href={item.href}
                             onClick={(e) => handleLinkClick(e, item.href, item.target)}
-                            className="text-lg text-slate-700 hover:text-primary"
+                            className="text-lg text-slate-700 hover:text-primary dark:text-slate-300 dark:hover:text-primary"
                         >
                             {item.label}
                         </a>
@@ -84,12 +85,12 @@ const MobileNav = () => {
 
 export function AppLayout({ children }: { children: ReactNode }) {
   return (
-    <div className={cn("flex flex-col min-h-screen bg-slate-50")}>
-      <header className="sticky top-0 z-30 flex-shrink-0 bg-white/95 backdrop-blur-sm border-b border-slate-200 print-hidden">
+    <div className={cn("flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950")}>
+      <header className="sticky top-0 z-30 flex-shrink-0 bg-white/95 dark:bg-slate-900/80 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800 print-hidden">
         <div className="mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
                 <div className="flex items-center gap-8">
-                    <a href="/" onClick={(e) => { e.preventDefault(); window.open('/', '/'); }} className="flex items-center gap-2 font-bold text-slate-800">
+                    <a href="/" onClick={(e) => { e.preventDefault(); window.open('/', '/'); }} className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200">
                         <Building className="h-6 w-6 text-primary" />
                         <span className="text-lg">MechQuote</span>
                     </a>
@@ -99,8 +100,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
                         ))}
                     </nav>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
                      <div id="exchange-rate-portal"></div>
+                     <ThemeToggle />
                     <div className="md:hidden">
                         <MobileNav />
                     </div>
