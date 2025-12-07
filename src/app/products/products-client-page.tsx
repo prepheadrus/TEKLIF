@@ -284,7 +284,8 @@ export function ProductsPageContent() {
             <TableHeader>
               <TableRow>
                 <TableHead>Ad</TableHead>
-                <TableHead>Marka / Model</TableHead>
+                <TableHead>Marka</TableHead>
+                <TableHead>Model</TableHead>
                 <TableHead>Tedarikçi</TableHead>
                 <TableHead>Tesisat Kategorisi</TableHead>
                 <TableHead>Birim Alış Fiyatı</TableHead>
@@ -295,13 +296,13 @@ export function ProductsPageContent() {
             <TableBody>
               {tableIsLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">
+                  <TableCell colSpan={8} className="text-center">
                     <Loader2 className="mx-auto my-4 h-6 w-6 animate-spin" />
                   </TableCell>
                 </TableRow>
               ) : error ? (
                  <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center text-red-600">
+                    <TableCell colSpan={8} className="h-24 text-center text-red-600">
                         Ürünler yüklenirken bir hata oluştu: {error.message}
                     </TableCell>
                 </TableRow>
@@ -312,10 +313,8 @@ export function ProductsPageContent() {
                         <div>{product.name}</div>
                         <div className="text-xs text-muted-foreground font-mono">{product.code}</div>
                     </TableCell>
-                    <TableCell>
-                        <div>{product.brand}</div>
-                        <div className="text-xs text-muted-foreground">{product.model}</div>
-                    </TableCell>
+                    <TableCell>{product.brand}</TableCell>
+                    <TableCell>{product.model || '-'}</TableCell>
                     <TableCell>
                       {product.supplierId && (
                         <Badge variant="secondary">{supplierMap.get(product.supplierId) || 'Bilinmiyor'}</Badge>
@@ -372,7 +371,7 @@ export function ProductsPageContent() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
+                  <TableCell colSpan={8} className="h-24 text-center">
                     Henüz ürün bulunmuyor. Örnek verileri yükleyebilir veya yeni ürün ekleyebilirsiniz.
                   </TableCell>
                 </TableRow>

@@ -310,7 +310,7 @@ export function QuoteDetailClientPage() {
            handleFetchRates();
         }
     }
-  }, [proposal, initialItems, form]);
+  }, [proposal, initialItems]);
 
 
   useEffect(() => {
@@ -712,7 +712,8 @@ export function QuoteDetailClientPage() {
                                       <TableHeader className="bg-slate-50">
                                       <TableRow>
                                           <TableHead className="py-2 pl-4 text-xs uppercase text-slate-500 font-semibold tracking-wider w-[30%]">Ürün Tanımı</TableHead>
-                                          <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider w-[15%]">Marka / Model</TableHead>
+                                          <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Marka</TableHead>
+                                          <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Model</TableHead>
                                           <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Miktar</TableHead>
                                           <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Liste Fiyatı</TableHead>
                                           <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">İskonto</TableHead>
@@ -740,8 +741,10 @@ export function QuoteDetailClientPage() {
                                                   <TableCell className="py-1.5 pl-4 font-medium text-slate-800 w-[30%]">
                                                       <FormField control={form.control} name={`items.${index}.name`} render={({ field }) => <Input {...field} className="w-full h-7 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
                                                   </TableCell>
-                                                  <TableCell className="py-1.5 w-[15%]">
+                                                  <TableCell className="py-1.5">
                                                       <FormField control={form.control} name={`items.${index}.brand`} render={({ field }) => <Input {...field} className="w-full h-7 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
+                                                  </TableCell>
+                                                  <TableCell className="py-1.5">
                                                       <FormField control={form.control} name={`items.${index}.model`} render={({ field }) => <Input {...field} placeholder="Model..." className="w-full h-7 text-xs bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
                                                   </TableCell>
                                                   <TableCell className="py-1.5">
