@@ -10,5 +10,3 @@ export * from './manage-payments-dialog';
 
 // Print-specific Components
 export * from './print-document';
-
-    
