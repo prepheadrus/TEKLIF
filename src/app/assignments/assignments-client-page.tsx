@@ -49,7 +49,7 @@ import { ManagePaymentsDialog } from '@/components/app/manage-payments-dialog';
 // --- Types ---
 type Personnel = { id: string; name: string };
 type Proposal = { id: string; projectName: string; customerName: string };
-type Payment = {
+export type Payment = {
     amount: number;
     date: { seconds: number };
     note?: string;
@@ -299,11 +299,10 @@ export function AssignmentsPageContent() {
         assignment={selectedAssignment}
         onSuccess={() => {
             refetchAssignments();
-            setIsPaymentDialogOpen(false);
+            // We don't close the dialog here anymore, allowing users to make multiple changes.
+            // Closing is handled by the close button inside the dialog.
         }}
       />
     </>
   );
 }
-
-    

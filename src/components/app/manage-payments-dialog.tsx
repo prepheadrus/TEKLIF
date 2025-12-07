@@ -28,7 +28,7 @@ import { Loader2, PlusCircle, Trash2, Edit } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
-import { JobAssignment } from '@/app/assignments/assignments-client-page';
+import type { JobAssignment } from '@/app/assignments/assignments-client-page';
 import { Card, CardContent } from '../ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { ScrollArea } from '../ui/scroll-area';
@@ -44,7 +44,7 @@ import type { Payment } from '@/app/assignments/assignments-client-page';
 interface ManagePaymentsDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  assignment: JobAssignment | null;
+  assignment: (JobAssignment & { totalPaid: number; remainingBalance: number; personnelName: string; projectName: string }) | null;
   onSuccess: () => void;
 }
 
@@ -111,10 +111,10 @@ export function ManagePaymentsDialog({
 
       if (editingPaymentIndex !== null) {
         // Update existing payment
-        newPaymentHistory[editingPaymentIndex] = values;
+        newPaymentHistory[editingPaymentIndex] = values as Payment;
       } else {
         // Add new payment
-        newPaymentHistory.push(values);
+        newPaymentHistory.push(values as Payment);
       }
 
       const newTotalPaid = newPaymentHistory.reduce((sum, p) => sum + p.amount, 0);
@@ -173,14 +173,6 @@ export function ManagePaymentsDialog({
     }
   };
 
-  const totalPaid = useMemo(() => {
-    return (assignment?.paymentHistory || []).reduce((sum, p) => sum + p.amount, 0);
-  }, [assignment]);
-  
-  const remainingBalance = useMemo(() => {
-    return (assignment?.assignedAmount || 0) - totalPaid;
-  }, [assignment, totalPaid]);
-
   if (!assignment) return null;
 
   return (
@@ -200,11 +192,11 @@ export function ManagePaymentsDialog({
             </CardContent></Card>
              <Card className="bg-green-50 dark:bg-green-900/50 border-green-200 dark:border-green-800"><CardContent className="pt-6">
                 <div className="text-sm font-medium text-green-700 dark:text-green-300">Toplam Ödenen</div>
-                <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(totalPaid)}</div>
+                <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(assignment.totalPaid)}</div>
             </CardContent></Card>
              <Card className="bg-red-50 dark:bg-red-900/50 border-red-200 dark:border-red-800"><CardContent className="pt-6">
                 <div className="text-sm font-medium text-red-700 dark:text-red-300">Kalan Bakiye</div>
-                <div className="text-2xl font-bold text-red-600 dark:text-red-400">{formatCurrency(remainingBalance)}</div>
+                <div className="text-2xl font-bold text-red-600 dark:text-red-400">{formatCurrency(assignment.remainingBalance)}</div>
             </CardContent></Card>
         </div>
 
@@ -315,5 +307,3 @@ export function ManagePaymentsDialog({
     </Dialog>
   );
 }
-
-    
