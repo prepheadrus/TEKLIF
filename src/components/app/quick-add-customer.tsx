@@ -20,14 +20,18 @@ import { Separator } from '../ui/separator';
 
 const customerSchema = z.object({
   name: z.string().min(2, "Müşteri adı en az 2 karakter olmalıdır."),
-  email: z.string().email("Geçerli bir e-posta adresi girin."),
+  email: z.string().email("Geçerli bir e-posta adresi girin.").optional().or(z.literal('')),
   phone: z.string().optional(),
   address: z.object({
-    addressLine1: z.string().optional(),
+    city: z.string().optional(),
     district: z.string().optional(),
+    neighborhood: z.string().optional(),
+    street: z.string().optional(),
+    buildingName: z.string().optional(),
+    buildingNumber: z.string().optional(),
+    apartmentNumber: z.string().optional(),
     postalCode: z.string().optional(),
   }).optional(),
-  city: z.string().optional(),
   taxNumber: z.string().optional(),
   status: z.enum(['Aktif', 'Pasif']),
   tags: z.array(z.string()).default([]),
@@ -38,14 +42,18 @@ type CustomerFormValues = z.infer<typeof customerSchema>;
 type Customer = {
   id: string;
   name: string;
-  email: string;
+  email?: string;
   phone?: string;
   address?: {
-    addressLine1?: string;
+    city?: string;
     district?: string;
+    neighborhood?: string;
+    street?: string;
+    buildingName?: string;
+    buildingNumber?: string;
+    apartmentNumber?: string;
     postalCode?: string;
   };
-  city?: string;
   taxNumber?: string;
   status: 'Aktif' | 'Pasif';
   tags?: string[];
@@ -84,11 +92,15 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded, existi
         email: "",
         phone: "",
         address: {
-            addressLine1: "",
+            city: "",
             district: "",
+            neighborhood: "",
+            street: "",
+            buildingName: "",
+            buildingNumber: "",
+            apartmentNumber: "",
             postalCode: "",
         },
-        city: "",
         taxNumber: "",
         status: 'Aktif',
         tags: [],
@@ -105,11 +117,15 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded, existi
           email: existingCustomer.email || "",
           phone: existingCustomer.phone || "",
           address: {
-            addressLine1: existingCustomer.address?.addressLine1 || "",
+            city: existingCustomer.address?.city || "",
             district: existingCustomer.address?.district || "",
+            neighborhood: existingCustomer.address?.neighborhood || "",
+            street: existingCustomer.address?.street || "",
+            buildingName: existingCustomer.address?.buildingName || "",
+            buildingNumber: existingCustomer.address?.buildingNumber || "",
+            apartmentNumber: existingCustomer.address?.apartmentNumber || "",
             postalCode: existingCustomer.address?.postalCode || "",
           },
-          city: existingCustomer.city || "",
           taxNumber: existingCustomer.taxNumber || "",
           status: existingCustomer.status || 'Aktif',
           tags: existingCustomer.tags || [],
@@ -120,11 +136,15 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded, existi
           email: "",
           phone: "",
           address: {
-            addressLine1: "",
+            city: "",
             district: "",
+            neighborhood: "",
+            street: "",
+            buildingName: "",
+            buildingNumber: "",
+            apartmentNumber: "",
             postalCode: "",
           },
-          city: "",
           taxNumber: "",
           status: 'Aktif',
           tags: [],
@@ -182,7 +202,7 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded, existi
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[700px]">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <DialogHeader>
@@ -190,74 +210,99 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded, existi
               <DialogDescription>{dialogDescription}</DialogDescription>
             </DialogHeader>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4 max-h-[60vh] overflow-y-auto px-1">
-                <FormField control={form.control} name="name" render={({ field }) => (
-                    <FormItem className="md:col-span-2"><FormLabel>Müşteri Adı / Firma Unvanı</FormLabel><FormControl><Input placeholder="Örn: ABC İnşaat A.Ş." {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="email" render={({ field }) => (
-                    <FormItem><FormLabel>E-posta Adresi</FormLabel><FormControl><Input type="email" placeholder="iletisim@abcinşaat.com" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="phone" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Telefon Numarası</FormLabel>
-                        <FormControl>
-                            <Input 
-                                type="tel" 
-                                placeholder="(5xx) xxx xx xx" 
-                                {...field} 
-                                onChange={handlePhoneChange}
-                                maxLength={15}
-                            />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                )} />
-                <FormField control={form.control} name="taxNumber" render={({ field }) => (
-                    <FormItem><FormLabel>Vergi No / TCKN</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="status" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Durum</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                <SelectItem value="Aktif">Aktif</SelectItem>
-                                <SelectItem value="Pasif">Pasif</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                    </FormItem>
-                )} />
+            <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto px-2">
+                <div className="space-y-2">
+                    <h3 className="font-medium text-lg">Genel Bilgiler</h3>
+                    <FormField control={form.control} name="name" render={({ field }) => (
+                        <FormItem><FormLabel>Müşteri Adı / Firma Unvanı</FormLabel><FormControl><Input placeholder="Örn: ABC İnşaat A.Ş." {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <div className="grid grid-cols-2 gap-4">
+                        <FormField control={form.control} name="email" render={({ field }) => (
+                            <FormItem><FormLabel>E-posta Adresi</FormLabel><FormControl><Input type="email" placeholder="iletisim@abcinşaat.com" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="phone" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Telefon Numarası</FormLabel>
+                                <FormControl>
+                                    <Input 
+                                        type="tel" 
+                                        placeholder="(5xx) xxx xx xx" 
+                                        {...field} 
+                                        onChange={handlePhoneChange}
+                                        maxLength={15}
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                    </div>
+                     <div className="grid grid-cols-2 gap-4">
+                        <FormField control={form.control} name="taxNumber" render={({ field }) => (
+                            <FormItem><FormLabel>Vergi No / TCKN</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="status" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Durum</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="Aktif">Aktif</SelectItem>
+                                        <SelectItem value="Pasif">Pasif</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                     </div>
+                </div>
 
-                <Separator className="md:col-span-2 my-2" />
-                 <h3 className="md:col-span-2 font-medium">Adres Bilgileri</h3>
+                <Separator className="my-4" />
+
+                <div className="space-y-2">
+                    <h3 className="font-medium text-lg">Adres Bilgileri</h3>
+                     <div className="grid grid-cols-2 gap-4">
+                        <FormField control={form.control} name="address.city" render={({ field }) => (
+                            <FormItem><FormLabel>Şehir</FormLabel><FormControl><Input placeholder="Ankara" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="address.district" render={({ field }) => (
+                            <FormItem><FormLabel>İlçe</FormLabel><FormControl><Input placeholder="Çankaya" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                    </div>
+                     <FormField control={form.control} name="address.neighborhood" render={({ field }) => (
+                        <FormItem><FormLabel>Mahalle</FormLabel><FormControl><Input placeholder="Kavaklıdere Mah." {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                     <FormField control={form.control} name="address.street" render={({ field }) => (
+                        <FormItem><FormLabel>Cadde</FormLabel><FormControl><Input placeholder="Atatürk Blv." {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <div className="grid grid-cols-3 gap-4">
+                        <FormField control={form.control} name="address.buildingName" render={({ field }) => (
+                            <FormItem><FormLabel>Site/Apt. Adı</FormLabel><FormControl><Input placeholder="Çankaya Apt." {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="address.buildingNumber" render={({ field }) => (
+                            <FormItem><FormLabel>Bina No</FormLabel><FormControl><Input placeholder="123" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="address.apartmentNumber" render={({ field }) => (
+                            <FormItem><FormLabel>Daire No</FormLabel><FormControl><Input placeholder="5" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                    </div>
+                     <FormField control={form.control} name="address.postalCode" render={({ field }) => (
+                        <FormItem className="w-1/3"><FormLabel>Posta Kodu</FormLabel><FormControl><Input placeholder="06500" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                </div>
                 
-                <FormField control={form.control} name="address.addressLine1" render={({ field }) => (
-                    <FormItem className="md:col-span-2"><FormLabel>Adres Satırı</FormLabel><FormControl><Input placeholder="Örn: Örnek Mah. Test Cad. No:1 D:2" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                 <FormField control={form.control} name="city" render={({ field }) => (
-                    <FormItem><FormLabel>Şehir</FormLabel><FormControl><Input placeholder="Ankara" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="address.district" render={({ field }) => (
-                    <FormItem><FormLabel>İlçe</FormLabel><FormControl><Input placeholder="Çankaya" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="address.postalCode" render={({ field }) => (
-                    <FormItem><FormLabel>Posta Kodu</FormLabel><FormControl><Input placeholder="06500" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                
-                <Separator className="md:col-span-2 my-2" />
+                <Separator className="my-4" />
                 
                  <FormField
                     control={form.control}
                     name="tags"
                     render={() => (
-                        <FormItem className="md:col-span-2">
-                        <div className="mb-4">
-                            <FormLabel className="text-base">Etiketler</FormLabel>
+                        <FormItem>
+                        <div className="mb-2">
+                            <FormLabel className="font-medium text-lg">Etiketler</FormLabel>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2">
                             {availableTags.map((tag) => (
                             <FormField
                                 key={tag.id}
@@ -283,7 +328,7 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded, existi
                                             }}
                                         />
                                         </FormControl>
-                                        <FormLabel className="font-normal">
+                                        <FormLabel className="font-normal text-sm">
                                             {tag.name}
                                         </FormLabel>
                                     </FormItem>
@@ -313,3 +358,5 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded, existi
     </Dialog>
   );
 }
+
+    

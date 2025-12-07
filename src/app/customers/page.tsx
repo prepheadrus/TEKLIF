@@ -55,12 +55,16 @@ import { availableTags, getTagClassName } from '@/lib/tags';
 type Customer = {
   id: string;
   name: string;
-  email: string;
+  email?: string;
   phone?: string;
-  city?: string;
   address?: {
-    addressLine1?: string;
+    city?: string;
     district?: string;
+    neighborhood?: string;
+    street?: string;
+    buildingName?: string;
+    buildingNumber?: string;
+    apartmentNumber?: string;
     postalCode?: string;
   };
   status: 'Aktif' | 'Pasif';
@@ -149,7 +153,8 @@ export function CustomersPageContent() {
   
   const uniqueCities = useMemo(() => {
     if (!customers) return [];
-    return [...new Set(customers.map(c => c.city).filter(Boolean))] as string[];
+    const cities = customers.map(c => c.address?.city).filter(Boolean) as string[];
+    return [...new Set(cities)];
   }, [customers]);
 
 
@@ -159,13 +164,13 @@ export function CustomersPageContent() {
         const searchLower = searchTerm.toLowerCase();
         const searchMatch = searchLower === '' ||
             c.name.toLowerCase().includes(searchLower) ||
-            c.email.toLowerCase().includes(searchLower) ||
+            (c.email && c.email.toLowerCase().includes(searchLower)) ||
             (c.phone && c.phone.includes(searchLower)) ||
-            (c.city && c.city.toLowerCase().includes(searchLower)) ||
+            (c.address?.city && c.address.city.toLowerCase().includes(searchLower)) ||
             (c.address?.district && c.address.district.toLowerCase().includes(searchLower));
 
         const statusMatch = statusFilter.length === 0 || statusFilter.includes(c.status);
-        const cityMatch = cityFilter.length === 0 || (c.city && cityFilter.includes(c.city));
+        const cityMatch = cityFilter.length === 0 || (c.address?.city && cityFilter.includes(c.address.city));
         const tagMatch = tagFilter.length === 0 || c.tags?.some(tag => tagFilter.includes(tag));
         
         return searchMatch && statusMatch && cityMatch && tagMatch;
@@ -227,6 +232,20 @@ export function CustomersPageContent() {
     if (!date) return '-';
     return date.toLocaleDateString('tr-TR');
   }
+  
+  const formatPhoneNumber = (value: string) => {
+    if (!value) return value;
+    const phoneNumber = value.replace(/[^\d]/g, '');
+    const phoneNumberLength = phoneNumber.length;
+    if (phoneNumberLength < 4) return phoneNumber;
+    if (phoneNumberLength < 7) {
+        return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3)}`;
+    }
+    if (phoneNumberLength < 11) {
+        return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)} ${phoneNumber.slice(6, 8)} ${phoneNumber.slice(8)}`;
+    }
+    return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)} ${phoneNumber.slice(6, 8)} ${phoneNumber.slice(8, 10)}`;
+  };
 
   const handleCellClick = (customer: Customer, field: 'email' | 'phone') => {
     setEditingCell({ customerId: customer.id, field });
@@ -362,7 +381,7 @@ export function CustomersPageContent() {
                 <TableRow>
                     <SortableHeader title="Ad / Unvan" sortKey="name" />
                     <TableHead>İletişim</TableHead>
-                    <SortableHeader title="Şehir" sortKey="city" />
+                    <SortableHeader title="Şehir" sortKey="address.city" />
                     <SortableHeader title="Etiketler" sortKey="tags" />
                     <SortableHeader title="Son Teklif Tarihi" sortKey="lastProposalDate" />
                     <SortableHeader title="Toplam Harcama" sortKey="totalSpending" />
@@ -382,7 +401,7 @@ export function CustomersPageContent() {
                     <TableRow key={customer.id} >
                         <TableCell className="font-medium" onClick={() => handleOpenEditDialog(customer)}>
                           {customer.name}
-                          <div className="text-xs text-muted-foreground">{customer.address?.district} / {customer.city}</div>
+                          <div className="text-xs text-muted-foreground">{customer.address?.district} / {customer.address?.city}</div>
                         </TableCell>
                         <TableCell>
                            {editingCell?.customerId === customer.id && editingCell?.field === 'email' ? (
@@ -401,18 +420,19 @@ export function CustomersPageContent() {
                            {editingCell?.customerId === customer.id && editingCell?.field === 'phone' ? (
                                 <Input 
                                     value={editValue}
-                                    onChange={(e) => setEditValue(e.target.value)}
+                                    onChange={(e) => setEditValue(formatPhoneNumber(e.target.value))}
                                     onBlur={handleInlineEditSave}
                                     onKeyDown={handleInlineEditKeyDown}
                                     autoFocus
                                     className="h-8 mt-1"
                                     type="tel"
+                                    maxLength={15}
                                 />
                            ) : (
                                 <div className="text-xs text-muted-foreground cursor-pointer hover:bg-gray-100 p-1 rounded mt-1" onClick={() => handleCellClick(customer, 'phone')}>{customer.phone}</div>
                            )}
                         </TableCell>
-                         <TableCell onClick={() => handleOpenEditDialog(customer)}>{customer.city || '-'}</TableCell>
+                         <TableCell onClick={() => handleOpenEditDialog(customer)}>{customer.address?.city || '-'}</TableCell>
                          <TableCell onClick={() => handleOpenEditDialog(customer)}>
                             <div className="flex flex-wrap gap-1">
                                 {customer.tags?.map(tagId => {
@@ -463,3 +483,5 @@ export function CustomersPageContent() {
 export default function CustomersPage() {
     return <CustomersPageContent />;
 }
+
+    

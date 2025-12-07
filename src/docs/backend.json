@@ -227,14 +227,15 @@
           "type": "object",
           "description": "Structured address of the customer.",
           "properties": {
-            "addressLine1": { "type": "string", "description": "Street, building number, apartment number." },
+            "city": { "type": "string", "description": "City (İl)." },
             "district": { "type": "string", "description": "District (İlçe)." },
+            "neighborhood": { "type": "string", "description": "Neighborhood (Mahalle)." },
+            "street": { "type": "string", "description": "Street (Cadde)." },
+            "buildingName": { "type": "string", "description": "Building or Complex Name (Site/Apartman Adı)." },
+            "buildingNumber": { "type": "string", "description": "Building Number (Bina Numarası)." },
+            "apartmentNumber": { "type": "string", "description": "Apartment Number (Daire Numarası)." },
             "postalCode": { "type": "string", "description": "Postal code." }
           }
-        },
-        "city": {
-            "type": "string",
-            "description": "The city where the customer is located."
         },
         "taxNumber": {
           "type": "string",
@@ -401,3 +402,5 @@
     "reasoning": "The Firestore structure is simplified by merging 'Materials' into 'Products'. Now, the `products` collection serves as the master list for all sellable or costed items. The `suppliers` collection remains to manage vendor information. This unified approach simplifies data management and aligns better with the user's workflow of picking items from a single master list for proposals."
   }
 }
+
+    
