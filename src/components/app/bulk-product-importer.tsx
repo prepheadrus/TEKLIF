@@ -29,10 +29,11 @@ import { FileUp, TableProperties, CheckCircle, ArrowRight, Loader2, Info, Downlo
 import { ScrollArea } from '../ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import type { Supplier, Product } from '@/app/products/products-client-page';
+import type { InstallationType } from '@/app/installation-types/installation-types-client-page';
 
 type Step = 'upload' | 'map' | 'review' | 'importing' | 'done';
 
-const productFields: { key: keyof Omit<Product, 'id'> | 'supplierName'; label: string, required: boolean, description?: string }[] = [
+const productFields: { key: keyof Omit<Product, 'id' | 'installationTypeId'> | 'supplierName' | 'installationCategoryName'; label: string, required: boolean, description?: string }[] = [
     { key: 'code', label: 'Ürün Kodu', required: true, description: "Her ürün için benzersiz bir kod (SKU)." },
     { key: 'name', label: 'Ürün Adı', required: true, description: "Ürünün tam ve açıklayıcı adı." },
     { key: 'brand', label: 'Marka', required: true, description: "Ürünün markası." },
@@ -43,6 +44,7 @@ const productFields: { key: keyof Omit<Product, 'id'> | 'supplierName'; label: s
     { key: 'currency', label: 'Para Birimi', required: true, description: "Geçerli değerler: TRY, USD, EUR." },
     { key: 'supplierName', label: 'Tedarikçi Adı', required: false, description: "Bu ürünün tedarikçisinin adı. Sistemde yoksa yeni tedarikçi oluşturulur (isteğe bağlı)." },
     { key: 'category', label: 'Genel Kategori', required: false, description: "Ürünün genel kategorisi. Örn: Kazan, Pompa (isteğe bağlı)." },
+    { key: 'installationCategoryName', label: 'Tesisat Kategorisi Adı', required: false, description: "Ürünün ait olduğu detaylı tesisat kategorisinin tam adı (isteğe bağlı)." },
     { key: 'discountRate', label: 'İskonto Oranı', required: false, description: "Varsayılan satış iskontosu. Örn: %15 için 0.15 (isteğe bağlı)." }
 ];
 
@@ -58,6 +60,9 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
   
   const suppliersQuery = useMemoFirebase(() => (firestore ? query(collection(firestore, 'suppliers')) : null), [firestore]);
   const { data: suppliers } = useCollection<Supplier>(suppliersQuery);
+  const installationTypesQuery = useMemoFirebase(() => (firestore ? query(collection(firestore, 'installation_types')) : null), [firestore]);
+  const { data: installationTypes } = useCollection<InstallationType>(installationTypesQuery);
+
 
   const form = useForm();
 
@@ -111,6 +116,7 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
         if(f.key === 'listPrice') return 150;
         if(f.key === 'currency') return 'TRY';
         if(f.key === 'supplierName') return 'Örnek Tedarikçi A.Ş.';
+        if(f.key === 'installationCategoryName') return 'Kazanlar (Dilimli / Çelik / Yoğuşmalı)';
         return ''; // Diğerleri için boş bırak
     });
     
@@ -139,6 +145,8 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
         }
 
         const supplierNameToIdMap = new Map(suppliers?.map(s => [s.name.toLowerCase(), s.id]));
+        const categoryNameToIdMap = new Map(installationTypes?.map(c => [c.name.toLowerCase(), c.id]));
+
 
         for (const row of parsedData) {
             const productDocRef = doc(productsCollection);
@@ -161,6 +169,14 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
                           supplierNameToIdMap.set(supplierName, newSupplierRef.id);
                           newProduct['supplierId'] = newSupplierRef.id;
                       }
+                    } else if (field.key === 'installationCategoryName') {
+                        const categoryName = value.toString().toLowerCase().trim();
+                        if(categoryNameToIdMap.has(categoryName)) {
+                            newProduct['installationTypeId'] = categoryNameToIdMap.get(categoryName);
+                        } else {
+                            console.warn(`Tesisat kategorisi bulunamadı: "${value}". Bu ürün için kategori atanmayacak.`);
+                            newProduct['installationTypeId'] = null;
+                        }
                     } else {
                       newProduct[field.key] = value;
                     }

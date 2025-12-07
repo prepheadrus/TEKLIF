@@ -53,5 +53,3 @@ export const productSeedData = [
   { name: 'Delikli U Profil 40x40x2mm', model: '2 metre', brand: 'N/A', unit: 'adet', currency: 'TRY', basePrice: 180.00, supplierName: 'Hırdavat Toptan A.Ş.', categoryName: 'Boru Askı ve Konsol Sistemleri (Rot, Dübel, Somun, L Profil)' },
   { name: 'Antipas Boya (Gri)', model: '1 kg', brand: 'Polisan', unit: 'kg', currency: 'TRY', basePrice: 180.00, supplierName: 'Hırdavat Toptan A.Ş.', categoryName: 'Boru Askı ve Konsol Sistemleri (Rot, Dübel, Somun, L Profil)' },
 ];
-
-    

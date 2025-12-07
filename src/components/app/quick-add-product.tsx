@@ -56,32 +56,30 @@ type InstallationType = {
 }
 
 const buildCategoryTree = (categories: InstallationType[]): { id: string; name: string }[] => {
+    if (!categories) return [];
+
     const categoryMap: { [id: string]: { id: string; name: string; children: any[] } } = {};
-    if (categories) {
-        categories.forEach(cat => {
-            categoryMap[cat.id] = { ...cat, children: [] };
-        });
-    }
+    categories.forEach(cat => {
+        categoryMap[cat.id] = { ...cat, children: [] };
+    });
 
     const roots: { id: string; name: string; children: any[] }[] = [];
-    if (categories) {
-        categories.forEach(cat => {
-            if (cat.parentId && categoryMap[cat.parentId]) {
-                categoryMap[cat.parentId].children.push(categoryMap[cat.id]);
-            } else {
-                roots.push(categoryMap[cat.id]);
-            }
-        });
-    }
+    categories.forEach(cat => {
+        if (cat.parentId && categoryMap[cat.parentId]) {
+            categoryMap[cat.parentId].children.push(categoryMap[cat.id]);
+        } else {
+            roots.push(categoryMap[cat.id]);
+        }
+    });
 
     const flattenedList: { id: string; name: string }[] = [];
     const traverse = (node: { id: string; name: string; children: any[] }, prefix: string) => {
         const currentName = prefix ? `${prefix} > ${node.name}` : node.name;
         flattenedList.push({ id: node.id, name: currentName });
-        node.children.sort((a, b) => a.name.localeCompare(b.name)).forEach(child => traverse(child, currentName));
+        node.children.sort((a, b) => a.name.localeCompare(b.name, 'tr')).forEach(child => traverse(child, currentName));
     };
 
-    roots.sort((a, b) => a.name.localeCompare(b.name)).forEach(root => traverse(root, ''));
+    roots.sort((a, b) => a.name.localeCompare(b.name, 'tr')).forEach(root => traverse(root, ''));
     return flattenedList;
 };
 
@@ -290,5 +288,3 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, onProductAdde
     </Dialog>
   );
 }
-
-    
