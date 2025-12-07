@@ -1,18 +1,17 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { collection, doc, deleteDoc, setDoc, query, orderBy } from 'firebase/firestore';
+import { collection, doc, deleteDoc, setDoc, query, orderBy, updateDoc } from 'firebase/firestore';
 
 import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
@@ -53,6 +52,11 @@ type Customer = {
   taxNumber?: string;
 };
 
+type EditingCell = {
+  customerId: string;
+  field: 'email' | 'phone';
+} | null;
+
 export function CustomersPageContent() {
   const router = useRouter();
   const { toast } = useToast();
@@ -61,12 +65,25 @@ export function CustomersPageContent() {
   const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // State for inline editing
+  const [editingCell, setEditingCell] = useState<EditingCell>(null);
+  const [editValue, setEditValue] = useState('');
+  const inlineInputRef = useRef<HTMLInputElement>(null);
+
 
   const customersQuery = useMemoFirebase(
       () => (firestore ? query(collection(firestore, 'customers'), orderBy('name', 'asc')) : null),
       [firestore]
   );
   const { data: customers, isLoading, error, refetch } = useCollection<Customer>(customersQuery);
+
+  useEffect(() => {
+    if (editingCell && inlineInputRef.current) {
+        inlineInputRef.current.focus();
+    }
+  }, [editingCell]);
+
 
   const handleOpenAddDialog = () => {
     setEditingCustomer(null);
@@ -87,6 +104,43 @@ export function CustomersPageContent() {
     } catch (error: any) {
         console.error("Müşteri silme hatası:", error);
         toast({ variant: "destructive", title: "Hata", description: `Müşteri silinemedi: ${error.message}` });
+    }
+  }
+
+  const handleCellClick = (customer: Customer, field: 'email' | 'phone') => {
+    setEditingCell({ customerId: customer.id, field });
+    setEditValue(customer[field] || '');
+  }
+
+  const handleInlineEditChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditValue(e.target.value);
+  }
+
+  const handleInlineEditSave = async () => {
+    if (!editingCell || !firestore) return;
+
+    const { customerId, field } = editingCell;
+    const docRef = doc(firestore, 'customers', customerId);
+
+    try {
+        await updateDoc(docRef, { [field]: editValue });
+        toast({ title: "Güncellendi", description: `${field === 'email' ? 'E-posta' : 'Telefon'} güncellendi.` });
+        refetch(); // Veriyi yeniden çekerek UI'ı güncelle
+    } catch (error: any) {
+        console.error("Inline düzenleme hatası:", error);
+        toast({ variant: "destructive", title: "Hata", description: `Güncelleme başarısız: ${error.message}` });
+    } finally {
+        setEditingCell(null);
+        setEditValue('');
+    }
+  };
+
+  const handleInlineKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+        handleInlineEditSave();
+    } else if (e.key === 'Escape') {
+        setEditingCell(null);
+        setEditValue('');
     }
   }
 
@@ -115,7 +169,7 @@ export function CustomersPageContent() {
       <Card>
         <CardHeader>
           <CardTitle>Müşteri Listesi</CardTitle>
-          <CardDescription>Tüm kayıtlı müşterileriniz.</CardDescription>
+          <CardDescription>Tüm kayıtlı müşterileriniz. Düzenlemek için e-posta veya telefon alanına tıklayın.</CardDescription>
            <div className="relative pt-2">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input 
@@ -153,8 +207,37 @@ export function CustomersPageContent() {
                 filteredCustomers.map((customer) => (
                   <TableRow key={customer.id}>
                     <TableCell className="font-medium">{customer.name}</TableCell>
-                    <TableCell>{customer.email}</TableCell>
-                    <TableCell>{customer.phone || '-'}</TableCell>
+                    
+                    <TableCell onClick={() => handleCellClick(customer, 'email')} className="cursor-pointer">
+                        {editingCell?.customerId === customer.id && editingCell?.field === 'email' ? (
+                            <Input 
+                                ref={inlineInputRef}
+                                value={editValue}
+                                onChange={handleInlineEditChange}
+                                onBlur={handleInlineEditSave}
+                                onKeyDown={handleInlineKeyDown}
+                                className="h-8"
+                            />
+                        ) : (
+                            customer.email
+                        )}
+                    </TableCell>
+
+                    <TableCell onClick={() => handleCellClick(customer, 'phone')} className="cursor-pointer">
+                         {editingCell?.customerId === customer.id && editingCell?.field === 'phone' ? (
+                            <Input 
+                                ref={inlineInputRef}
+                                value={editValue}
+                                onChange={handleInlineEditChange}
+                                onBlur={handleInlineEditSave}
+                                onKeyDown={handleInlineKeyDown}
+                                className="h-8"
+                            />
+                        ) : (
+                            customer.phone || '-'
+                        )}
+                    </TableCell>
+
                     <TableCell>
                         <DropdownMenu>
                            <DropdownMenuTrigger asChild>
