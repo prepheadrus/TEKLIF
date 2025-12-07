@@ -1,4 +1,3 @@
-
 'use client'; // Bu satır dosyayı bir İstemci Bileşeni'ne dönüştürür.
 
 import dynamic from 'next/dynamic';
@@ -19,8 +18,7 @@ const RecipesPageContent = dynamic(
     }
 );
 
-// Metadata hala bir Sunucu Bileşeni özelliği gibi dışa aktarılabilir.
-// Ancak, bu sayfada 'use client' olduğu için build sırasında statik olarak analiz edilir.
+// Metadata bir istemci bileşeninde kullanılamayacağı için yorum satırına alınıyor veya kaldırılıyor.
 // export const metadata: Metadata = {
 //     title: 'Reçeteler',
 // };
