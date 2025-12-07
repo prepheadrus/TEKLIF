@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -14,6 +14,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -28,6 +29,8 @@ import {
     Search,
     UploadCloud,
     X,
+    ChevronLeft,
+    ChevronRight,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase, deleteDocumentNonBlocking } from '@/firebase';
@@ -71,6 +74,8 @@ type InstallationType = {
     parentId?: string | null;
 }
 
+const ITEMS_PER_PAGE = 50;
+
 const buildCategoryNameMap = (categories: InstallationType[]): Map<string, string> => {
     const categoryMap: { [id: string]: { id: string; name: string; children: any[], parentId?: string | null } } = {};
     if (categories) {
@@ -109,6 +114,7 @@ export function ProductsPageContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isSeeding, setIsSeeding] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
 
   // --- Data Fetching ---
   const productsQuery = useMemoFirebase(
@@ -128,6 +134,11 @@ export function ProductsPageContent() {
     [firestore]
   );
   const { data: suppliers, isLoading: isLoadingSuppliers, refetch: refetchSuppliers } = useCollection<Supplier>(suppliersQuery);
+  
+  // --- Effects ---
+   useEffect(() => {
+    setCurrentPage(1); // Reset page on filter change
+  }, [searchTerm]);
 
 
   // --- Memoized Maps for Display ---
@@ -152,6 +163,17 @@ export function ProductsPageContent() {
             (p.installationTypeId && categoryNameMap.get(p.installationTypeId)?.toLowerCase().includes(searchTerm.toLowerCase()))
         )
     }, [products, searchTerm, categoryNameMap]);
+
+    // --- Pagination Logic ---
+    const paginatedProducts = useMemo(() => {
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        const endIndex = startIndex + ITEMS_PER_PAGE;
+        return filteredProducts.slice(startIndex, endIndex);
+    }, [filteredProducts, currentPage]);
+
+    const totalPages = useMemo(() => {
+        return Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
+    }, [filteredProducts]);
 
   
   // --- Event Handlers ---
@@ -303,6 +325,25 @@ export function ProductsPageContent() {
 
   const tableIsLoading = isLoadingProducts || isLoadingInstallationTypes || isLoadingSuppliers;
 
+  const PaginationControls = () => {
+    if (totalPages <= 1) return null;
+    return (
+        <div className="flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+                Sayfa {currentPage} / {totalPages} ({filteredProducts.length} sonuç)
+            </div>
+            <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1}>
+                    <ChevronLeft className="mr-2 h-4 w-4" /> Önceki
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages}>
+                    Sonraki <ChevronRight className="h-4 w-4 ml-2" />
+                </Button>
+            </div>
+        </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4 p-8">
       <div className="flex items-center justify-between space-y-2">
@@ -403,8 +444,8 @@ export function ProductsPageContent() {
                         Ürünler yüklenirken bir hata oluştu: {error.message}
                     </TableCell>
                 </TableRow>
-              ) : filteredProducts && filteredProducts.length > 0 ? (
-                filteredProducts.map((product) => (
+              ) : paginatedProducts && paginatedProducts.length > 0 ? (
+                paginatedProducts.map((product) => (
                   <TableRow key={product.id} data-state={selectedIds.has(product.id) ? 'selected' : undefined}>
                     <TableCell className="px-4">
                       <Checkbox
@@ -483,6 +524,11 @@ export function ProductsPageContent() {
             </TableBody>
           </Table>
         </CardContent>
+         {totalPages > 1 && (
+            <CardFooter>
+                <PaginationControls />
+            </CardFooter>
+        )}
       </Card>
       <QuickAddProduct
         isOpen={isDialogOpen}
