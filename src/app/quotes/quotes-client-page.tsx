@@ -933,7 +933,7 @@ export function QuotesPageContent() {
                                         </div>
                                     </div>
                                     <CollapsibleContent>
-                                        <div className="bg-slate-50 border-t p-2">
+                                        <div className="bg-slate-100 dark:bg-slate-800/50 border-t p-2">
                                              <Table size="sm">
                                                 <TableHeader>
                                                     <TableRow>
@@ -954,7 +954,7 @@ export function QuotesPageContent() {
                                                 </TableHeader>
                                                 <TableBody>
                                                     {group.versions.map(v => (
-                                                        <TableRow key={v.id} className={cn("h-auto", v.id === group.latestProposal.id && "bg-blue-50/50")} data-state={selectedIds.has(v.id) ? 'selected' : undefined}>
+                                                        <TableRow key={v.id} className={cn("h-auto", v.id === group.latestProposal.id && "bg-blue-100/50 dark:bg-blue-900/20")} data-state={selectedIds.has(v.id) ? 'selected' : undefined}>
                                                             <TableCell className="px-4">
                                                                 <Checkbox
                                                                     checked={selectedIds.has(v.id)}
