@@ -4,15 +4,16 @@
 import { useMemo, useEffect, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Skeleton } from '@/components/ui/skeleton';
-import { DollarSign, Users, FileText, Package, TrendingUp, Award } from "lucide-react";
+import { DollarSign, Users, FileText, Package, TrendingUp, Award, Target, CalendarDays, Coins } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
+import { cn } from '@/lib/utils';
 
 
 // --- Type Definitions ---
@@ -23,7 +24,7 @@ type Proposal = {
   customerId: string;
   customerName: string;
   projectName: string;
-  createdAt: { seconds: number };
+  createdAt: Timestamp; // Changed to Timestamp for easier date comparison
 };
 
 type ProposalItem = {
@@ -54,9 +55,9 @@ const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(amount);
 };
 
-const formatDate = (timestamp?: { seconds: number }) => {
+const formatDate = (timestamp?: Timestamp) => {
     if (!timestamp) return '-';
-    return new Date(timestamp.seconds * 1000).toLocaleDateString('tr-TR');
+    return timestamp.toDate().toLocaleDateString('tr-TR');
 };
 
 const getStatusBadge = (status: Proposal['status']) => {
@@ -103,9 +104,10 @@ export function DashboardContent() {
   const { data: allProducts, isLoading: isLoadingProducts } = useCollection<Product>(productsRef);
   
   // --- Memoized Stats Calculation ---
-  const { stats, recentProposals } = useMemo(() => {
-    if (!proposals) return { stats: {}, recentProposals: [] };
+  const { stats, recentProposals, monthlyTarget } = useMemo(() => {
+    if (!proposals) return { stats: {}, recentProposals: [], monthlyTarget: {} };
     
+    // --- General Stats ---
     const approvedProposals = proposals.filter(p => p.status === 'Approved');
     const totalProposalAmount = approvedProposals.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
     const approvedQuotesCount = approvedProposals.length;
@@ -113,6 +115,29 @@ export function DashboardContent() {
     const productCount = allProducts?.length || 0;
     
     const sortedRecentProposals = proposals.slice(0, 5);
+    
+    // --- Monthly Target Stats ---
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    const approvedThisMonth = approvedProposals.filter(p => {
+        const proposalDate = p.createdAt?.toDate();
+        return proposalDate && proposalDate >= startOfMonth && proposalDate <= endOfMonth;
+    });
+    
+    const targetAmount = 6000000;
+    const realizedAmount = approvedThisMonth.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+    const progressPercentage = (realizedAmount / targetAmount) * 100;
+    const remainingAmount = targetAmount - realizedAmount;
+    const daysLeft = endOfMonth.getDate() - now.getDate();
+
+    let progressColor = 'bg-red-500'; // Default to red
+    if (progressPercentage >= 80) {
+      progressColor = 'bg-green-500';
+    } else if (progressPercentage >= 60) {
+      progressColor = 'bg-yellow-500';
+    }
 
     return {
       stats: {
@@ -121,7 +146,15 @@ export function DashboardContent() {
         customerCount,
         productCount,
       },
-      recentProposals: sortedRecentProposals
+      recentProposals: sortedRecentProposals,
+      monthlyTarget: {
+          targetAmount,
+          realizedAmount,
+          progressPercentage,
+          remainingAmount,
+          daysLeft,
+          progressColor
+      }
     };
   }, [proposals, customers, allProducts]);
 
@@ -236,6 +269,44 @@ export function DashboardContent() {
         <p className="text-muted-foreground">Genel bakış ve son aktiviteler.</p>
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="lg:col-span-4">
+            <CardHeader>
+                <CardTitle>Aylık Hedef Durumu</CardTitle>
+                <CardDescription>{new Date().toLocaleString('tr-TR', { month: 'long' })} ayı hedef ilerlemesi</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {isLoading ? (
+                    <Skeleton className="h-24 w-full" />
+                ) : (
+                    <>
+                        <div className="mb-4">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="text-lg font-bold text-green-600">{formatCurrency(monthlyTarget.realizedAmount || 0)}</span>
+                                <span className="text-sm text-muted-foreground">Hedef: {formatCurrency(monthlyTarget.targetAmount || 0)}</span>
+                            </div>
+                            <Progress value={monthlyTarget.progressPercentage || 0} indicatorClassName={monthlyTarget.progressColor} />
+                            <div className="flex justify-between items-center mt-2 text-sm font-medium">
+                                <span>%{monthlyTarget.progressPercentage?.toFixed(1) || '0.0'}</span>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-4 text-center">
+                            <div>
+                                <p className="text-sm text-muted-foreground">Kalan Tutar</p>
+                                <p className="text-lg font-bold">{formatCurrency(monthlyTarget.remainingAmount || 0)}</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-muted-foreground">Kalan Gün</p>
+                                <p className="text-lg font-bold">{monthlyTarget.daysLeft} gün</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-muted-foreground">Gerçekleşme</p>
+                                <p className="text-lg font-bold">%{monthlyTarget.progressPercentage?.toFixed(1) || '0.0'}</p>
+                            </div>
+                        </div>
+                    </>
+                )}
+            </CardContent>
+        </Card>
         <StatCard
             title="Toplam Teklif Tutarı"
             value={formatCurrency(stats.totalProposalAmount || 0)}
@@ -266,7 +337,7 @@ export function DashboardContent() {
         />
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4">
+        <Card className="lg:col-span-4">
             <CardHeader>
                 <CardTitle>En Çok Tercih Edilen Ürünler (Top 5)</CardTitle>
                  <CardDescription>Onaylanmış tekliflerde en çok kullanılan ürünler.</CardDescription>
@@ -384,3 +455,5 @@ export function DashboardContent() {
 export default function DashboardContentPage() {
     return <DashboardContent />;
 }
+
+    
