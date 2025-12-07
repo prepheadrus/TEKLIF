@@ -235,7 +235,6 @@ export function QuoteDetailClientPage({ params }: { params: { id: string } }) {
   const [targetGroupForProductAdd, setTargetGroupForProductAdd] = useState<string | undefined>(undefined);
   const [isFetchingRates, setIsFetchingRates] = useState(false);
   const [includeVAT, setIncludeVAT] = useState(false);
-  const initialFetchDone = useRef(false);
 
 
   // --- Data Fetching ---
@@ -290,7 +289,7 @@ export function QuoteDetailClientPage({ params }: { params: { id: string } }) {
   }, []);
 
   useEffect(() => {
-    if (proposal && initialItems && !initialFetchDone.current) {
+    if (proposal && initialItems) {
         const newItems = initialItems.map(dbItem => ({
             ...dbItem,
             id: dbItem.id,
@@ -305,8 +304,6 @@ export function QuoteDetailClientPage({ params }: { params: { id: string } }) {
             exchangeRates: proposal.exchangeRates || { USD: 32.5, EUR: 35.0 }
         });
         
-        initialFetchDone.current = true; // Mark as done
-
         // Only fetch rates if they seem old or uninitialized
         if (!proposal.exchangeRates?.USD) {
            handleFetchRates();
@@ -563,7 +560,7 @@ export function QuoteDetailClientPage({ params }: { params: { id: string } }) {
   }
 
   
-  if (isLoading || !initialFetchDone.current) {
+  if (isLoading) {
     return (
       <div className="h-full w-full flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
