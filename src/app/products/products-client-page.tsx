@@ -34,6 +34,9 @@ import {
     ChevronRight,
     ChevronDown,
     Eye,
+    ShoppingCart,
+    BarChart,
+    TrendingUp,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase, deleteDocumentNonBlocking } from '@/firebase';
@@ -44,6 +47,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { QuickAddProduct } from '@/components/app/quick-add-product';
 import { Checkbox } from '@/components/ui/checkbox';
 import { BulkProductImporter } from '@/components/app/bulk-product-importer';
+import { Skeleton } from '@/components/ui/skeleton';
+import { calculateItemTotals } from '@/lib/pricing';
 
 // Combined type for a product/material
 export type Product = {
@@ -73,6 +78,28 @@ export type Supplier = {
   id: string;
   name: string;
 };
+
+type Proposal = {
+  id: string;
+  status: 'Approved';
+  exchangeRates: { USD: number, EUR: number };
+}
+
+type ProposalItem = {
+    productId: string;
+    quantity: number;
+    listPrice: number;
+    currency: 'TRY' | 'USD' | 'EUR';
+    discountRate: number;
+    profitMargin: number;
+}
+
+type ProductAnalytics = {
+    totalProducts: number;
+    topSelling: { id: string, name: string, brand: string, totalQuantity: number }[];
+    mostProfitable: { id: string, name: string, brand: string, avgProfitMargin: number }[];
+    averageSellingPrice: number;
+}
 
 type InstallationType = {
     id: string;
@@ -140,6 +167,23 @@ const buildCategoryTreeForFilter = (categories: InstallationType[]): { id: strin
     return flattenedList;
 };
 
+const StatCard = ({ title, value, icon, isLoading }: { title: string, value: string | number, icon: React.ReactNode, isLoading: boolean }) => (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        {icon}
+      </CardHeader>
+      <CardContent>
+        {isLoading ? <Skeleton className="h-8 w-3/4" /> : <div className="text-2xl font-bold">{value}</div>}
+      </CardContent>
+    </Card>
+);
+
+const formatCurrency = (amount: number, currency = 'TRY') => {
+    return new Intl.NumberFormat('tr-TR', { style: 'currency', currency }).format(amount);
+};
+
+
 export function ProductsPageContent() {
   const { toast } = useToast();
   const firestore = useFirestore();
@@ -153,7 +197,8 @@ export function ProductsPageContent() {
   const [brandFilter, setBrandFilter] = useState<string[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
   const [isImporterOpen, setIsImporterOpen] = useState(false);
-
+  const [analytics, setAnalytics] = useState<ProductAnalytics | null>(null);
+  const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(true);
 
   // --- Data Fetching ---
   const productsQuery = useMemoFirebase(
@@ -178,6 +223,79 @@ export function ProductsPageContent() {
    useEffect(() => {
     setCurrentPage(1); // Reset page on filter change
   }, [searchTerm, supplierFilter, brandFilter, categoryFilter]);
+
+  useEffect(() => {
+    if (!firestore || !products) return;
+
+    const calculateAnalytics = async () => {
+        setIsAnalyticsLoading(true);
+        try {
+            const proposalsRef = collection(firestore, 'proposals');
+            const approvedProposalsQuery = query(proposalsRef, where('status', '==', 'Approved'));
+            const approvedProposalsSnap = await getDocs(approvedProposalsQuery);
+
+            const productSales: Record<string, { totalQuantity: number, profitMargins: number[], count: number, totalRevenue: number }> = {};
+
+            for (const proposalDoc of approvedProposalsSnap.docs) {
+                const proposal = proposalDoc.data() as Proposal;
+                const itemsRef = collection(firestore, 'proposals', proposalDoc.id, 'proposal_items');
+                const itemsSnap = await getDocs(itemsRef);
+
+                itemsSnap.forEach(itemDoc => {
+                    const item = itemDoc.data() as ProposalItem;
+                    if (!productSales[item.productId]) {
+                        productSales[item.productId] = { totalQuantity: 0, profitMargins: [], count: 0, totalRevenue: 0 };
+                    }
+                    productSales[item.productId].totalQuantity += item.quantity;
+                    productSales[item.productId].profitMargins.push(item.profitMargin);
+                    
+                    const itemTotals = calculateItemTotals({
+                        ...item,
+                        exchangeRate: item.currency === 'USD' ? (proposal.exchangeRates?.USD || 1) : item.currency === 'EUR' ? (proposal.exchangeRates?.EUR || 1) : 1
+                    });
+                    productSales[item.productId].totalRevenue += itemTotals.totalTlSell;
+                    productSales[item.productId].count++;
+                });
+            }
+
+            const sortedByQuantity = Object.entries(productSales).sort(([, a], [, b]) => b.totalQuantity - a.totalQuantity);
+            const topSelling = sortedByQuantity.slice(0, 5).map(([id, data]) => {
+                const product = products.find(p => p.id === id);
+                return { id, name: product?.name || 'Bilinmiyor', brand: product?.brand || '', totalQuantity: data.totalQuantity };
+            });
+
+            const sortedByProfit = Object.entries(productSales).map(([id, data]) => {
+                const avgProfitMargin = data.profitMargins.reduce((a, b) => a + b, 0) / data.profitMargins.length;
+                return { id, avgProfitMargin };
+            }).sort((a, b) => b.avgProfitMargin - a.avgProfitMargin);
+
+            const mostProfitable = sortedByProfit.slice(0, 5).map(p => {
+                 const product = products.find(prod => prod.id === p.id);
+                 return { id: p.id, name: product?.name || 'Bilinmiyor', brand: product?.brand || '', avgProfitMargin: p.avgProfitMargin }
+            });
+
+            const totalRevenue = Object.values(productSales).reduce((sum, p) => sum + p.totalRevenue, 0);
+            const totalItemsSold = Object.values(productSales).reduce((sum, p) => sum + p.count, 0);
+            const averageSellingPrice = totalItemsSold > 0 ? totalRevenue / totalItemsSold : 0;
+
+
+            setAnalytics({
+                totalProducts: products.length,
+                topSelling,
+                mostProfitable,
+                averageSellingPrice
+            });
+
+        } catch (e) {
+            console.error("Analytics calculation failed:", e);
+            setAnalytics(null);
+        } finally {
+            setIsAnalyticsLoading(false);
+        }
+    };
+
+    calculateAnalytics();
+  }, [firestore, products]);
 
 
   // --- Memoized Maps and Lists for Display and Filtering ---
@@ -274,11 +392,6 @@ export function ProductsPageContent() {
         toast({variant: 'destructive', title: 'Hata', description: `Ürünler silinemedi: ${error.message}`});
     }
   };
-
-
-  const formatCurrency = (amount: number, currency: string) => {
-    return new Intl.NumberFormat('tr-TR', { style: 'currency', currency }).format(amount);
-  };
   
   const toggleAllSelection = (isChecked: boolean) => {
     if (!filteredProducts) return;
@@ -350,6 +463,61 @@ export function ProductsPageContent() {
           </Button>
         </div>
       </div>
+
+       <Card>
+            <CardHeader>
+                <CardTitle>Ürün Analitiği</CardTitle>
+                <CardDescription>Ürün performansınıza genel bakış.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <StatCard title="Toplam Ürün Çeşidi" value={analytics?.totalProducts || 0} icon={<BarChart className="h-4 w-4 text-muted-foreground" />} isLoading={isAnalyticsLoading} />
+                <StatCard title="Ort. Satış Fiyatı" value={formatCurrency(analytics?.averageSellingPrice || 0)} icon={<BarChart className="h-4 w-4 text-muted-foreground" />} isLoading={isAnalyticsLoading} />
+                
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-base flex items-center"><TrendingUp className="h-5 w-5 mr-2 text-blue-500"/> En Çok Teklif Edilenler</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {isAnalyticsLoading ? <Skeleton className="h-24 w-full" /> : (
+                            <div className="space-y-2">
+                                {analytics?.topSelling.map(p => (
+                                    <div key={p.id} className="flex items-center justify-between text-sm">
+                                        <div>
+                                            <p className="font-medium">{p.name}</p>
+                                            <p className="text-xs text-muted-foreground">{p.brand}</p>
+                                        </div>
+                                        <Badge variant="secondary">{p.totalQuantity} adet</Badge>
+                                    </div>
+                                ))}
+                                {analytics?.topSelling.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">Henüz veri yok.</p>}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-base flex items-center"><TrendingUp className="h-5 w-5 mr-2 text-green-500"/> En Kârlı Ürünler</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {isAnalyticsLoading ? <Skeleton className="h-24 w-full" /> : (
+                            <div className="space-y-2">
+                               {analytics?.mostProfitable.map(p => (
+                                    <div key={p.id} className="flex items-center justify-between text-sm">
+                                        <div>
+                                            <p className="font-medium">{p.name}</p>
+                                            <p className="text-xs text-muted-foreground">{p.brand}</p>
+                                        </div>
+                                        <Badge className="bg-green-100 text-green-800">%{ (p.avgProfitMargin * 100).toFixed(1) }</Badge>
+                                    </div>
+                                ))}
+                                {analytics?.mostProfitable.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">Henüz veri yok.</p>}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            </CardContent>
+        </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Ürün Listesi</CardTitle>
