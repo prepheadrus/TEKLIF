@@ -1,7 +1,10 @@
+'use client'; // Bu direktif, bu dosyanın bir istemci bileşeni olmasını sağlar.
+
 import { Metadata } from "next";
 import dynamic from 'next/dynamic';
 import { Loader2 } from 'lucide-react';
 
+// Dinamik import'u ssr: false ile bir istemci bileşeni içinde kullanıyoruz.
 const RecipesPageContent = dynamic(
     () => import('@/app/recipes/recipes-client-page').then(mod => mod.RecipesPageContent),
     { 
@@ -10,9 +13,10 @@ const RecipesPageContent = dynamic(
     }
 );
 
-export const metadata: Metadata = {
-    title: 'Reçeteler',
-};
+// Metadata hala dışarıda tanımlanabilir, ancak bu sayfa bir istemci bileşeni olacak.
+// export const metadata: Metadata = {
+//     title: 'Reçeteler',
+// };
 
 export default function Page() {
     return <RecipesPageContent />;
