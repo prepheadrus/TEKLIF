@@ -83,6 +83,7 @@ type Proposal = {
 type JobAssignment = {
     id: string;
     proposalId: string;
+    personnelId: string;
 }
 
 type ProposalGroup = {
@@ -90,6 +91,7 @@ type ProposalGroup = {
     latestProposal: Proposal;
     versions: Proposal[];
     isAssigned: boolean;
+    assignedTo?: string; // Name of the assigned personnel
 }
 
 function getStatusBadge(status: Proposal['status']) {
@@ -193,8 +195,8 @@ export function QuotesPageContent() {
   const jobAssignmentsRef = useMemoFirebase(() => (firestore ? collection(firestore, 'job_assignments') : null), [firestore]);
   const { data: jobAssignments, isLoading: isLoadingAssignments, refetch: refetchAssignments } = useCollection<JobAssignment>(jobAssignmentsRef);
   
-  const personnelRef = useMemoFirebase(() => (firestore ? query(collection(firestore, 'personnel'), where('status', '==', 'Aktif')) : null), [firestore]);
-  const { data: activePersonnel, isLoading: isLoadingPersonnel } = useCollection<Personnel>(personnelRef);
+  const personnelRef = useMemoFirebase(() => (firestore ? query(collection(firestore, 'personnel')) : null), [firestore]);
+  const { data: personnel, isLoading: isLoadingPersonnel } = useCollection<Personnel>(personnelRef);
 
   useEffect(() => {
     setSelectedIds(new Set());
@@ -203,9 +205,11 @@ export function QuotesPageContent() {
 
 
   const groupedProposals = useMemo((): ProposalGroup[] => {
-    if (!proposals || !jobAssignments) return [];
-
+    if (!proposals || !jobAssignments || !personnel) return [];
+  
     const assignedProposalIds = new Set(jobAssignments.map(j => j.proposalId));
+    const proposalToAssignmentMap = new Map(jobAssignments.map(j => [j.proposalId, j]));
+    const personnelMap = new Map(personnel.map(p => [p.id, p.name]));
     const groups: Record<string, Proposal[]> = {};
     
     proposals.forEach(p => {
@@ -215,18 +219,32 @@ export function QuotesPageContent() {
         }
         groups[p.rootProposalId].push(p);
     });
-
+  
     return Object.values(groups).map(versions => {
         versions.sort((a, b) => (b.version || 0) - (a.version || 0));
         const latestProposal = versions[0];
-        // A group is considered "assigned" if any of its versions have been assigned.
-        const isAssigned = versions.some(v => assignedProposalIds.has(v.id));
-
+        
+        let isAssigned = false;
+        let assignedTo: string | undefined = undefined;
+  
+        // Check if any version in the group has an assignment
+        for (const version of versions) {
+            if (proposalToAssignmentMap.has(version.id)) {
+                isAssigned = true;
+                const assignment = proposalToAssignmentMap.get(version.id);
+                if (assignment) {
+                    assignedTo = personnelMap.get(assignment.personnelId);
+                }
+                break; // Found an assignment, no need to check further
+            }
+        }
+  
         return {
             rootProposalId: latestProposal.rootProposalId,
             latestProposal: latestProposal,
             versions: versions,
-            isAssigned: isAssigned,
+            isAssigned,
+            assignedTo,
         };
     }).sort((a, b) => {
         const timeA = a.latestProposal.createdAt?.seconds ?? 0;
@@ -241,7 +259,7 @@ export function QuotesPageContent() {
           return timeA - timeB;
         }
     });
-}, [proposals, jobAssignments, sortOrder]);
+  }, [proposals, jobAssignments, personnel, sortOrder]);
   
   const flatFilteredProposals = useMemo(() => {
     if (!proposals) return [];
@@ -906,7 +924,12 @@ export function QuotesPageContent() {
                                             <div className="font-semibold text-right">{formatCurrency(group.latestProposal.totalAmount)}</div>
                                         </div>
                                         <div className="flex items-center gap-2 pl-6">
-                                            {group.isAssigned && <Badge className="bg-orange-100 text-orange-800"><HardHat className="mr-1 h-3 w-3"/> Atandı</Badge>}
+                                            {group.isAssigned && (
+                                                <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100/80">
+                                                    <HardHat className="mr-2 h-3 w-3"/>
+                                                    {group.assignedTo ? `Atandı: ${group.assignedTo}` : "Atandı"}
+                                                </Badge>
+                                            )}
                                             {getStatusBadge(group.latestProposal.status)}
                                             <Badge variant="secondary">
                                                 <Copy className="mr-2 h-3 w-3"/>
@@ -1133,7 +1156,7 @@ export function QuotesPageContent() {
             isOpen={isAssignJobDialogOpen}
             onOpenChange={setIsAssignJobDialogOpen}
             proposal={proposalToAssign}
-            personnelList={activePersonnel || []}
+            personnelList={personnel || []}
             onSuccess={() => {
                 refetchAssignments();
                 setIsAssignJobDialogOpen(false);
