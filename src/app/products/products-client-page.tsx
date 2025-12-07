@@ -37,6 +37,8 @@ import {
     ShoppingCart,
     BarChart,
     TrendingUp,
+    Tags,
+    DollarSign,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase, deleteDocumentNonBlocking } from '@/firebase';
@@ -455,7 +457,7 @@ export function ProductsPageContent() {
         <div className="flex items-center space-x-2">
             <Button onClick={() => setIsImporterOpen(true)} variant="outline">
               <UploadCloud className="mr-2 h-4 w-4" />
-              Toplu Ürün Yükle
+              Excel ile Ürün Yükle
             </Button>
           <Button onClick={handleOpenAddDialog}>
             <PlusCircle className="mr-2 h-4 w-4" />
@@ -471,7 +473,7 @@ export function ProductsPageContent() {
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <StatCard title="Toplam Ürün Çeşidi" value={analytics?.totalProducts || 0} icon={<BarChart className="h-4 w-4 text-muted-foreground" />} isLoading={isAnalyticsLoading} />
-                <StatCard title="Ort. Satış Fiyatı" value={formatCurrency(analytics?.averageSellingPrice || 0)} icon={<BarChart className="h-4 w-4 text-muted-foreground" />} isLoading={isAnalyticsLoading} />
+                <StatCard title="Ort. Satış Fiyatı" value={formatCurrency(analytics?.averageSellingPrice || 0)} icon={<DollarSign className="h-4 w-4 text-muted-foreground" />} isLoading={isAnalyticsLoading} />
                 
                 <Card>
                     <CardHeader className="pb-2">
@@ -588,10 +590,12 @@ export function ProductsPageContent() {
                     {selectedIds.size} ürün seçildi.
                 </div>
                 <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" disabled><DollarSign /> Toplu Fiyat Güncelle</Button>
+                    <Button variant="outline" size="sm" disabled><Tags /> Toplu Kategori Değiştir</Button>
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
                            <Button variant="destructive" size="sm">
-                                <Trash2 className="mr-2 h-4 w-4" /> Seçilenleri Sil
+                                <Trash2 className="mr-2" /> Seçilenleri Sil
                             </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
@@ -688,18 +692,27 @@ export function ProductsPageContent() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>İşlemler</DropdownMenuLabel>
                            <DropdownMenuItem onClick={() => router.push(`/products/${product.id}`)}>
-                            <Eye className="mr-2 h-4 w-4" />
+                            <Eye />
                             Detayları Gör
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleOpenEditDialog(product)}>
-                            <Edit className="mr-2 h-4 w-4" />
+                            <Edit />
                             Düzenle
+                          </DropdownMenuItem>
+                           <DropdownMenuItem disabled>
+                            <DollarSign />
+                            Fiyat Güncelle
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                           <DropdownMenuItem disabled>
+                            <ShoppingCart />
+                            Teklife Ekle
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
-                                <Trash2 className="mr-2 h-4 w-4" />
+                              <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600 focus:bg-red-100 focus:text-red-700">
+                                <Trash2 />
                                 Sil
                               </DropdownMenuItem>
                             </AlertDialogTrigger>
@@ -757,5 +770,3 @@ export function ProductsPageContent() {
     </div>
   );
 }
-
-    
