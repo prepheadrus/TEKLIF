@@ -15,6 +15,8 @@ import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { calculateItemTotals } from '@/lib/pricing';
+import { ResponsiveContainer, LineChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Line, PieChart, Pie, Cell, Sector } from 'recharts';
+import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 
 
 // --- Type Definitions ---
@@ -56,6 +58,18 @@ type TopCustomer = {
     customerName: string;
     totalAmount: number;
 };
+
+type MonthlyTrendData = {
+    month: string;
+    total: number;
+}
+
+type StatusDistributionData = {
+    name: 'Onaylandı' | 'Gönderildi' | 'Reddedildi' | 'Taslak';
+    value: number;
+    fill: string;
+}
+
 
 // --- Helper Functions ---
 const formatCurrency = (amount: number) => {
@@ -111,8 +125,8 @@ export function DashboardContent() {
   const { data: allProducts, isLoading: isLoadingProducts } = useCollection<Product>(productsRef);
   
   // --- Memoized Stats Calculation ---
-  const { stats, recentProposals, monthlyTarget } = useMemo(() => {
-    if (!proposals) return { stats: {}, recentProposals: [], monthlyTarget: {} };
+  const { stats, recentProposals, monthlyTarget, monthlyTrendData, statusDistributionData } = useMemo(() => {
+    if (!proposals) return { stats: {}, recentProposals: [], monthlyTarget: {}, monthlyTrendData: [], statusDistributionData: [] };
     
     // --- General Stats ---
     const approvedProposals = proposals.filter(p => p.status === 'Approved');
@@ -146,6 +160,35 @@ export function DashboardContent() {
       progressColor = 'bg-yellow-500';
     }
 
+    // --- Chart Data ---
+    const monthlyData: { [key: string]: number } = {};
+    const statusCounts: { [key: string]: number } = { 'Approved': 0, 'Sent': 0, 'Rejected': 0, 'Draft': 0 };
+
+    proposals.forEach(p => {
+        if(p.createdAt) {
+            const date = p.createdAt.toDate();
+            const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+            monthlyData[monthKey] = (monthlyData[monthKey] || 0) + (p.totalAmount || 0);
+        }
+        statusCounts[p.status]++;
+    });
+
+    // Monthly Trend
+    const trendData: MonthlyTrendData[] = Object.keys(monthlyData).sort().slice(-12).map(key => {
+        const [year, month] = key.split('-');
+        const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleString('tr-TR', { month: 'short' });
+        return { month: `${monthName} '${year.slice(2)}`, total: monthlyData[key] };
+    });
+
+    // Status Distribution
+    const distData: StatusDistributionData[] = [
+        { name: 'Onaylandı', value: statusCounts.Approved, fill: 'hsl(var(--chart-2))' },
+        { name: 'Gönderildi', value: statusCounts.Sent, fill: 'hsl(var(--chart-1))' },
+        { name: 'Reddedildi', value: statusCounts.Rejected, fill: 'hsl(var(--chart-5))' },
+        { name: 'Taslak', value: statusCounts.Draft, fill: 'hsl(var(--chart-4))' },
+    ].filter(d => d.value > 0);
+
+
     return {
       stats: {
         totalProposalAmount,
@@ -161,7 +204,9 @@ export function DashboardContent() {
           remainingAmount,
           daysLeft,
           progressColor
-      }
+      },
+      monthlyTrendData: trendData,
+      statusDistributionData: distData,
     };
   }, [proposals, customers, allProducts]);
 
@@ -355,6 +400,74 @@ export function DashboardContent() {
             icon={<Package className="h-4 w-4 text-muted-foreground" />}
         />
       </div>
+       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        <Card className="lg:col-span-4">
+             <CardHeader>
+                <CardTitle>Aylık Teklif Tutarı Trendi</CardTitle>
+                <CardDescription>Son 12 aydaki toplam teklif tutarlarının dağılımı.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {isLoading ? <Skeleton className="h-[350px] w-full" /> : (
+                    <div className="h-[350px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={monthlyTrendData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="month" />
+                                <YAxis tickFormatter={(value) => new Intl.NumberFormat('tr-TR', { notation: 'compact', compactDisplay: 'short' }).format(value as number)} />
+                                <Tooltip content={<ChartTooltipContent formatter={(value) => formatCurrency(value as number)} />} />
+                                <Legend />
+                                <Line type="monotone" dataKey="total" name="Teklif Tutarı" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 8 }} />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+        <Card className="lg:col-span-3">
+             <CardHeader>
+                <CardTitle>Teklif Durum Dağılımı</CardTitle>
+                <CardDescription>Tüm tekliflerinizin mevcut durumlarına göre oranı.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                 {isLoading ? <Skeleton className="h-[350px] w-full" /> : (
+                    <div className="h-[350px]">
+                       <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Tooltip content={<ChartTooltipContent formatter={(value, name) => `${value} adet (${name})`} />} />
+                                <Pie
+                                    data={statusDistributionData}
+                                    dataKey="value"
+                                    nameKey="name"
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={80}
+                                    outerRadius={120}
+                                    paddingAngle={5}
+                                    labelLine={false}
+                                    label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
+                                        const RADIAN = Math.PI / 180;
+                                        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                                        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                                        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                                        return (
+                                            <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="font-bold text-sm">
+                                                {`${(percent * 100).toFixed(0)}%`}
+                                            </text>
+                                        );
+                                    }}
+                                >
+                                    {statusDistributionData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                                    ))}
+                                </Pie>
+                                <Legend />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+      </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <div className="lg:col-span-4">
             <CardHeader className="p-0 mb-4">
@@ -474,5 +587,3 @@ export function DashboardContent() {
 export default function DashboardContentPage() {
     return <DashboardContent />;
 }
-
-    
