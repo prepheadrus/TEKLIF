@@ -122,32 +122,29 @@ export function RecipesPageContent() {
   }, [products, recipes, searchTerm]);
 
   const form = useForm<RecipeFormValues>();
-  const { reset } = form;
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, reset } = useFieldArray({
     control: form.control,
     name: 'recipeItems',
   });
-  
-  const resetForm = useCallback(reset, [reset]);
 
   useEffect(() => {
     if (selectedProduct) {
       const recipe = recipes?.find(r => r.productId === selectedProduct.id);
       
       let itemsToSet: RecipeItemForm[] = [];
-      if (recipe && recipe.recipeItems) {
+      if (recipe && recipe.recipeItems && products && laborCosts) {
         itemsToSet = recipe.recipeItems.map(item => {
           let name = 'Bilinmeyen';
           let unit = 'adet';
           let cost = 0;
           if (item.type === 'material') {
-            const product = products?.find(p => p.id === item.itemId);
+            const product = products.find(p => p.id === item.itemId);
             name = product?.name || 'Silinmiş Ürün';
             unit = product?.unit;
             cost = product?.basePrice || 0;
           } else { // labor
-            const labor = laborCosts?.find(l => l.id === item.itemId);
+            const labor = laborCosts.find(l => l.id === item.itemId);
             name = labor?.role || 'Silinmiş İşçilik';
             unit = 'saat';
             cost = labor?.hourlyRate || 0;
@@ -156,15 +153,15 @@ export function RecipesPageContent() {
         });
       }
 
-      resetForm({
+      reset({
         id: recipe?.id,
         productId: selectedProduct.id,
         recipeItems: itemsToSet,
       });
     } else {
-        resetForm({ id: undefined, productId: '', recipeItems: [] });
+        reset({ id: undefined, productId: '', recipeItems: [] });
     }
-  }, [selectedProduct, recipes, products, laborCosts, resetForm]);
+  }, [selectedProduct, recipes, products, laborCosts, reset]);
 
   const watchedItems = form.watch('recipeItems');
 
