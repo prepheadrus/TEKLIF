@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
@@ -21,6 +22,8 @@ const customerSchema = z.object({
   phone: z.string().optional(),
   address: z.string().optional(),
   taxNumber: z.string().optional(),
+  city: z.string().optional(),
+  status: z.enum(['Aktif', 'Pasif']),
 });
 
 type CustomerFormValues = z.infer<typeof customerSchema>;
@@ -32,6 +35,8 @@ type Customer = {
   phone?: string;
   address?: string;
   taxNumber?: string;
+  city?: string;
+  status: 'Aktif' | 'Pasif';
 };
 
 interface QuickAddCustomerProps {
@@ -62,6 +67,9 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded, existi
 
   const form = useForm<CustomerFormValues>({
     resolver: zodResolver(customerSchema),
+    defaultValues: {
+        status: 'Aktif',
+    }
   });
 
   const isEditMode = !!existingCustomer;
@@ -75,6 +83,8 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded, existi
           phone: existingCustomer.phone || "",
           address: existingCustomer.address || "",
           taxNumber: existingCustomer.taxNumber || "",
+          city: existingCustomer.city || "",
+          status: existingCustomer.status || 'Aktif',
         });
       } else {
         form.reset({
@@ -83,6 +93,8 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded, existi
           phone: "",
           address: "",
           taxNumber: "",
+          city: "",
+          status: 'Aktif',
         });
       }
     }
@@ -167,8 +179,26 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded, existi
                         <FormMessage />
                     </FormItem>
                 )} />
+                 <FormField control={form.control} name="city" render={({ field }) => (
+                    <FormItem><FormLabel>Şehir</FormLabel><FormControl><Input placeholder="Ankara" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="status" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Durum</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                <SelectItem value="Aktif">Aktif</SelectItem>
+                                <SelectItem value="Pasif">Pasif</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                )} />
                  <FormField control={form.control} name="taxNumber" render={({ field }) => (
-                    <FormItem className="md:col-span-2"><FormLabel>Vergi Numarası / T.C. Kimlik No</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Vergi No / TCKN</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="address" render={({ field }) => (
                     <FormItem className="md:col-span-2"><FormLabel>Adres</FormLabel><FormControl><Textarea placeholder="Müşteri adresi..." {...field} /></FormControl><FormMessage /></FormItem>

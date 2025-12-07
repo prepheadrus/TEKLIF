@@ -164,6 +164,10 @@
           "type": "string",
           "description": "Brand of the product."
         },
+        "model": {
+          "type": "string",
+          "description": "Model of the product."
+        },
         "quantity": {
           "type": "number",
           "description": "Quantity of the product in the proposal item."
@@ -226,11 +230,21 @@
         "taxNumber": {
           "type": "string",
           "description": "Tax identification number for the customer."
+        },
+        "city": {
+            "type": "string",
+            "description": "The city where the customer is located."
+        },
+        "status": {
+            "type": "string",
+            "description": "The status of the customer.",
+            "enum": ["Aktif", "Pasif"]
         }
       },
       "required": [
         "name",
-        "email"
+        "email",
+        "status"
       ]
     },
     "Product": {
@@ -242,6 +256,7 @@
         "code": { "type": "string", "description": "Unique code for the product." },
         "name": { "type": "string", "description": "Name of the product." },
         "brand": { "type": "string", "description": "Brand of the product." },
+        "model": { "type": "string", "description": "Model of the product." },
         "unit": { "type": "string", "description": "Unit of measurement (e.g., Adet, Mt)." },
         "category": { "type": "string", "description": "General category (e.g., Heating, Cooling)." },
         "installationTypeId": { "type": "string", "description": "Reference to the InstallationType." },
@@ -254,11 +269,7 @@
       "required": [
         "code",
         "name",
-        "brand",
-        "category",
-        "unit",
-        "listPrice",
-        "currency"
+        "brand"
       ]
     },
     "Supplier": {
