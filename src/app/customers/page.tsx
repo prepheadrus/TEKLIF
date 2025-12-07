@@ -58,6 +58,20 @@ type EditingCell = {
   field: 'email' | 'phone';
 } | null;
 
+const formatPhoneNumber = (value: string) => {
+    if (!value) return value;
+    const phoneNumber = value.replace(/[^\d]/g, '');
+    const phoneNumberLength = phoneNumber.length;
+    if (phoneNumberLength < 5) return phoneNumber;
+    if (phoneNumberLength < 8) {
+        return `(${phoneNumber.slice(0, 4)}) ${phoneNumber.slice(4)}`;
+    }
+    if (phoneNumberLength < 10) {
+        return `(${phoneNumber.slice(0, 4)}) ${phoneNumber.slice(4, 7)} ${phoneNumber.slice(7)}`;
+    }
+    return `(${phoneNumber.slice(0, 4)}) ${phoneNumber.slice(4, 7)} ${phoneNumber.slice(7, 9)} ${phoneNumber.slice(9, 11)}`;
+};
+
 export function CustomersPageContent() {
   const router = useRouter();
   const { toast } = useToast();
@@ -114,7 +128,13 @@ export function CustomersPageContent() {
   }
 
   const handleInlineEditChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEditValue(e.target.value);
+    const { value, name } = e.target;
+    if (name === 'phone') {
+        const formatted = formatPhoneNumber(value);
+        setEditValue(formatted);
+    } else {
+        setEditValue(value);
+    }
   }
 
   const handleInlineEditSave = async () => {
@@ -213,6 +233,8 @@ export function CustomersPageContent() {
                         {editingCell?.customerId === customer.id && editingCell?.field === 'email' ? (
                             <Input 
                                 ref={inlineInputRef}
+                                type="email"
+                                name="email"
                                 value={editValue}
                                 onChange={handleInlineEditChange}
                                 onBlur={handleInlineEditSave}
@@ -228,6 +250,8 @@ export function CustomersPageContent() {
                          {editingCell?.customerId === customer.id && editingCell?.field === 'phone' ? (
                             <Input 
                                 ref={inlineInputRef}
+                                type="tel"
+                                name="phone"
                                 value={editValue}
                                 onChange={handleInlineEditChange}
                                 onBlur={handleInlineEditSave}

@@ -41,6 +41,21 @@ interface QuickAddCustomerProps {
     existingCustomer?: Customer | null;
 }
 
+const formatPhoneNumber = (value: string) => {
+    if (!value) return value;
+    const phoneNumber = value.replace(/[^\d]/g, '');
+    const phoneNumberLength = phoneNumber.length;
+    if (phoneNumberLength < 5) return `(${phoneNumber}`;
+    if (phoneNumberLength < 8) {
+        return `(${phoneNumber.slice(0, 4)}) ${phoneNumber.slice(4)}`;
+    }
+    if (phoneNumberLength < 10) {
+        return `(${phoneNumber.slice(0, 4)}) ${phoneNumber.slice(4, 7)} ${phoneNumber.slice(7)}`;
+    }
+    return `(${phoneNumber.slice(0, 4)}) ${phoneNumber.slice(4, 7)} ${phoneNumber.slice(7, 9)} ${phoneNumber.slice(9, 11)}`;
+};
+
+
 export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded, existingCustomer }: QuickAddCustomerProps) {
   const { toast } = useToast();
   const firestore = useFirestore();
@@ -110,6 +125,11 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded, existi
       });
     }
   };
+  
+  const handlePhoneChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const formattedPhoneNumber = formatPhoneNumber(event.target.value);
+    form.setValue('phone', formattedPhoneNumber);
+  };
 
   const dialogTitle = isEditMode ? 'Müşteriyi Düzenle' : 'Yeni Müşteri Ekle';
   const dialogDescription = isEditMode ? 'Müşteri bilgilerini güncelleyin.' : 'Sisteminize yeni bir müşteri kaydedin.';
@@ -130,10 +150,22 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded, existi
                     <FormItem className="md:col-span-2"><FormLabel>Müşteri Adı / Firma Unvanı</FormLabel><FormControl><Input placeholder="Örn: ABC İnşaat A.Ş." {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="email" render={({ field }) => (
-                    <FormItem><FormLabel>E-posta Adresi</FormLabel><FormControl><Input placeholder="iletisim@abcinşaat.com" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>E-posta Adresi</FormLabel><FormControl><Input type="email" placeholder="iletisim@abcinşaat.com" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="phone" render={({ field }) => (
-                    <FormItem><FormLabel>Telefon Numarası</FormLabel><FormControl><Input placeholder="(5xx) xxx xx xx" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem>
+                        <FormLabel>Telefon Numarası</FormLabel>
+                        <FormControl>
+                            <Input 
+                                type="tel" 
+                                placeholder="(5xx) xxx xx xx" 
+                                {...field} 
+                                onChange={handlePhoneChange}
+                                maxLength={16}
+                            />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
                 )} />
                  <FormField control={form.control} name="taxNumber" render={({ field }) => (
                     <FormItem className="md:col-span-2"><FormLabel>Vergi Numarası / T.C. Kimlik No</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
