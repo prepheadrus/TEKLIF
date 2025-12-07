@@ -1,3 +1,4 @@
+
 'use client';
 
 import { forwardRef } from 'react';
@@ -17,6 +18,7 @@ interface PrintDocumentProps {
         id: string;
         name: string;
         brand: string;
+        model?: string;
         quantity: number;
         unit: string;
         listPrice: number;
@@ -108,6 +110,7 @@ export const PrintDocument = forwardRef<HTMLDivElement, PrintDocumentProps>(
                   <th className="border p-1 w-8 text-center">#</th>
                   <th className="border p-1 text-left">Açıklama</th>
                   <th className="border p-1 w-20 text-center">Marka</th>
+                  <th className="border p-1 w-20 text-center">Model</th>
                   <th className="border p-1 w-16 text-right">Miktar</th>
                   <th className="border p-1 w-16 text-center">Birim</th>
                   <th className="border p-1 w-24 text-right">Birim Fiyat</th>
@@ -120,6 +123,7 @@ export const PrintDocument = forwardRef<HTMLDivElement, PrintDocumentProps>(
                     <td className="border p-1.5 text-center">{i + 1}</td>
                     <td className="border p-1.5">{item.name}</td>
                     <td className="border p-1.5 text-center">{item.brand}</td>
+                    <td className="border p-1.5 text-center">{item.model}</td>
                     <td className="border p-1.5 text-right">{item.quantity.toLocaleString('tr-TR')}</td>
                     <td className="border p-1.5 text-center">{item.unit}</td>
                     <td className="border p-1.5 text-right">{formatCurrency(item.unitPrice)}</td>
@@ -170,3 +174,5 @@ export const PrintDocument = forwardRef<HTMLDivElement, PrintDocumentProps>(
 );
 
 PrintDocument.displayName = 'PrintDocument';
+
+    

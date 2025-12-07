@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -12,9 +13,6 @@ import {
   getDocs,
   query,
   serverTimestamp,
-  type DocumentReference,
-  type CollectionReference,
-  type DocumentData,
 } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
@@ -88,6 +86,7 @@ const proposalItemSchema = z.object({
   productId: z.string().min(1, 'Ürün seçimi zorunludur.'),
   name: z.string(),
   brand: z.string(),
+  model: z.string().optional(),
   quantity: z.coerce.number().min(0.01, 'Miktar 0 olamaz.'),
   unit: z.string(),
   listPrice: z.coerce.number(),
@@ -311,7 +310,7 @@ export function QuoteDetailClientPage() {
            handleFetchRates();
         }
     }
-  }, [proposal, initialItems]);
+  }, [proposal, initialItems, form]);
 
 
   useEffect(() => {
@@ -385,6 +384,7 @@ export function QuoteDetailClientPage() {
               productId: product.id,
               name: product.name,
               brand: product.brand,
+              model: product.model || '',
               unit: product.unit,
               quantity: 1,
               listPrice: product.listPrice,
@@ -712,7 +712,7 @@ export function QuoteDetailClientPage() {
                                       <TableHeader className="bg-slate-50">
                                       <TableRow>
                                           <TableHead className="py-2 pl-4 text-xs uppercase text-slate-500 font-semibold tracking-wider w-[30%]">Ürün Tanımı</TableHead>
-                                          <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider w-[15%]">Marka</TableHead>
+                                          <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider w-[15%]">Marka / Model</TableHead>
                                           <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Miktar</TableHead>
                                           <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">Liste Fiyatı</TableHead>
                                           <TableHead className="py-2 text-xs uppercase text-slate-500 font-semibold tracking-wider">İskonto</TableHead>
@@ -742,6 +742,7 @@ export function QuoteDetailClientPage() {
                                                   </TableCell>
                                                   <TableCell className="py-1.5 w-[15%]">
                                                       <FormField control={form.control} name={`items.${index}.brand`} render={({ field }) => <Input {...field} className="w-full h-7 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
+                                                      <FormField control={form.control} name={`items.${index}.model`} render={({ field }) => <Input {...field} placeholder="Model..." className="w-full h-7 text-xs bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
                                                   </TableCell>
                                                   <TableCell className="py-1.5">
                                                       <div className="flex items-center">
@@ -984,3 +985,5 @@ export function QuoteDetailClientPage() {
     </Form>
   );
 }
+
+    

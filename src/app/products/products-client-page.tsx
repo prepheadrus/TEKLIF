@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -43,6 +44,7 @@ export type Product = {
   code: string;
   name: string;
   brand: string;
+  model?: string;
   unit: string;
   // Sales Info
   listPrice: number;
@@ -213,7 +215,6 @@ export function ProductsPageContent() {
                 listPrice: restOfProduct.basePrice * 1.25, // Default list price = 25% above cost
                 discountRate: 0,
                 code: `CODE-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-                brand: product.brand || 'Çeşitli',
                 category: 'Genel',
             });
         }
@@ -239,6 +240,7 @@ export function ProductsPageContent() {
         p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.model && p.model.toLowerCase().includes(searchTerm.toLowerCase())) ||
         p.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (p.installationTypeId && categoryNameMap.get(p.installationTypeId)?.toLowerCase().includes(searchTerm.toLowerCase()))
   );
@@ -270,7 +272,7 @@ export function ProductsPageContent() {
           <div className="relative pt-2">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Ürün adı, kodu, markası veya kategorisi ara..."
+              placeholder="Ürün adı, kodu, marka, model veya kategori ara..."
               className="pl-8"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -282,6 +284,7 @@ export function ProductsPageContent() {
             <TableHeader>
               <TableRow>
                 <TableHead>Ad</TableHead>
+                <TableHead>Marka / Model</TableHead>
                 <TableHead>Tedarikçi</TableHead>
                 <TableHead>Tesisat Kategorisi</TableHead>
                 <TableHead>Birim Alış Fiyatı</TableHead>
@@ -292,13 +295,13 @@ export function ProductsPageContent() {
             <TableBody>
               {tableIsLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center">
+                  <TableCell colSpan={7} className="text-center">
                     <Loader2 className="mx-auto my-4 h-6 w-6 animate-spin" />
                   </TableCell>
                 </TableRow>
               ) : error ? (
                  <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center text-red-600">
+                    <TableCell colSpan={7} className="h-24 text-center text-red-600">
                         Ürünler yüklenirken bir hata oluştu: {error.message}
                     </TableCell>
                 </TableRow>
@@ -308,6 +311,10 @@ export function ProductsPageContent() {
                     <TableCell className="font-medium">
                         <div>{product.name}</div>
                         <div className="text-xs text-muted-foreground font-mono">{product.code}</div>
+                    </TableCell>
+                    <TableCell>
+                        <div>{product.brand}</div>
+                        <div className="text-xs text-muted-foreground">{product.model}</div>
                     </TableCell>
                     <TableCell>
                       {product.supplierId && (
@@ -365,7 +372,7 @@ export function ProductsPageContent() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
+                  <TableCell colSpan={7} className="h-24 text-center">
                     Henüz ürün bulunmuyor. Örnek verileri yükleyebilir veya yeni ürün ekleyebilirsiniz.
                   </TableCell>
                 </TableRow>
@@ -386,3 +393,5 @@ export function ProductsPageContent() {
     </div>
   );
 }
+
+    

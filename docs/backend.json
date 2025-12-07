@@ -1,41 +1,6 @@
 
 {
   "entities": {
-    "Material": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Material",
-      "type": "object",
-      "description": "Represents a material used in the mechanical proposal.",
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Name of the material."
-        },
-        "unit": {
-          "type": "string",
-          "description": "Unit of measurement for the material (e.g., meter, piece)."
-        },
-        "currency": {
-          "type": "string",
-          "description": "Currency of the material's base price (e.g., USD, EUR, TL)."
-        },
-        "basePrice": {
-          "type": "number",
-          "description": "Base price of the material."
-        },
-        "supplierId": {
-          "type": "string",
-          "description": "Reference to Supplier."
-        }
-      },
-      "required": [
-        "name",
-        "unit",
-        "currency",
-        "basePrice",
-        "supplierId"
-      ]
-    },
     "LaborCost": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "LaborCost",
@@ -79,7 +44,7 @@
               },
               "itemId": {
                 "type": "string",
-                "description": "The ID of the Material or LaborCost document."
+                "description": "The ID of the Product (acting as material) or LaborCost document."
               },
               "quantity": {
                 "type": "number",
@@ -159,6 +124,10 @@
           "type": "string",
           "description": "Date and time when the proposal was created.",
           "format": "date-time"
+        },
+        "termsAndConditions": {
+            "type": "string",
+            "description": "Custom terms and conditions for the proposal, can be a multiline text."
         }
       },
       "required": [
@@ -194,6 +163,10 @@
         "brand": {
           "type": "string",
           "description": "Brand of the product."
+        },
+        "model": {
+          "type": "string",
+          "description": "Model of the product."
         },
         "quantity": {
           "type": "number",
@@ -268,54 +241,25 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Product",
       "type": "object",
-      "description": "Represents a product or service offered.",
+      "description": "Represents a product, material, or service offered.",
       "properties": {
-        "code": {
-          "type": "string",
-          "description": "Unique code for the product."
-        },
-        "name": {
-          "type": "string",
-          "description": "Name of the product."
-        },
-        "brand": {
-          "type": "string",
-          "description": "Brand of the product."
-        },
-        "category": {
-          "type": "string",
-          "description": "Category of the product (e.g., Heating, Cooling)."
-        },
-        "installationTypeId": {
-          "type": "string",
-          "description": "Reference to the InstallationType this product belongs to."
-        },
-        "unit": {
-          "type": "string",
-          "description": "Unit of measurement for the product (e.g., Adet, Mt)."
-        },
-        "listPrice": {
-          "type": "number",
-          "description": "List price of the product before discount."
-        },
-        "currency": {
-          "type": "string",
-          "description": "Currency of the list price (e.g., TL, USD, EUR)."
-        },
-        "discountRate": {
-          "type": "number",
-          "description": "Discount rate for the product (0 to 1, e.g., 0.15 for 15%)."
-        }
+        "code": { "type": "string", "description": "Unique code for the product." },
+        "name": { "type": "string", "description": "Name of the product." },
+        "brand": { "type": "string", "description": "Brand of the product." },
+        "model": { "type": "string", "description": "Model of the product." },
+        "unit": { "type": "string", "description": "Unit of measurement (e.g., Adet, Mt)." },
+        "category": { "type": "string", "description": "General category (e.g., Heating, Cooling)." },
+        "installationTypeId": { "type": "string", "description": "Reference to the InstallationType." },
+        "listPrice": { "type": "number", "description": "List price for sales." },
+        "currency": { "type": "string", "description": "Currency for prices (e.g., TL, USD, EUR)." },
+        "discountRate": { "type": "number", "description": "Default sales discount rate (0 to 1)." },
+        "basePrice": { "type": "number", "description": "Base cost/purchase price of the material." },
+        "supplierId": { "type": "string", "description": "Reference to the Supplier." }
       },
       "required": [
         "code",
         "name",
-        "brand",
-        "category",
-        "unit",
-        "listPrice",
-        "currency",
-        "discountRate"
+        "brand"
       ]
     },
     "Supplier": {
@@ -335,8 +279,7 @@
         }
       },
       "required": [
-        "name",
-        "contactEmail"
+        "name"
       ]
     },
     "InstallationType": {
@@ -372,27 +315,15 @@
         "path": "/suppliers/{supplierId}",
         "definition": {
           "entityName": "Supplier",
-          "schema": {
-            "$ref": "#/backend/entities/Supplier"
-          },
+          "schema": { "$ref": "#/backend/entities/Supplier" },
           "description": "Represents a supplier of materials."
-        }
-      },
-      {
-        "path": "/materials/{materialId}",
-        "definition": {
-            "entityName": "Material",
-            "schema": { "$ref": "#/backend/entities/Material" },
-            "description": "Represents a material used in recipes."
         }
       },
       {
         "path": "/labor_costs/{laborCostId}",
         "definition": {
           "entityName": "LaborCost",
-          "schema": {
-            "$ref": "#/backend/entities/LaborCost"
-          },
+          "schema": { "$ref": "#/backend/entities/LaborCost" },
           "description": "Represents the cost of labor for a specific role."
         }
       },
@@ -400,9 +331,7 @@
         "path": "/recipes/{recipeId}",
         "definition": {
           "entityName": "Recipe",
-          "schema": {
-            "$ref": "#/backend/entities/Recipe"
-          },
+          "schema": { "$ref": "#/backend/entities/Recipe" },
           "description": "Represents a recipe or bill of materials for a product."
         }
       },
@@ -410,9 +339,7 @@
         "path": "/customers/{customerId}",
         "definition": {
           "entityName": "Customer",
-          "schema": {
-            "$ref": "#/backend/entities/Customer"
-          },
+          "schema": { "$ref": "#/backend/entities/Customer" },
           "description": "Represents a customer."
         }
       },
@@ -420,43 +347,37 @@
         "path": "/proposals/{proposalId}",
         "definition": {
           "entityName": "Proposal",
-          "schema": {
-            "$ref": "#/backend/entities/Proposal"
-          },
-          "description": "Represents a proposal document. Each document is a specific version of a proposal."
+          "schema": { "$ref": "#/backend/entities/Proposal" },
+          "description": "Represents a proposal document."
         }
       },
       {
         "path": "/proposals/{proposalId}/proposal_items/{proposalItemId}",
         "definition": {
           "entityName": "ProposalItem",
-          "schema": {
-            "$ref": "#/backend/entities/ProposalItem"
-          },
-          "description": "Represents an individual line item within a specific proposal version."
+          "schema": { "$ref": "#/backend/entities/ProposalItem" },
+          "description": "Represents an individual line item within a specific proposal."
         }
       },
       {
         "path": "/products/{productId}",
         "definition": {
           "entityName": "Product",
-          "schema": {
-            "$ref": "#/backend/entities/Product"
-          },
-          "description": "Represents a product."
+          "schema": { "$ref": "#/backend/entities/Product" },
+          "description": "Represents a product, material, or service."
         }
       },
        {
         "path": "/installation_types/{installationTypeId}",
         "definition": {
           "entityName": "InstallationType",
-          "schema": {
-            "$ref": "#/backend/entities/InstallationType"
-          },
-          "description": "Stores the different disciplines of mechanical installations in a hierarchical structure."
+          "schema": { "$ref": "#/backend/entities/InstallationType" },
+          "description": "Stores the different disciplines of mechanical installations."
         }
       }
     ],
-    "reasoning": "The Firestore structure is updated to support a more robust cost analysis system. Key collections like `materials`, `labor_costs`, `suppliers`, and `recipes` are now top-level collections. This flat structure simplifies security rules and queries, avoiding deep nesting. The `Recipe` entity is redesigned to hold an array of `recipeItems`, allowing a single product to be composed of multiple materials and labor types, which is a more realistic representation of a bill of materials. All other collections remain as they were to support existing functionality for customers, products, and proposals. A new top-level collection `installation_types` is added to manage and categorize products by their mechanical discipline."
+    "reasoning": "The Firestore structure is simplified by merging 'Materials' into 'Products'. Now, the `products` collection serves as the master list for all sellable or costed items. The `suppliers` collection remains to manage vendor information. This unified approach simplifies data management and aligns better with the user's workflow of picking items from a single master list for proposals."
   }
 }
+
+    

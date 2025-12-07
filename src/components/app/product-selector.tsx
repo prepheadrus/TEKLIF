@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useMemo } from 'react';
 import {
@@ -21,8 +22,8 @@ import {
   useMemoFirebase,
 } from '@/firebase';
 import { collection, query } from 'firebase/firestore';
-import type { Product } from '@/app/products/page';
-import type { InstallationType, TreeNode } from '@/app/installation-types/page';
+import type { Product } from '@/app/products/products-client-page';
+import type { InstallationType, TreeNode } from '@/app/installation-types/installation-types-client-page';
 import { Loader2, Search, ChevronRight, ChevronDown } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -144,7 +145,7 @@ export function ProductSelector({
     }
 
     if (searchTerm) {
-        products = products?.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.brand.toLowerCase().includes(searchTerm.toLowerCase()));
+        products = products?.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.brand.toLowerCase().includes(searchTerm.toLowerCase()) || (p.model && p.model.toLowerCase().includes(searchTerm.toLowerCase())));
     }
     return products || [];
   }, [allProducts, searchTerm, selectedCategoryId, categoryDescendants]);
@@ -218,7 +219,7 @@ export function ProductSelector({
                 <div className="relative">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Ürün adı veya marka ara..."
+                    placeholder="Ürün adı, marka veya model ara..."
                     className="pl-8"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -237,7 +238,7 @@ export function ProductSelector({
                         />
                         <label htmlFor={`product-${product.id}`} className="flex-1 cursor-pointer">
                           <p className="font-medium">{product.name}</p>
-                          <p className="text-sm text-muted-foreground">{product.brand}</p>
+                          <p className="text-sm text-muted-foreground">{product.brand} - {product.model}</p>
                         </label>
                         <div className="text-sm font-mono">{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: product.currency }).format(product.listPrice)}</div>
                       </div>
@@ -267,3 +268,5 @@ export function ProductSelector({
     </Dialog>
   );
 }
+
+    

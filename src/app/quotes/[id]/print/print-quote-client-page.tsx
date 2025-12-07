@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useMemo, useCallback } from 'react';
@@ -30,6 +31,7 @@ type ProposalItem = {
     id:string;
     name: string;
     brand: string;
+    model?: string;
     quantity: number;
     unit: string;
     listPrice: number;
@@ -145,7 +147,7 @@ export function PrintQuoteClientPage() {
         wsData.push([]); // Boş satır
 
         // Items Table
-        wsData.push(['#', 'Grup', 'Açıklama', 'Marka', 'Miktar', 'Birim', 'Birim Fiyat (TL)', 'Toplam Fiyat (TL)']);
+        wsData.push(['#', 'Grup', 'Açıklama', 'Marka', 'Model', 'Miktar', 'Birim', 'Birim Fiyat (TL)', 'Toplam Fiyat (TL)']);
         
         let itemIndex = 1;
         calculatedData.groupedItems.forEach(([groupName, items]) => {
@@ -155,6 +157,7 @@ export function PrintQuoteClientPage() {
                     groupName,
                     item.name,
                     item.brand,
+                    item.model || '',
                     item.quantity,
                     item.unit,
                     item.unitPrice,
@@ -165,9 +168,9 @@ export function PrintQuoteClientPage() {
         wsData.push([]); // Boş satır
 
         // Totals
-        wsData.push(['', '', '', '', '', '', 'Ara Toplam', calculatedData.grandTotal]);
-        wsData.push(['', '', '', '', '', '', 'KDV (%20)', calculatedData.vatAmount]);
-        wsData.push(['', '', '', '', '', '', 'Genel Toplam', calculatedData.grandTotalWithVAT]);
+        wsData.push(['', '', '', '', '', '', '', 'Ara Toplam', calculatedData.grandTotal]);
+        wsData.push(['', '', '', '', '', '', '', 'KDV (%20)', calculatedData.vatAmount]);
+        wsData.push(['', '', '', '', '', '', '', 'Genel Toplam', calculatedData.grandTotalWithVAT]);
         
         const ws = XLSX.utils.aoa_to_sheet(wsData);
         XLSX.utils.book_append_sheet(wb, ws, 'Teklif');
@@ -249,3 +252,5 @@ export function PrintQuoteClientPage() {
         </div>
     );
 }
+
+    

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useMemo } from 'react';
@@ -13,7 +14,7 @@ import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, addDocumentNonBlocking, setDocumentNonBlocking, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
-import type { Product, Supplier } from '@/app/products/page';
+import type { Product, Supplier } from '@/app/products/products-client-page';
 import { Separator } from '../ui/separator';
 
 const productSchema = z.object({
@@ -21,6 +22,7 @@ const productSchema = z.object({
   code: z.string().min(1, "Kod zorunludur."),
   name: z.string().min(2, "Ad en az 2 karakter olmalıdır."),
   brand: z.string().min(1, "Marka zorunludur."),
+  model: z.string().optional(),
   unit: z.string().min(1, "Birim zorunludur."),
   
   // Cost Info
@@ -119,7 +121,7 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, onProductAdde
             });
         } else {
             form.reset({
-                code: "", name: "", brand: "", category: "Genel", installationTypeId: null, unit: "Adet",
+                code: "", name: "", brand: "", model: "", category: "Genel", installationTypeId: null, unit: "Adet",
                 listPrice: 0, currency: "TRY", discountRate: 0, basePrice: 0, supplierId: null,
             });
         }
@@ -179,12 +181,16 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, onProductAdde
                 <FormField control={form.control} name="code" render={({ field }) => (
                     <FormItem><FormLabel>Kod</FormLabel><FormControl><Input placeholder="WS-YK-50" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
+                 <FormField control={form.control} name="unit" render={({ field }) => (
+                    <FormItem><FormLabel>Birim</FormLabel><FormControl><Input placeholder="Adet" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
                 <FormField control={form.control} name="brand" render={({ field }) => (
                     <FormItem><FormLabel>Marka</FormLabel><FormControl><Input placeholder="Warmhaus" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
-                <FormField control={form.control} name="unit" render={({ field }) => (
-                    <FormItem><FormLabel>Birim</FormLabel><FormControl><Input placeholder="Adet" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormField control={form.control} name="model" render={({ field }) => (
+                    <FormItem><FormLabel>Model</FormLabel><FormControl><Input placeholder="Ewa 50" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
+               
                 <FormField control={form.control} name="category" render={({ field }) => (
                     <FormItem><FormLabel>Genel Kategori</FormLabel><FormControl><Input placeholder="Kazan" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
@@ -192,7 +198,7 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, onProductAdde
                     control={form.control}
                     name="installationTypeId"
                     render={({ field }) => (
-                        <FormItem className="md:col-span-2">
+                        <FormItem>
                         <FormLabel>Tesisat Kategorisi (Opsiyonel)</FormLabel>
                         <Select 
                             onValueChange={(value) => field.onChange(value === "null" ? null : value)} 
@@ -284,3 +290,5 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, onProductAdde
     </Dialog>
   );
 }
+
+    
