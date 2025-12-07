@@ -224,16 +224,21 @@
           "description": "Contact phone number for the customer."
         },
         "address": {
-          "type": "string",
-          "description": "Physical address of the customer."
-        },
-        "taxNumber": {
-          "type": "string",
-          "description": "Tax identification number for the customer."
+          "type": "object",
+          "description": "Structured address of the customer.",
+          "properties": {
+            "addressLine1": { "type": "string", "description": "Street, building number, apartment number." },
+            "district": { "type": "string", "description": "District (İlçe)." },
+            "postalCode": { "type": "string", "description": "Postal code." }
+          }
         },
         "city": {
             "type": "string",
             "description": "The city where the customer is located."
+        },
+        "taxNumber": {
+          "type": "string",
+          "description": "Tax identification number for the customer."
         },
         "status": {
             "type": "string",

@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
@@ -23,9 +22,13 @@ const customerSchema = z.object({
   name: z.string().min(2, "Müşteri adı en az 2 karakter olmalıdır."),
   email: z.string().email("Geçerli bir e-posta adresi girin."),
   phone: z.string().optional(),
-  address: z.string().optional(),
-  taxNumber: z.string().optional(),
+  address: z.object({
+    addressLine1: z.string().optional(),
+    district: z.string().optional(),
+    postalCode: z.string().optional(),
+  }).optional(),
   city: z.string().optional(),
+  taxNumber: z.string().optional(),
   status: z.enum(['Aktif', 'Pasif']),
   tags: z.array(z.string()).default([]),
 });
@@ -37,9 +40,13 @@ type Customer = {
   name: string;
   email: string;
   phone?: string;
-  address?: string;
-  taxNumber?: string;
+  address?: {
+    addressLine1?: string;
+    district?: string;
+    postalCode?: string;
+  };
   city?: string;
+  taxNumber?: string;
   status: 'Aktif' | 'Pasif';
   tags?: string[];
 };
@@ -73,6 +80,16 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded, existi
   const form = useForm<CustomerFormValues>({
     resolver: zodResolver(customerSchema),
     defaultValues: {
+        name: "",
+        email: "",
+        phone: "",
+        address: {
+            addressLine1: "",
+            district: "",
+            postalCode: "",
+        },
+        city: "",
+        taxNumber: "",
         status: 'Aktif',
         tags: [],
     }
@@ -87,9 +104,13 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded, existi
           name: existingCustomer.name || "",
           email: existingCustomer.email || "",
           phone: existingCustomer.phone || "",
-          address: existingCustomer.address || "",
-          taxNumber: existingCustomer.taxNumber || "",
+          address: {
+            addressLine1: existingCustomer.address?.addressLine1 || "",
+            district: existingCustomer.address?.district || "",
+            postalCode: existingCustomer.address?.postalCode || "",
+          },
           city: existingCustomer.city || "",
+          taxNumber: existingCustomer.taxNumber || "",
           status: existingCustomer.status || 'Aktif',
           tags: existingCustomer.tags || [],
         });
@@ -98,9 +119,13 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded, existi
           name: "",
           email: "",
           phone: "",
-          address: "",
-          taxNumber: "",
+          address: {
+            addressLine1: "",
+            district: "",
+            postalCode: "",
+          },
           city: "",
+          taxNumber: "",
           status: 'Aktif',
           tags: [],
         });
@@ -187,19 +212,10 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded, existi
                         <FormMessage />
                     </FormItem>
                 )} />
-                 <FormField control={form.control} name="city" render={({ field }) => (
-                    <FormItem><FormLabel>Şehir</FormLabel><FormControl><Input placeholder="Ankara" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
                 <FormField control={form.control} name="taxNumber" render={({ field }) => (
                     <FormItem><FormLabel>Vergi No / TCKN</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
-                 <FormField control={form.control} name="address" render={({ field }) => (
-                    <FormItem className="md:col-span-2"><FormLabel>Adres</FormLabel><FormControl><Textarea placeholder="Müşteri adresi..." {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                
-                <Separator className="md:col-span-2 my-2" />
-                
-                 <FormField control={form.control} name="status" render={({ field }) => (
+                <FormField control={form.control} name="status" render={({ field }) => (
                     <FormItem>
                         <FormLabel>Durum</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
@@ -215,6 +231,24 @@ export function QuickAddCustomer({ isOpen, onOpenChange, onCustomerAdded, existi
                     </FormItem>
                 )} />
 
+                <Separator className="md:col-span-2 my-2" />
+                 <h3 className="md:col-span-2 font-medium">Adres Bilgileri</h3>
+                
+                <FormField control={form.control} name="address.addressLine1" render={({ field }) => (
+                    <FormItem className="md:col-span-2"><FormLabel>Adres Satırı</FormLabel><FormControl><Input placeholder="Örn: Örnek Mah. Test Cad. No:1 D:2" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                 <FormField control={form.control} name="city" render={({ field }) => (
+                    <FormItem><FormLabel>Şehir</FormLabel><FormControl><Input placeholder="Ankara" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="address.district" render={({ field }) => (
+                    <FormItem><FormLabel>İlçe</FormLabel><FormControl><Input placeholder="Çankaya" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="address.postalCode" render={({ field }) => (
+                    <FormItem><FormLabel>Posta Kodu</FormLabel><FormControl><Input placeholder="06500" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                
+                <Separator className="md:col-span-2 my-2" />
+                
                  <FormField
                     control={form.control}
                     name="tags"

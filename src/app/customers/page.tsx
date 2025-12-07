@@ -58,6 +58,11 @@ type Customer = {
   email: string;
   phone?: string;
   city?: string;
+  address?: {
+    addressLine1?: string;
+    district?: string;
+    postalCode?: string;
+  };
   status: 'Aktif' | 'Pasif';
   tags?: string[];
 };
@@ -156,7 +161,8 @@ export function CustomersPageContent() {
             c.name.toLowerCase().includes(searchLower) ||
             c.email.toLowerCase().includes(searchLower) ||
             (c.phone && c.phone.includes(searchLower)) ||
-            (c.city && c.city.toLowerCase().includes(searchLower));
+            (c.city && c.city.toLowerCase().includes(searchLower)) ||
+            (c.address?.district && c.address.district.toLowerCase().includes(searchLower));
 
         const statusMatch = statusFilter.length === 0 || statusFilter.includes(c.status);
         const cityMatch = cityFilter.length === 0 || (c.city && cityFilter.includes(c.city));
@@ -286,7 +292,7 @@ export function CustomersPageContent() {
                 <div className="relative">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input 
-                        placeholder="Ad, e-posta, telefon veya şehir ara..." 
+                        placeholder="Ad, e-posta, telefon, ilçe veya şehir ara..." 
                         className="pl-8"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -374,7 +380,10 @@ export function CustomersPageContent() {
                 ) : filteredAndSortedCustomers.length > 0 ? (
                     filteredAndSortedCustomers.map((customer) => (
                     <TableRow key={customer.id} >
-                        <TableCell className="font-medium" onClick={() => handleOpenEditDialog(customer)}>{customer.name}</TableCell>
+                        <TableCell className="font-medium" onClick={() => handleOpenEditDialog(customer)}>
+                          {customer.name}
+                          <div className="text-xs text-muted-foreground">{customer.address?.district} / {customer.city}</div>
+                        </TableCell>
                         <TableCell>
                            {editingCell?.customerId === customer.id && editingCell?.field === 'email' ? (
                                 <Input 
@@ -384,6 +393,7 @@ export function CustomersPageContent() {
                                     onKeyDown={handleInlineEditKeyDown}
                                     autoFocus
                                     className="h-8"
+                                    type="email"
                                 />
                            ) : (
                                 <div className="text-sm cursor-pointer hover:bg-gray-100 p-1 rounded" onClick={() => handleCellClick(customer, 'email')}>{customer.email}</div>
@@ -396,6 +406,7 @@ export function CustomersPageContent() {
                                     onKeyDown={handleInlineEditKeyDown}
                                     autoFocus
                                     className="h-8 mt-1"
+                                    type="tel"
                                 />
                            ) : (
                                 <div className="text-xs text-muted-foreground cursor-pointer hover:bg-gray-100 p-1 rounded mt-1" onClick={() => handleCellClick(customer, 'phone')}>{customer.phone}</div>
