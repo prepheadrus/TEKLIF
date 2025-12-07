@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useMemo, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
@@ -89,8 +89,7 @@ export function PrintQuoteClientPage() {
         teklifNo: proposal?.quoteNumber || 'teklif',
     });
 
-    // --- Memoized Calculations ---
-    const calculatedData = useMemo(() => {
+    const calculateData = () => {
         if (!proposal || !items) {
             return null;
         }
@@ -129,7 +128,9 @@ export function PrintQuoteClientPage() {
         const totalWithVat = subtotal + calculatedVat;
         
         return { ...proposal, items: calculatedItems, groupedItems: sortedGroups, grandTotal: subtotal, grandTotalWithVAT: totalWithVat, vatAmount: calculatedVat };
-    }, [proposal, items]);
+    }
+
+    const calculatedData = calculateData();
 
 
     const handleExportToExcel = useCallback(() => {
