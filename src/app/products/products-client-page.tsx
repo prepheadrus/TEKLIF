@@ -26,7 +26,8 @@ import {
     Trash2,
     Loader2,
     Search,
-    UploadCloud
+    UploadCloud,
+    X,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase, deleteDocumentNonBlocking } from '@/firebase';
@@ -36,6 +37,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { QuickAddProduct } from '@/components/app/quick-add-product';
 import { productSeedData } from '@/lib/product-seed-data';
+import { Checkbox } from '@/components/ui/checkbox';
 
 // Combined type for a product/material
 export type Product = {
@@ -106,6 +108,7 @@ export function ProductsPageContent() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSeeding, setIsSeeding] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // --- Data Fetching ---
   const productsQuery = useMemoFirebase(
@@ -138,6 +141,18 @@ export function ProductsPageContent() {
     return new Map(suppliers.map(s => [s.id, s.name]));
   }, [suppliers]);
   
+    const filteredProducts = useMemo(() => {
+        if (!products) return [];
+        return products.filter(p => 
+            p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            p.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            p.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (p.model && p.model.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            p.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (p.installationTypeId && categoryNameMap.get(p.installationTypeId)?.toLowerCase().includes(searchTerm.toLowerCase()))
+        )
+    }, [products, searchTerm, categoryNameMap]);
+
   
   // --- Event Handlers ---
   const handleOpenAddDialog = () => {
@@ -155,6 +170,11 @@ export function ProductsPageContent() {
     deleteDocumentNonBlocking(doc(firestore, 'products', productId));
     toast({ title: 'Başarılı', description: 'Ürün silindi.' });
     refetchProducts();
+    setSelectedIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(productId);
+        return newSet;
+    });
   };
   
   const handleSeedProducts = async () => {
@@ -231,20 +251,56 @@ export function ProductsPageContent() {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (!firestore || selectedIds.size === 0) return;
+
+    toast({title: 'Siliniyor...', description: `${selectedIds.size} ürün siliniyor.`});
+
+    try {
+        const batch = writeBatch(firestore);
+        selectedIds.forEach(id => {
+            batch.delete(doc(firestore, 'products', id));
+        });
+        await batch.commit();
+
+        toast({title: 'Başarılı!', description: 'Seçili ürünler silindi.'});
+        setSelectedIds(new Set());
+        refetchProducts();
+
+    } catch (error: any) {
+        toast({variant: 'destructive', title: 'Hata', description: `Ürünler silinemedi: ${error.message}`});
+    }
+  };
+
 
   const formatCurrency = (amount: number, currency: string) => {
     return new Intl.NumberFormat('tr-TR', { style: 'currency', currency }).format(amount);
   };
   
-  const filteredProducts = products?.filter(p => 
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (p.model && p.model.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        p.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (p.installationTypeId && categoryNameMap.get(p.installationTypeId)?.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
-  
+  const toggleAllSelection = (isChecked: boolean) => {
+    if (!filteredProducts) return;
+    const newSelectedIds = new Set<string>();
+    if (isChecked) {
+        filteredProducts.forEach(p => newSelectedIds.add(p.id));
+    }
+    setSelectedIds(newSelectedIds);
+  };
+
+  const toggleSelection = (id: string, isChecked: boolean) => {
+    setSelectedIds(prev => {
+        const newSet = new Set(prev);
+        if (isChecked) {
+            newSet.add(id);
+        } else {
+            newSet.delete(id);
+        }
+        return newSet;
+    });
+  };
+
+  const allVisibleSelected = filteredProducts && filteredProducts.length > 0 && selectedIds.size >= filteredProducts.length && filteredProducts.every(p => selectedIds.has(p.id));
+  const someVisibleSelected = filteredProducts && selectedIds.size > 0 && !allVisibleSelected;
+
   const tableIsLoading = isLoadingProducts || isLoadingInstallationTypes || isLoadingSuppliers;
 
   return (
@@ -279,10 +335,51 @@ export function ProductsPageContent() {
             />
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
+          {selectedIds.size > 0 && (
+            <div className="bg-primary/10 border-y border-primary/20 px-4 py-2 flex items-center justify-between">
+                <div className="text-sm font-semibold text-primary">
+                    {selectedIds.size} ürün seçildi.
+                </div>
+                <div className="flex items-center gap-2">
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                           <Button variant="destructive" size="sm">
+                                <Trash2 className="mr-2 h-4 w-4" /> Seçilenleri Sil
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Bu işlem geri alınamaz. Seçilen {selectedIds.size} ürün kalıcı olarak silinecektir.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>İptal</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90">
+                                    Evet, Sil
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedIds(new Set())}>
+                        <X className="h-4 w-4" />
+                    </Button>
+                </div>
+            </div>
+          )}
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="px-4 w-12">
+                  <Checkbox
+                    checked={allVisibleSelected}
+                    onCheckedChange={(checked) => toggleAllSelection(!!checked)}
+                    aria-label="Tümünü seç"
+                    data-state={someVisibleSelected ? 'indeterminate' : (allVisibleSelected ? 'checked' : 'unchecked')}
+                  />
+                </TableHead>
                 <TableHead>Ad</TableHead>
                 <TableHead>Marka</TableHead>
                 <TableHead>Model</TableHead>
@@ -290,25 +387,32 @@ export function ProductsPageContent() {
                 <TableHead>Tesisat Kategorisi</TableHead>
                 <TableHead>Birim Alış Fiyatı</TableHead>
                 <TableHead>Birim Satış Fiyatı</TableHead>
-                <TableHead><span className="sr-only">İşlemler</span></TableHead>
+                <TableHead className="text-right w-20"><span className="sr-only">İşlemler</span></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {tableIsLoading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center">
+                  <TableCell colSpan={9} className="text-center">
                     <Loader2 className="mx-auto my-4 h-6 w-6 animate-spin" />
                   </TableCell>
                 </TableRow>
               ) : error ? (
                  <TableRow>
-                    <TableCell colSpan={8} className="h-24 text-center text-red-600">
+                    <TableCell colSpan={9} className="h-24 text-center text-red-600">
                         Ürünler yüklenirken bir hata oluştu: {error.message}
                     </TableCell>
                 </TableRow>
               ) : filteredProducts && filteredProducts.length > 0 ? (
                 filteredProducts.map((product) => (
-                  <TableRow key={product.id}>
+                  <TableRow key={product.id} data-state={selectedIds.has(product.id) ? 'selected' : undefined}>
+                    <TableCell className="px-4">
+                      <Checkbox
+                        checked={selectedIds.has(product.id)}
+                        onCheckedChange={(checked) => toggleSelection(product.id, !!checked)}
+                        aria-label={`${product.name} seç`}
+                      />
+                    </TableCell>
                     <TableCell className="font-medium">
                         <div>{product.name}</div>
                         <div className="text-xs text-muted-foreground font-mono">{product.code}</div>
@@ -327,7 +431,7 @@ export function ProductsPageContent() {
                     </TableCell>
                     <TableCell>{formatCurrency(product.basePrice || 0, product.currency)}</TableCell>
                     <TableCell>{formatCurrency(product.listPrice, product.currency)}</TableCell>
-                    <TableCell>
+                    <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0">
@@ -371,7 +475,7 @@ export function ProductsPageContent() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-24 text-center">
+                  <TableCell colSpan={9} className="h-24 text-center">
                     Henüz ürün bulunmuyor. Örnek verileri yükleyebilir veya yeni ürün ekleyebilirsiniz.
                   </TableCell>
                 </TableRow>
@@ -392,5 +496,3 @@ export function ProductsPageContent() {
     </div>
   );
 }
-
-    
