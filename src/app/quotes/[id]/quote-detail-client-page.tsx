@@ -60,6 +60,7 @@ import {
   useDoc,
   useCollection,
   useMemoFirebase,
+  useUser
 } from '@/firebase';
 import { calculateItemTotals } from '@/lib/pricing';
 import { ProductSelector } from '@/components/app/product-selector';
@@ -223,6 +224,7 @@ export function QuoteDetailClientPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const proposalId = params.id;
   const firestore = useFirestore();
+  const { user, isUserLoading } = useUser();
   const { toast } = useToast();
 
   const [subHeaderPortal, setSubHeaderPortal] = useState<HTMLElement | null>(null);
@@ -242,7 +244,7 @@ export function QuoteDetailClientPage({ params }: { params: { id: string } }) {
     () => (firestore && proposalId ? doc(firestore, 'proposals', proposalId) : null),
     [firestore, proposalId]
   );
-  const { data: proposal, isLoading: isLoadingProposal } = useDoc<Proposal>(proposalRef);
+  const { data: proposal, isLoading: isProposalLoading } = useDoc<Proposal>(proposalRef);
 
   const proposalItemsRef = useMemoFirebase(
     () => (firestore && proposalId ? collection(firestore, 'proposals', proposalId, 'proposal_items') : null),
@@ -255,6 +257,19 @@ export function QuoteDetailClientPage({ params }: { params: { id: string } }) {
     [firestore]
   );
   const { data: installationTypes, isLoading: isLoadingInstallationTypes } = useCollection<InstallationType>(installationTypesRef);
+
+  // DEBUG: Component'in en başına ekle
+  useEffect(() => {
+    console.log('========== DEBUG START ==========');
+    console.log('1. URL params:', params);
+    console.log('2. Firestore instance:', firestore ? 'VAR' : 'YOK');
+    console.log('3. isUserLoading:', isUserLoading);
+    console.log('4. user:', user?.uid || 'YOK');
+    console.log('5. proposalRef:', proposalRef?.path || 'NULL');
+    console.log('6. proposal data:', proposal);
+    console.log('7. isProposalLoading:', isProposalLoading);
+    console.log('========== DEBUG END ==========');
+  });
 
   const defaultTerms = `Teklif Kapsamı:\n- Yukarıdaki listede belirtilen tüm malzemelerin temini.\n- Tüm malzemelerin montajı ve işçiliği.\n- Test ve devreye alma işlemleri.\n\nÖdeme Koşulları:\n- %50 sipariş avansı, %50 iş bitimi.\n\nNotlar:\n- Fiyatlara KDV dahil değildir.\n- Teklif geçerlilik süresi 15 gündür.`;
   
@@ -304,12 +319,11 @@ export function QuoteDetailClientPage({ params }: { params: { id: string } }) {
             exchangeRates: proposal.exchangeRates || { USD: 32.5, EUR: 35.0 }
         });
         
-        // Only fetch rates if they seem old or uninitialized
         if (!proposal.exchangeRates?.USD) {
            handleFetchRates();
         }
     }
-  }, [proposal, initialItems, form, defaultTerms]);
+  }, [proposal, initialItems, form.reset, defaultTerms]);
 
 
   useEffect(() => {
@@ -982,3 +996,5 @@ export function QuoteDetailClientPage({ params }: { params: { id: string } }) {
     </Form>
   );
 }
+
+    
