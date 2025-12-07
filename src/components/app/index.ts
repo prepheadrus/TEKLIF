@@ -7,6 +7,7 @@ export * from './app-provider';
 export * from './bulk-product-importer';
 export * from './assign-job-dialog';
 export * from './manage-payments-dialog';
+export * from './edit-target-dialog';
 
 // Print-specific Components
 export * from './print-document';

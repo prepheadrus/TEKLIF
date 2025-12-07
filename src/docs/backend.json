@@ -408,22 +408,22 @@
         "assignedAmount": { "type": "number", "description": "The agreed payment amount for this job." },
         "paymentStatus": { "type": "string", "enum": ["Ödenmedi", "Kısmi Ödendi", "Ödendi"], "description": "Status of the payment." },
         "notes": { "type": "string", "description": "Notes regarding the assignment or payment." },
-        "assignedAt": { "type": "string", "format": "date-time", "description": "Timestamp of when the job was assigned." },
-        "paymentHistory": {
-          "type": "array",
-          "description": "A history of payments made for this assignment.",
-          "items": {
-            "type": "object",
-            "properties": {
-              "amount": { "type": "number", "description": "Amount of the payment." },
-              "date": { "type": "string", "format": "date-time", "description": "Date of the payment." },
-              "note": { "type": "string", "description": "A note for this specific payment." }
-            },
-            "required": ["amount", "date"]
-          }
-        }
+        "assignedAt": { "type": "string", "format": "date-time", "description": "Timestamp of when the job was assigned." }
       },
       "required": ["proposalId", "personnelId", "assignedAmount", "paymentStatus", "assignedAt"]
+    },
+    "AppSettings": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "AppSettings",
+        "type": "object",
+        "description": "Stores global settings for the application.",
+        "properties": {
+            "monthlyTargetAmount": {
+                "type": "number",
+                "description": "The monthly sales target amount for the dashboard."
+            }
+        },
+        "required": ["monthlyTargetAmount"]
     }
   },
   "auth": {
@@ -528,8 +528,16 @@
           "schema": { "$ref": "#/backend/entities/JobAssignment" },
           "description": "Tracks job assignments to personnel and their payments."
         }
+      },
+      {
+        "path": "/app_settings/{settingsId}",
+        "definition": {
+          "entityName": "AppSettings",
+          "schema": { "$ref": "#/backend/entities/AppSettings" },
+          "description": "Stores global application settings. Should contain a single document with a known ID e.g. 'dashboard'."
+        }
       }
     ],
-    "reasoning": "The Firestore structure is simplified by merging 'Materials' into 'Products'. Now, the `products` collection serves as the master list for all sellable or costed items. The `suppliers` collection remains to manage vendor information. This unified approach simplifies data management and aligns better with the user's workflow of picking items from a single master list for proposals. Added Personnel and JobAssignment collections for tracking labor."
+    "reasoning": "The Firestore structure is simplified by merging 'Materials' into 'Products'. Now, the `products` collection serves as the master list for all sellable or costed items. The `suppliers` collection remains to manage vendor information. This unified approach simplifies data management and aligns better with the user's workflow of picking items from a single master list for proposals."
   }
 }
