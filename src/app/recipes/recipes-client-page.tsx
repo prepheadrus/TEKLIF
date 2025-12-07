@@ -50,15 +50,12 @@ import { useToast } from '@/hooks/use-toast';
 import {
   useFirestore,
   useCollection,
-  useDoc,
   useMemoFirebase,
   setDocumentNonBlocking,
-  addDocumentNonBlocking,
 } from '@/firebase';
-import { collection, query, where, doc, writeBatch } from 'firebase/firestore';
+import { collection, query, doc } from 'firebase/firestore';
 import type { Product } from '@/app/products/products-client-page';
 import { ProductSelector } from '@/components/app/product-selector';
-import { Separator } from '@/components/ui/separator';
 
 // --- Types ---
 const recipeItemSchema = z.object({
@@ -126,18 +123,12 @@ export function RecipesPageContent() {
 
   const form = useForm<RecipeFormValues>();
 
-  const { fields, append, remove, update } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: 'recipeItems',
   });
 
-  const selectedRecipe = useMemo(() => {
-    if (!selectedProduct || !recipes) return null;
-    return recipes.find(r => r.productId === selectedProduct.id) || null;
-  }, [selectedProduct, recipes]);
-  
-  
-   useEffect(() => {
+  useEffect(() => {
     if (selectedProduct) {
       const recipe = recipes?.find(r => r.productId === selectedProduct.id);
       
