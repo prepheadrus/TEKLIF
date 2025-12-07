@@ -10,5 +10,4 @@ export const metadata: Metadata = {
 export default function PersonnelPage() {
   return <PersonnelPageContent />;
 }
-
     

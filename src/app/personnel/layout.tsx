@@ -6,5 +6,4 @@ export default function PersonnelLayout({
 }) {
   return <>{children}</>;
 }
-
     
