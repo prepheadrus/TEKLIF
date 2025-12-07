@@ -116,7 +116,7 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
         if(f.key === 'listPrice') return 150;
         if(f.key === 'currency') return 'TRY';
         if(f.key === 'supplierName') return 'Örnek Tedarikçi A.Ş.';
-        if(f.key === 'installationCategoryName') return 'Kazanlar (Dilimli / Çelik / Yoğuşmalı)';
+        if(f.key === 'installationCategoryName') return 'Isıtma > Kazanlar > Yoğuşmalı Kazanlar';
         return ''; // Diğerleri için boş bırak
     });
     
@@ -146,8 +146,26 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
         }
 
         const supplierNameToIdMap = new Map(suppliers?.map(s => [s.name.toLowerCase(), s.id]));
-        const categoryNameToIdMap = new Map(installationTypes?.map(c => [c.name.toLowerCase(), c.id]));
-
+        
+        // Cache for newly created categories during this import session
+        // Key: full hierarchical path (e.g., 'ısıtma > kazanlar'), Value: Firestore ID
+        const categoryPathToIdMap = new Map<string, string>();
+        
+        // Pre-populate cache with existing categories
+        if (installationTypes) {
+            const buildPath = (catId: string, allCats: InstallationType[]): string => {
+                const cat = allCats.find(c => c.id === catId);
+                if (!cat) return '';
+                if (!cat.parentId) return cat.name.toLowerCase().trim();
+                const parentPath = buildPath(cat.parentId, allCats);
+                return `${parentPath} > ${cat.name.toLowerCase().trim()}`;
+            };
+            installationTypes.forEach(cat => {
+                const path = buildPath(cat.id, installationTypes);
+                if (path) categoryPathToIdMap.set(path, cat.id);
+            });
+        }
+        
 
         for (const row of parsedData) {
             const productDocRef = doc(productsCollection);
@@ -155,32 +173,43 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
 
             for (const field of productFields) {
                 const excelHeader = columnMapping[field.key];
-                if (excelHeader && row[excelHeader] !== undefined && row[excelHeader] !== null && row[excelHeader] !== '') {
-                    let value = row[excelHeader];
+                let value = excelHeader ? row[excelHeader] : undefined;
+
+                if (value !== undefined && value !== null && value !== '') {
                     if (['basePrice', 'listPrice', 'discountRate'].includes(field.key)) {
                         value = parseFloat(String(value).replace(',', '.')) || 0;
                     }
+
                     if (field.key === 'supplierName') {
-                      const supplierName = value.toString().toLowerCase().trim();
+                      const supplierName = String(value).toLowerCase().trim();
                       if (supplierNameToIdMap.has(supplierName)) {
                           newProduct['supplierId'] = supplierNameToIdMap.get(supplierName);
                       } else {
                           const newSupplierRef = doc(suppliersCollection);
-                          batch.set(newSupplierRef, { name: value.toString().trim() });
+                          batch.set(newSupplierRef, { name: String(value).trim() });
                           supplierNameToIdMap.set(supplierName, newSupplierRef.id);
                           newProduct['supplierId'] = newSupplierRef.id;
                       }
                     } else if (field.key === 'installationCategoryName') {
-                        const categoryName = value.toString().trim();
-                        const lowerCategoryName = categoryName.toLowerCase();
-                        if(categoryNameToIdMap.has(lowerCategoryName)) {
-                            newProduct['installationTypeId'] = categoryNameToIdMap.get(lowerCategoryName);
-                        } else {
-                            const newCategoryRef = doc(installationTypesCollection);
-                            batch.set(newCategoryRef, { name: categoryName, parentId: null });
-                            categoryNameToIdMap.set(lowerCategoryName, newCategoryRef.id);
-                            newProduct['installationTypeId'] = newCategoryRef.id;
+                        const categoryHierarchy = String(value).split('>').map(s => s.trim());
+                        let parentId: string | null = null;
+                        let currentPath = '';
+
+                        for (const categoryName of categoryHierarchy) {
+                            if (!categoryName) continue;
+                            const lowerCatName = categoryName.toLowerCase();
+                            currentPath = parentId ? `${currentPath} > ${lowerCatName}` : lowerCatName;
+
+                            if (categoryPathToIdMap.has(currentPath)) {
+                                parentId = categoryPathToIdMap.get(currentPath)!;
+                            } else {
+                                const newCategoryRef = doc(installationTypesCollection);
+                                batch.set(newCategoryRef, { name: categoryName, parentId: parentId });
+                                categoryPathToIdMap.set(currentPath, newCategoryRef.id);
+                                parentId = newCategoryRef.id;
+                            }
                         }
+                        newProduct['installationTypeId'] = parentId;
                     } else {
                       newProduct[field.key] = value;
                     }
@@ -406,3 +435,5 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
     </Dialog>
   );
 }
+
+    
