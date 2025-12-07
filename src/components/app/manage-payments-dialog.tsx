@@ -109,12 +109,18 @@ export function ManagePaymentsDialog({
       
       const newPaymentHistory = [...(assignment.paymentHistory || [])];
 
+      const paymentData = {
+          amount: values.amount,
+          date: values.date,
+          note: values.note,
+      };
+
       if (editingPaymentIndex !== null) {
         // Update existing payment
-        newPaymentHistory[editingPaymentIndex] = values as Payment;
+        newPaymentHistory[editingPaymentIndex] = paymentData as any;
       } else {
         // Add new payment
-        newPaymentHistory.push(values as Payment);
+        newPaymentHistory.push(paymentData as any);
       }
 
       const newTotalPaid = newPaymentHistory.reduce((sum, p) => sum + p.amount, 0);

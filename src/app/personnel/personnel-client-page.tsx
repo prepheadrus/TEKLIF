@@ -39,7 +39,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarFallback } from '@/lib/placeholder-images';
 
 // --- Types ---
-type Personnel = {
+export type Personnel = {
   id: string;
   name: string;
   role: string;

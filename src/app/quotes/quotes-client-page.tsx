@@ -65,7 +65,7 @@ type Customer = {
   name: string;
 };
 
-type Proposal = {
+export type Proposal = {
     id: string;
     quoteNumber: string;
     customerName: string;
@@ -83,6 +83,7 @@ type Proposal = {
 type JobAssignment = {
     id: string;
     proposalId: string;
+    personnelId: string;
 }
 
 type ProposalGroup = {
@@ -90,6 +91,7 @@ type ProposalGroup = {
     latestProposal: Proposal;
     versions: Proposal[];
     isAssigned: boolean;
+    assignedPersonnelName?: string;
 }
 
 function getStatusBadge(status: Proposal['status']) {
@@ -203,9 +205,11 @@ export function QuotesPageContent() {
 
 
   const groupedProposals = useMemo((): ProposalGroup[] => {
-    if (!proposals) return [];
-  
-    const assignedProposalIds = new Set(jobAssignments?.map(j => j.proposalId));
+    if (!proposals || !personnel) return [];
+
+    const personnelMap = new Map(personnel.map(p => [p.id, p.name]));
+    const assignmentMap = new Map(jobAssignments?.map(j => [j.proposalId, j.personnelId]));
+
     const groups: Record<string, Proposal[]> = {};
     
     proposals.forEach(p => {
@@ -219,12 +223,27 @@ export function QuotesPageContent() {
     return Object.values(groups).map(versions => {
         versions.sort((a, b) => (b.version || 0) - (a.version || 0));
         const latestProposal = versions[0];
-        const isAssigned = versions.some(v => assignedProposalIds.has(v.id));
+        
+        let isAssigned = false;
+        let assignedPersonnelName: string | undefined = undefined;
+
+        for (const v of versions) {
+            if (assignmentMap.has(v.id)) {
+                isAssigned = true;
+                const personnelId = assignmentMap.get(v.id);
+                if (personnelId) {
+                    assignedPersonnelName = personnelMap.get(personnelId);
+                }
+                break; 
+            }
+        }
+
         return {
             rootProposalId: latestProposal.rootProposalId,
             latestProposal: latestProposal,
             versions: versions,
             isAssigned,
+            assignedPersonnelName,
         };
     }).sort((a, b) => {
         const timeA = a.latestProposal.createdAt?.seconds ?? 0;
@@ -239,7 +258,7 @@ export function QuotesPageContent() {
           return timeA - timeB;
         }
     });
-  }, [proposals, jobAssignments, sortOrder]);
+  }, [proposals, jobAssignments, personnel, sortOrder]);
   
   const flatFilteredProposals = useMemo(() => {
     if (!proposals) return [];
@@ -877,7 +896,7 @@ export function QuotesPageContent() {
                  <PaginationControls />
             </div>
             <div className="space-y-2">
-                {isLoadingProposals ? (
+                {(isLoadingProposals || isLoadingAssignments || isLoadingPersonnel) ? (
                      <div className="flex justify-center items-center h-24">
                         <Loader2 className="h-6 w-6 animate-spin" />
                      </div>
@@ -906,7 +925,7 @@ export function QuotesPageContent() {
                                             <div className="font-semibold text-right">{formatCurrency(group.latestProposal.totalAmount)}</div>
                                         </div>
                                         <div className="flex items-center gap-2 pl-6">
-                                            {group.isAssigned && <Badge className="bg-orange-100 text-orange-800">Atandı</Badge>}
+                                            {group.isAssigned && <Badge className="bg-orange-100 text-orange-800">Atandı: {group.assignedPersonnelName || '...'}</Badge>}
                                             {getStatusBadge(group.latestProposal.status)}
                                             <Badge variant="secondary">
                                                 <Copy className="mr-2 h-3 w-3"/>
@@ -1142,5 +1161,3 @@ export function QuotesPageContent() {
     </div>
   );
 }
-
-    

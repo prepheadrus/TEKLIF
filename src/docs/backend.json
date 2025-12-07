@@ -407,6 +407,8 @@
         "personnelId": { "type": "string", "description": "The ID of the assigned personnel." },
         "assignedAmount": { "type": "number", "description": "The agreed payment amount for this job." },
         "paymentStatus": { "type": "string", "enum": ["Ödenmedi", "Kısmi Ödendi", "Ödendi"], "description": "Status of the payment." },
+        "notes": { "type": "string", "description": "Notes regarding the assignment or payment." },
+        "assignedAt": { "type": "string", "format": "date-time", "description": "Timestamp of when the job was assigned." },
         "paymentHistory": {
           "type": "array",
           "description": "A history of payments made for this assignment.",
@@ -419,9 +421,7 @@
             },
             "required": ["amount", "date"]
           }
-        },
-        "notes": { "type": "string", "description": "General notes regarding the assignment." },
-        "assignedAt": { "type": "string", "format": "date-time", "description": "Timestamp of when the job was assigned." }
+        }
       },
       "required": ["proposalId", "personnelId", "assignedAmount", "paymentStatus", "assignedAt"]
     }
@@ -530,8 +530,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is simplified by merging 'Materials' into 'Products'. Now, the `products` collection serves as the master list for all sellable or costed items. The `suppliers` collection remains to manage vendor information. This unified approach simplifies data management and aligns better with the user's workflow of picking items from a single master list for proposals."
+    "reasoning": "The Firestore structure is simplified by merging 'Materials' into 'Products'. Now, the `products` collection serves as the master list for all sellable or costed items. The `suppliers` collection remains to manage vendor information. This unified approach simplifies data management and aligns better with the user's workflow of picking items from a single master list for proposals. Added Personnel and JobAssignment collections for tracking labor."
   }
 }
-
-    
