@@ -15,7 +15,7 @@ interface PrintDocumentProps {
     exchangeRates: { USD: number, EUR: number };
     termsAndConditions?: string;
     items: Array<{
-        id: string;
+        id: string; // This was the missing required field
         name: string;
         brand: string;
         model?: string;
