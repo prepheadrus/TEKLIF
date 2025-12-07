@@ -65,7 +65,7 @@ export function useCollection<T = any>(
   const [refreshToggle, setRefreshToggle] = useState(false);
   const { isUserLoading } = useUser(); // Get user loading state
 
-  const isLoading = !data && !error;
+  const isLoading = isUserLoading || (!data && !error);
 
   const refetch = useCallback(() => {
     setRefreshToggle(prev => !prev);

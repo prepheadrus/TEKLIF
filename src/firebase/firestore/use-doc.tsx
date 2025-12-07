@@ -49,7 +49,7 @@ export function useDoc<T = any>(
   const [error, setError] = useState<FirestoreError | Error | null>(null);
   const { isUserLoading } = useUser(); // Get user loading state
 
-  const isLoading = !data && !error;
+  const isLoading = isUserLoading || (!data && !error);
 
 
   useEffect(() => {
