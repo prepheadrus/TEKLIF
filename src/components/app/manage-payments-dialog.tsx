@@ -25,9 +25,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2, PlusCircle, Trash2, Edit } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore, setDocumentNonBlocking } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
-import { JobAssignment, type Payment } from '@/app/assignments/assignments-client-page';
+import { JobAssignment } from '@/app/assignments/assignments-client-page';
 import { Card, CardContent } from '../ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { ScrollArea } from '../ui/scroll-area';
@@ -37,6 +37,8 @@ import { Calendar } from '../ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import type { Payment } from '@/app/assignments/assignments-client-page';
+
 
 interface ManagePaymentsDialogProps {
   isOpen: boolean;
