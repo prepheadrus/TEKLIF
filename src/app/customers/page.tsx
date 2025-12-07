@@ -85,7 +85,7 @@ type EnrichedCustomer = Customer & {
 }
 
 type SortConfig = {
-    key: keyof EnrichedCustomer | 'tags';
+    key: keyof EnrichedCustomer | 'address.city' | 'tags';
     direction: 'ascending' | 'descending';
 }
 
@@ -176,8 +176,16 @@ export function CustomersPageContent() {
         return searchMatch && statusMatch && cityMatch && tagMatch;
       })
       .sort((a, b) => {
-        const aValue = a[sortConfig.key as keyof EnrichedCustomer];
-        const bValue = b[sortConfig.key as keyof EnrichedCustomer];
+        let aValue: any;
+        let bValue: any;
+
+        if (sortConfig.key === 'address.city') {
+          aValue = a.address?.city;
+          bValue = b.address?.city;
+        } else {
+          aValue = a[sortConfig.key as keyof EnrichedCustomer];
+          bValue = b[sortConfig.key as keyof EnrichedCustomer];
+        }
         
         let comparison = 0;
 
@@ -401,7 +409,11 @@ export function CustomersPageContent() {
                     <TableRow key={customer.id} >
                         <TableCell className="font-medium" onClick={() => handleOpenEditDialog(customer)}>
                           {customer.name}
-                          <div className="text-xs text-muted-foreground">{customer.address?.district} / {customer.address?.city}</div>
+                          {(customer.address?.district || customer.address?.city) && (
+                            <div className="text-xs text-muted-foreground">
+                                {customer.address.district}{customer.address.district && customer.address.city && ' / '}{customer.address.city}
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell>
                            {editingCell?.customerId === customer.id && editingCell?.field === 'email' ? (
