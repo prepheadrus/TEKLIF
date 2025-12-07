@@ -362,7 +362,7 @@ export function QuotesPageContent() {
         toast({ title: "Başarılı!", description: "Yeni teklif taslağı oluşturuldu." });
         setIsDialogOpen(false);
         form.reset();
-        router.push(`/quotes/${newProposalRef.id}`);
+        window.open(`/quotes/${newProposalRef.id}`, `/quotes/${newProposalRef.id}`);
 
     } catch (error: any) {
         console.error("Teklif oluşturma hatası:", error);
@@ -413,7 +413,7 @@ export function QuotesPageContent() {
         await batch.commit();
 
         toast({ title: "Başarılı!", description: `Teklif revize edildi. Yeni versiyon: v${latestVersionNumber + 1}` });
-        router.push(`/quotes/${newProposalRef.id}`);
+        window.open(`/quotes/${newProposalRef.id}`, `/quotes/${newProposalRef.id}`);
 
     } catch (error: any) {
         console.error("Teklif revizyon hatası:", error);
@@ -626,6 +626,11 @@ export function QuotesPageContent() {
                 </div>
             </div>
         );
+    }
+
+    const handleViewClick = (e: React.MouseEvent, id: string) => {
+        e.preventDefault();
+        window.open(`/quotes/${id}`, `/quotes/${id}`);
     }
 
 
@@ -879,7 +884,7 @@ export function QuotesPageContent() {
                                                 <Copy className="mr-2 h-3 w-3"/>
                                                 {group.versions.length} Revizyon
                                             </Badge>
-                                            <Button variant="outline" size="sm" onClick={() => router.push(`/quotes/${group.latestProposal.id}`)}>
+                                            <Button variant="outline" size="sm" onClick={(e) => handleViewClick(e, group.latestProposal.id)}>
                                                 <Eye className="mr-2 h-4 w-4" />
                                                 Görüntüle
                                             </Button>
@@ -980,8 +985,8 @@ export function QuotesPageContent() {
                                                             <TableCell className="text-muted-foreground text-xs py-1.5">{v.versionNote}</TableCell>
                                                             <TableCell className="text-right py-1.5">
                                                                 <div className="flex items-center justify-end gap-1">
-                                                                    <Button variant="ghost" size="sm" onClick={() => router.push(`/quotes/${v.id}`)}>Görüntüle</Button>
-                                                                    <Button variant="ghost" size="sm" onClick={() => router.push(`/quotes/${v.id}/print?customerId=${v.customerId}`)}>Yazdır</Button>
+                                                                    <Button variant="ghost" size="sm" onClick={(e) => handleViewClick(e, v.id)}>Görüntüle</Button>
+                                                                    <Button variant="ghost" size="sm" onClick={(e) => {e.preventDefault(); window.open(`/quotes/${v.id}/print?customerId=${v.customerId}`, `print_${v.id}`)}}>Yazdır</Button>
                                                                     <Button variant="outline" size="sm" onClick={() => handleDuplicateProposal(v)} disabled={isRevising === group.rootProposalId}><Copy className="mr-2 h-3 w-3"/>Revize Et</Button>
                                                                     
                                                                     <AlertDialog>
@@ -1062,7 +1067,7 @@ export function QuotesPageContent() {
                                     <TableCell className="text-right font-semibold">{formatCurrency(v.totalAmount)}</TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex items-center justify-end gap-1">
-                                            <Button variant="outline" size="sm" onClick={() => router.push(`/quotes/${v.id}`)}>
+                                            <Button variant="outline" size="sm" onClick={(e) => handleViewClick(e, v.id)}>
                                                 <Eye className="mr-2 h-4 w-4" /> Görüntüle
                                             </Button>
                                             <Button variant="secondary" size="sm" onClick={() => handleDuplicateProposal(v)} disabled={isRevising === v.rootProposalId}>
