@@ -101,12 +101,14 @@ body:has([data-print-page]) .print-hidden-on-print-page {
   @page {
     size: A4;
     margin: 10mm;
+    background: white;
   }
 
   html, body {
     margin: 0 !important;
     padding: 0 !important;
     background: white !important;
+    background-color: white !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
@@ -114,6 +116,12 @@ body:has([data-print-page]) .print-hidden-on-print-page {
   main {
     padding: 0 !important;
     margin: 0 !important;
+    background: white !important;
+    background-color: white !important;
+  }
+  
+  * {
+    box-shadow: none !important;
   }
 
   thead {
