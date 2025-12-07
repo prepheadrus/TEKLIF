@@ -4,11 +4,12 @@
 import { useMemo, useEffect, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Skeleton } from '@/components/ui/skeleton';
-import { DollarSign, Users, FileText, Package, TrendingUp } from "lucide-react";
+import { DollarSign, Users, FileText, Package, TrendingUp, Award } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 
 // --- Type Definitions ---
@@ -16,6 +17,8 @@ type Proposal = {
   id: string;
   totalAmount: number;
   status: 'Draft' | 'Sent' | 'Approved' | 'Rejected';
+  customerId: string;
+  customerName: string;
 };
 
 type ProposalItem = {
@@ -35,11 +38,19 @@ type TopProduct = {
     totalQuantity: number;
 };
 
+type TopCustomer = {
+    customerId: string;
+    customerName: string;
+    totalAmount: number;
+};
+
 // --- Main Component ---
 export function DashboardContent() {
   const firestore = useFirestore();
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [isLoadingTopProducts, setIsLoadingTopProducts] = useState(true);
+  const [topCustomers, setTopCustomers] = useState<TopCustomer[]>([]);
+  const [isLoadingTopCustomers, setIsLoadingTopCustomers] = useState(true);
 
   // --- Data Fetching ---
   const proposalsRef = useMemoFirebase(
@@ -75,13 +86,44 @@ export function DashboardContent() {
     };
   }, [proposals, customers, allProducts]);
 
-  // --- Top Products Calculation Effect ---
+  // --- Top Products & Customers Calculation Effect ---
   useEffect(() => {
-    if (!firestore || !proposals || isLoadingProposals) {
+    if (!proposals || isLoadingProposals) {
         return;
     }
+    
+    // --- Top Customers Calculation ---
+    const calculateTopCustomers = () => {
+        setIsLoadingTopCustomers(true);
+        const approvedProposals = proposals.filter(p => p.status === 'Approved');
 
+        const customerTotals: Record<string, { name: string, total: number }> = {};
+
+        approvedProposals.forEach(proposal => {
+            if (proposal.customerId && proposal.totalAmount) {
+                if (!customerTotals[proposal.customerId]) {
+                    customerTotals[proposal.customerId] = { name: proposal.customerName, total: 0 };
+                }
+                customerTotals[proposal.customerId].total += proposal.totalAmount;
+            }
+        });
+
+        const sortedCustomers = Object.entries(customerTotals)
+            .map(([customerId, data]) => ({
+                customerId,
+                customerName: data.name,
+                totalAmount: data.total,
+            }))
+            .sort((a, b) => b.totalAmount - a.totalAmount)
+            .slice(0, 3);
+            
+        setTopCustomers(sortedCustomers);
+        setIsLoadingTopCustomers(false);
+    };
+
+    // --- Top Products Calculation ---
     const calculateTopProducts = async () => {
+        if (!firestore) return;
         setIsLoadingTopProducts(true);
         const approvedProposals = proposals.filter(p => p.status === 'Approved');
         if (approvedProposals.length === 0) {
@@ -121,6 +163,7 @@ export function DashboardContent() {
         setIsLoadingTopProducts(false);
     };
 
+    calculateTopCustomers();
     calculateTopProducts();
 
   }, [proposals, allProducts, firestore, isLoadingProposals]);
@@ -227,11 +270,35 @@ export function DashboardContent() {
         </Card>
          <Card className="col-span-3">
             <CardHeader>
-                <CardTitle>Aylık Hedef Durumu</CardTitle>
-                <CardDescription>Bu ayki ciro hedefinizin ne kadarını tamamladınız.</CardDescription>
+                <CardTitle>En Değerli Müşteriler</CardTitle>
+                <CardDescription>Onaylanmış teklif tutarına göre en iyi müşterileriniz.</CardDescription>
             </CardHeader>
             <CardContent>
-                <p className="p-4 text-sm text-muted-foreground">Aylık hedef grafiğiniz yakında burada görüntülenecektir.</p>
+                {isLoadingTopCustomers ? (
+                    <div className="space-y-4">
+                        {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+                    </div>
+                ) : topCustomers.length > 0 ? (
+                     <div className="space-y-4">
+                        {topCustomers.map((customer, index) => (
+                            <div key={customer.customerId} className="flex items-center gap-4">
+                                <Avatar className="h-9 w-9">
+                                    <AvatarFallback>{customer.customerName.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1">
+                                    <p className="text-sm font-medium leading-none truncate">{customer.customerName}</p>
+                                    <p className="text-sm text-muted-foreground">{formatCurrency(customer.totalAmount)}</p>
+                                </div>
+                                <div className="flex items-center gap-1 text-amber-500">
+                                    <Award className="h-5 w-5" />
+                                    <span className="font-bold text-lg">{index + 1}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="p-4 text-sm text-center text-muted-foreground">Henüz analiz edilecek onaylanmış teklif bulunmuyor.</p>
+                )}
             </CardContent>
         </Card>
       </div>

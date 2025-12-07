@@ -1,34 +1,3 @@
 {
-  "placeholderImages": [
-    {
-      "id": "user-avatar-1",
-      "description": "A portrait of a smiling woman.",
-      "imageUrl": "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHx3b21hbiUyMHBvcnRyYWl0fGVufDB8fHx8MTc2NDQ3MTgwMXww&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "woman portrait"
-    },
-    {
-      "id": "user-avatar-2",
-      "description": "A portrait of a man with glasses.",
-      "imageUrl": "https://images.unsplash.com/photo-1576110598658-096ae24cdb97?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxtYW4lMjBnbGFzc2VzfGVufDB8fHx8MTc2NDQ3NTg0NXww&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "man glasses"
-    },
-    {
-      "id": "user-avatar-3",
-      "description": "A portrait of a person in an office.",
-      "imageUrl": "https://images.unsplash.com/photo-1630659508381-2e88af5d72ee?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxwZXJzb24lMjBvZmZpY2V8ZW58MHx8fHwxNzY0NTAxNTg2fDA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "person office"
-    },
-    {
-      "id": "user-avatar-4",
-      "description": "A professional headshot of a woman.",
-      "imageUrl": "https://images.unsplash.com/photo-1610631066894-62452ccb927c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxwcm9mZXNzaW9uYWwlMjB3b21hbnxlbnwwfHx8fDE3NjQ0MzU0MjR8MA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "professional woman"
-    },
-    {
-      "id": "user-avatar-5",
-      "description": "A man smiling in a casual setting.",
-      "imageUrl": "https://images.unsplash.com/photo-1562124638-724e13052daf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxtYW4lMjBzbWlsaW5nfGVufDB8fHx8MTc2NDUxNjU4N3ww&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "man smiling"
-    }
-  ]
+  "placeholderImages": []
 }
