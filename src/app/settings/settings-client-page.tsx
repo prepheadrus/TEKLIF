@@ -24,94 +24,100 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle, Loader2, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
 
-const COLLECTIONS_TO_DELETE = [
-  'suppliers',
-  'labor_costs',
-  'recipes',
-  'customers',
-  'proposals',
-  'products',
-  'installation_types',
-  'personnel',
-  'job_assignments',
+const COLLECTIONS_TO_MANAGE = [
+  { id: 'customers', name: 'Müşteriler', subcollections: ['interactions'] },
+  { id: 'products', name: 'Ürünler ve Malzemeler', subcollections: ['notes'] },
+  { id: 'proposals', name: 'Teklifler ve Revizyonlar', subcollections: ['proposal_items'] },
+  { id: 'personnel', name: 'Ustalar ve Personel', subcollections: [] },
+  { id: 'job_assignments', name: 'İş Atamaları ve Hakedişler', subcollections: [] },
+  { id: 'recipes', name: 'Reçeteler', subcollections: [] },
+  { id: 'installation_types', name: 'Tesisat Kategorileri', subcollections: [] },
+  { id: 'suppliers', name: 'Tedarikçiler', subcollections: [] },
+  { id: 'labor_costs', name: 'İşçilik Maliyetleri', subcollections: [] },
+  { id: 'app_settings', name: 'Uygulama Ayarları (Aylık Hedef vb.)', subcollections: [] },
 ];
-
-const SUBCOLLECTIONS_MAP: Record<string, string[]> = {
-    customers: ['interactions'],
-    proposals: ['proposal_items'],
-    products: ['notes'],
-}
 
 export function SettingsPageContent() {
   const firestore = useFirestore();
   const { toast } = useToast();
-  const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isConfirmed, setIsConfirmed] = useState(false);
+  const [selectedCollections, setSelectedCollections] = useState<Set<string>>(new Set());
 
-  const handleDeleteAllData = async () => {
-    if (!firestore) {
+  const handleSelectionChange = (collectionId: string, checked: boolean) => {
+    setSelectedCollections(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(collectionId);
+      } else {
+        newSet.delete(collectionId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleDeleteSelectedData = async () => {
+    if (!firestore || selectedCollections.size === 0) {
       toast({
         variant: 'destructive',
         title: 'Hata',
-        description: 'Veritabanı bağlantısı kurulamadı.',
+        description: 'Silinecek bir veri türü seçmediniz veya veritabanı bağlantısı yok.',
       });
       return;
     }
 
     setIsDeleting(true);
     toast({
-        title: 'İşlem Başlatıldı',
-        description: 'Tüm veriler siliniyor. Bu işlem biraz zaman alabilir...',
+      title: 'İşlem Başlatıldı',
+      description: 'Seçili veriler siliniyor. Bu işlem biraz zaman alabilir...',
     });
 
     try {
-        for (const collectionName of COLLECTIONS_TO_DELETE) {
-            const mainCollectionRef = collection(firestore, collectionName);
-            const mainCollectionSnap = await getDocs(mainCollectionRef);
-            const batch = writeBatch(firestore);
+      const collectionsToDelete = COLLECTIONS_TO_MANAGE.filter(c => selectedCollections.has(c.id));
 
-            if (mainCollectionSnap.empty) {
-                console.log(`Koleksiyon boş: ${collectionName}, geçiliyor.`);
-                continue;
-            }
+      for (const collectionInfo of collectionsToDelete) {
+        const mainCollectionRef = collection(firestore, collectionInfo.id);
+        const mainDocsSnap = await getDocs(mainCollectionRef);
+        const batch = writeBatch(firestore);
 
-            console.log(`${mainCollectionSnap.size} belge silinecek: ${collectionName}`);
-
-            for (const docSnap of mainCollectionSnap.docs) {
-                // Check for and delete subcollections first
-                if (SUBCOLLECTIONS_MAP[collectionName]) {
-                    for (const subcollectionName of SUBCOLLECTIONS_MAP[collectionName]) {
-                        const subcollectionRef = collection(docSnap.ref, subcollectionName);
-                        const subcollectionSnap = await getDocs(subcollectionRef);
-                        subcollectionSnap.forEach(subDoc => batch.delete(subDoc.ref));
-                    }
-                }
-                // Delete the main document
-                batch.delete(docSnap.ref);
-            }
-            await batch.commit();
-            console.log(`Koleksiyon temizlendi: ${collectionName}`);
+        if (mainDocsSnap.empty) {
+          console.log(`Koleksiyon boş: ${collectionInfo.id}, geçiliyor.`);
+          continue;
         }
+
+        console.log(`${mainDocsSnap.size} belge silinecek: ${collectionInfo.id}`);
+
+        for (const docSnap of mainDocsSnap.docs) {
+          // Önce alt koleksiyonları temizle
+          if (collectionInfo.subcollections.length > 0) {
+            for (const subcollectionName of collectionInfo.subcollections) {
+              const subcollectionRef = collection(docSnap.ref, subcollectionName);
+              const subcollectionSnap = await getDocs(subcollectionRef);
+              subcollectionSnap.forEach(subDoc => batch.delete(subDoc.ref));
+            }
+          }
+          // Ana belgeyi sil
+          batch.delete(docSnap.ref);
+        }
+        await batch.commit();
+        console.log(`Koleksiyon temizlendi: ${collectionInfo.id}`);
+      }
 
       toast({
         title: 'İşlem Başarılı!',
-        description: 'Tüm veritabanı verileri kalıcı olarak silindi. Uygulama yeniden başlatılıyor...',
+        description: `${collectionsToDelete.map(c => c.name).join(', ')} verileri kalıcı olarak silindi.`,
       });
-      
-      // Reset confirmation and reload the app to reflect changes
-      setIsConfirmed(false);
-      setTimeout(() => window.location.reload(), 2000);
+
+      setSelectedCollections(new Set());
 
     } catch (error: any) {
-      console.error('Veritabanı sıfırlama hatası:', error);
+      console.error('Veri silme hatası:', error);
       toast({
         variant: 'destructive',
-        title: 'Sıfırlama Hatası',
+        title: 'Silme Hatası',
         description: `Veriler silinirken bir hata oluştu: ${error.message}`,
       });
     } finally {
@@ -120,7 +126,7 @@ export function SettingsPageContent() {
   };
 
   return (
-    <div className="flex flex-col gap-4 p-8">
+    <div className="flex flex-col gap-8 p-8">
       <div className="flex items-center justify-between space-y-2">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Ayarlar</h2>
@@ -139,61 +145,69 @@ export function SettingsPageContent() {
             Bu alandaki işlemler geri alınamaz. Lütfen dikkatli olun.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <h3 className="font-semibold">Veritabanını Sıfırla</h3>
-            <p className="text-sm text-muted-foreground">
-              Bu işlem, veritabanındaki tüm müşterileri, ürünleri, teklifleri,
-              ustaları, iş atamalarını ve diğer tüm verileri kalıcı olarak
-              siler. Uygulama, ilk kurulum haline döner.
-            </p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="confirmation"
-              checked={isConfirmed}
-              onCheckedChange={(checked) => setIsConfirmed(Boolean(checked))}
-              disabled={isDeleting}
-            />
-            <label
-              htmlFor="confirmation"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              Tüm verileri kalıcı olarak silmek istediğimi anlıyorum.
-            </label>
-          </div>
+        <CardContent className="space-y-6">
+            <div>
+              <h3 className="font-semibold text-lg">Veritabanı Verilerini Yönet</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Veritabanından kalıcı olarak silmek istediğiniz veri türlerini seçin. Bu işlem, seçilen kategorideki tüm kayıtları ve ilişkili alt verileri (örneğin tekliflerin kalemleri) silecektir.
+              </p>
+            </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 rounded-md border p-4">
+              {COLLECTIONS_TO_MANAGE.map((item) => (
+                  <div key={item.id} className="flex items-center space-x-2">
+                      <Checkbox
+                          id={item.id}
+                          checked={selectedCollections.has(item.id)}
+                          onCheckedChange={(checked) => handleSelectionChange(item.id, !!checked)}
+                          disabled={isDeleting}
+                      />
+                      <label htmlFor={item.id} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                          {item.name}
+                      </label>
+                  </div>
+              ))}
+            </div>
+            
+            <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Uyarı</AlertTitle>
+                <AlertDescription>
+                    Bu işlem, seçtiğiniz tüm verileri kalıcı olarak silecektir ve geri alınamaz. Örneğin "Müşteriler" seçeneğini silmek, tüm müşteri kayıtlarınızı ve onlarla ilgili notları yok edecektir.
+                </AlertDescription>
+            </Alert>
+            
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive" disabled={!isConfirmed || isDeleting}>
+              <Button variant="destructive" disabled={selectedCollections.size === 0 || isDeleting}>
                 {isDeleting ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <Trash2 className="mr-2 h-4 w-4" />
                 )}
-                Tüm Verileri Sil ve Veritabanını Sıfırla
+                Seçili {selectedCollections.size} Veri Grubunu Sil
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Bu işlem kesinlikle geri alınamaz. Tüm uygulama verileri
-                  kalıcı olarak silinecek. Bu, test verilerini temizlemek ve
-                  uygulamaya sıfırdan başlamak için kullanılır.
+                  Seçtiğiniz {selectedCollections.size} veri grubundaki tüm kayıtlar kalıcı olarak silinecektir. Bu işlem geri alınamaz.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>İptal</AlertDialogCancel>
                 <AlertDialogAction
-                  onClick={handleDeleteAllData}
+                  onClick={handleDeleteSelectedData}
                   className="bg-destructive hover:bg-destructive/90"
+                  disabled={isDeleting}
                 >
-                  Evet, Tüm Verileri Sil
+                   {isDeleting ? 'Siliniyor...' : 'Evet, Seçilenleri Sil'}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+
         </CardContent>
       </Card>
     </div>
