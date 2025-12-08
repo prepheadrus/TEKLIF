@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -161,6 +161,7 @@ const ITEMS_PER_PAGE = 20;
 
 export function QuotesPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const firestore = useFirestore();
   
@@ -204,6 +205,22 @@ export function QuotesPageContent() {
   
   const productsRef = useMemoFirebase(() => (firestore ? query(collection(firestore, 'products')) : null), [firestore]);
   const { data: products } = useCollection<Product>(productsRef);
+
+  const templatesRef = useMemoFirebase(() => (firestore ? query(collection(firestore, 'templates')) : null), [firestore]);
+  const { data: templates } = useCollection<Template>(templatesRef);
+
+
+  useEffect(() => {
+    const templateId = searchParams.get('fromTemplate');
+    if (templateId && templates) {
+        const foundTemplate = templates.find(t => t.id === templateId);
+        if (foundTemplate) {
+            handleOpenNewQuoteDialog(foundTemplate);
+        }
+        // Clean the URL
+        router.replace('/quotes', undefined);
+    }
+  }, [searchParams, templates, router]);
 
   useEffect(() => {
     setSelectedIds(new Set());
@@ -414,6 +431,7 @@ export function QuotesPageContent() {
             const templateItemsRef = collection(firestore, 'templates', values.templateId, 'template_items');
             const templateItemsSnap = await getDocs(templateItemsRef);
             
+            let totalAmount = 0;
             templateItemsSnap.docs.forEach((itemDoc, index) => {
                 const templateItem = itemDoc.data();
                 const product = products.find(p => p.id === templateItem.productId);
