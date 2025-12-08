@@ -319,6 +319,35 @@ export function QuoteDetailClientPage() {
     }
   }, [editingGroupName]);
 
+  // Sayfa yüklendiğinde güncel kurları otomatik çek
+  useEffect(() => {
+    const fetchInitialRates = async () => {
+      try {
+        const response = await fetch('/api/exchange-rates');
+        if (response.ok) {
+          const rates = await response.json();
+          if (rates.USD && rates.EUR) {
+            // Mevcut form değerleri ile karşılaştır, farklıysa güncelle
+            const currentUSD = form.getValues('exchangeRates.USD');
+            const currentEUR = form.getValues('exchangeRates.EUR');
+            
+            if (currentUSD !== rates.USD || currentEUR !== rates.EUR) {
+              form.setValue('exchangeRates.USD', rates.USD, { shouldDirty: false });
+              form.setValue('exchangeRates.EUR', rates.EUR, { shouldDirty: false });
+              console.log('Kurlar otomatik güncellendi:', rates);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Otomatik kur çekme hatası:', error);
+        // Hata durumunda sessizce devam et, mevcut değerleri koru
+      }
+    };
+
+    // Sadece component mount olduğunda çalıştır
+    fetchInitialRates();
+  }, []); // Boş dependency array = sadece ilk yüklemede çalışır
+
 
   const allGroups = useMemo(() => {
     const itemGroups = fields.reduce((acc, item, index) => {
