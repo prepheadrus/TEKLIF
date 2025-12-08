@@ -423,7 +423,7 @@ export function QuoteDetailClientPage() {
               vatRate: product.vatRate,
               priceIncludesVat: product.priceIncludesVat
           };
-          append(newItem);
+          append(newItem, { shouldFocus: false });
       }
     });
 
