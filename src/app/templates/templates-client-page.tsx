@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -62,6 +61,7 @@ import type { Product } from '@/app/products/products-client-page';
 import { ProductSelector } from '@/components/app/product-selector';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { useRouter } from 'next/navigation';
 
 // --- Types ---
 const templateItemSchema = z.object({
@@ -84,13 +84,13 @@ type TemplateFormValues = z.infer<typeof templateSchema>;
 type TemplateItemForm = z.infer<typeof templateItemSchema>;
 
 
-type Template = {
+export type Template = {
   id: string;
   name: string;
   description?: string;
 };
 
-type TemplateItem = {
+export type TemplateItem = {
     id: string;
     productId: string;
     name: string;
@@ -102,6 +102,7 @@ type TemplateItem = {
 export function TemplatesPageContent() {
   const { toast } = useToast();
   const firestore = useFirestore();
+  const router = useRouter();
 
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -192,7 +193,7 @@ export function TemplatesPageContent() {
     const itemsRef = collection(firestore, 'templates', selectedTemplate.id, 'template_items');
     const existingItemsSnap = await getDocs(itemsRef);
     const existingIds = new Set(existingItemsSnap.docs.map(d => d.id));
-    const formIds = new Set(data.items.filter(item => item.id).map(item => item.id));
+    const formIds = new Set(data.items.filter(item => item.id).map(item => item.id!));
 
     // Delete removed items
     existingItemsSnap.docs.forEach(docSnap => {
@@ -223,12 +224,13 @@ export function TemplatesPageContent() {
     if (!firestore) return;
     setIsSaving(true);
     try {
-        const newTemplateRef = await addDocumentNonBlocking(collection(firestore, 'templates'), values);
+        const newTemplateData = { name: values.name, description: values.description || "" };
+        const newTemplateRef = await addDocumentNonBlocking(collection(firestore, 'templates'), newTemplateData);
         if (newTemplateRef) {
             toast({ title: 'Başarılı!', description: 'Yeni şablon oluşturuldu.' });
             await refetchTemplates();
-            const newTemplate = { id: newTemplateRef.id, ...values };
-            setSelectedTemplate(newTemplate as Template);
+            const newTemplate: Template = { id: newTemplateRef.id, ...newTemplateData };
+            setSelectedTemplate(newTemplate);
         }
         setIsNewTemplateDialogOpen(false);
     } catch (error: any) {
@@ -255,6 +257,11 @@ export function TemplatesPageContent() {
     } catch (error: any) {
         toast({ variant: 'destructive', title: 'Hata', description: `Şablon silinemedi: ${error.message}` });
     }
+  }
+
+  const handleCreateQuoteFromTemplate = () => {
+      if (!selectedTemplate) return;
+      router.push(`/quotes?fromTemplate=${selectedTemplate.id}`);
   }
 
 
@@ -329,6 +336,10 @@ export function TemplatesPageContent() {
                                              <Button type="submit" disabled={isSaving}>
                                                 {isSaving && <Loader2 className="animate-spin mr-2" />}
                                                 Şablonu Kaydet
+                                            </Button>
+                                            <Button onClick={handleCreateQuoteFromTemplate} type="button">
+                                                <Clipboard className="mr-2 h-4 w-4" />
+                                                Şablondan Teklif Oluştur
                                             </Button>
                                         </div>
                                     </div>
