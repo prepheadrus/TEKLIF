@@ -28,13 +28,13 @@ const productSchema = z.object({
   unit: z.string().min(1, "Birim zorunludur."),
   
   // Cost Info
+  listPrice: z.coerce.number().min(0, "Liste fiyatı 0 veya daha büyük olmalıdır."),
+  discountRate: z.coerce.number().min(0).max(1, "İskonto oranı 0 ile 100 arasında olmalıdır."),
   basePrice: z.coerce.number().min(0, "Maliyet fiyatı 0 veya daha büyük olmalıdır."),
   supplierId: z.string().optional().nullable(),
   
-  // Sales Info
-  listPrice: z.coerce.number().min(0, "Liste fiyatı 0'dan büyük olmalıdır."),
+  // Sales Info - Satış fiyatı artık formda bir alan değil, hesaplanacak.
   currency: z.enum(["TRY", "USD", "EUR"]),
-  discountRate: z.coerce.number().min(0).max(1, "İskonto oranı 0 ile 100 arasında olmalıdır."),
   
   // Categorization
   category: z.string().min(1, "Kategori zorunludur."),
@@ -119,11 +119,24 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
     resolver: zodResolver(productSchema),
   });
   
+  // Watch for changes in listPrice and discountRate to calculate basePrice
+  const watchedListPrice = form.watch('listPrice');
+  const watchedDiscountRate = form.watch('discountRate');
+
+  useEffect(() => {
+    const listPrice = !isNaN(watchedListPrice) ? watchedListPrice : 0;
+    const discountRate = !isNaN(watchedDiscountRate) ? watchedDiscountRate : 0;
+    const calculatedBasePrice = listPrice * (1 - discountRate);
+    form.setValue('basePrice', parseFloat(calculatedBasePrice.toFixed(2)));
+  }, [watchedListPrice, watchedDiscountRate, form]);
+
+
   useEffect(() => {
     if (isOpen) {
         if (existingProduct) {
             form.reset({
                 ...existingProduct,
+                discountRate: existingProduct.discountRate ?? 0,
                 description: existingProduct.description || '',
                 technicalSpecifications: existingProduct.technicalSpecifications || '',
                 installationTypeId: existingProduct.installationTypeId || null,
@@ -143,22 +156,12 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
     }
   }, [isOpen, existingProduct, form]);
 
-  const watchedBasePrice = form.watch('basePrice');
-
-  useEffect(() => {
-    const listPrice = form.getValues('listPrice');
-    if (watchedBasePrice > 0 && (listPrice === 0 || !listPrice)) {
-      form.setValue('listPrice', watchedBasePrice);
-    }
-  }, [watchedBasePrice, form]);
-
   const onSubmit = async (values: ProductFormValues) => {
     if (!firestore) {
       toast({ variant: "destructive", title: "Hata", description: "Veritabanı bağlantısı kurulamamış." });
       return;
     }
     
-    // Convert undefined optional fields to null to prevent Firestore errors
     const dataToSave = { 
         ...values,
         description: values.description || null,
@@ -252,7 +255,7 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
                 />
 
                 <Separator className="md:col-span-2 my-4" />
-                <h4 className="md:col-span-2 text-lg font-semibold text-primary border-b pb-2 mb-2">Fiyat Bilgileri</h4>
+                <h4 className="md:col-span-2 text-lg font-semibold text-primary border-b pb-2 mb-2">Maliyet ve Fiyat Bilgileri</h4>
                 
                 <div className="md:col-span-2 flex items-center space-x-2">
                     <FormField control={form.control} name="priceIncludesVat" render={({ field }) => (
@@ -294,9 +297,33 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
                         </Select>
                     <FormMessage /></FormItem>
                 )} />
-
-                <FormField control={form.control} name="basePrice" render={({ field }) => (
-                    <FormItem><FormLabel>Birim Alış Fiyatı</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                
+                <FormField control={form.control} name="listPrice" render={({ field }) => (
+                    <FormItem><FormLabel>Liste Fiyatı (Tedarikçi)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <Controller
+                    control={form.control}
+                    name="discountRate"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>İskonto Oranı (%)</FormLabel>
+                        <FormControl>
+                            <Input
+                            type="number"
+                            placeholder="15"
+                            value={(field.value || 0) * 100}
+                            onChange={(e) => {
+                                const numValue = parseFloat(e.target.value);
+                                field.onChange(isNaN(numValue) ? 0 : numValue / 100);
+                            }}
+                            />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                 <FormField control={form.control} name="basePrice" render={({ field }) => (
+                    <FormItem><FormLabel>Birim Maliyet (Hesaplanan)</FormLabel><FormControl><Input type="number" step="0.01" {...field} readOnly className="bg-muted" /></FormControl><FormMessage /></FormItem>
                 )} />
                  <FormField
                     control={form.control}
@@ -319,32 +346,6 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
                                 ))}
                             </SelectContent>
                         </Select>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                
-                <FormField control={form.control} name="listPrice" render={({ field }) => (
-                    <FormItem><FormLabel>Birim Liste Satış Fiyatı</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                
-                <Controller
-                    control={form.control}
-                    name="discountRate"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Genel İskonto Oranı (%)</FormLabel>
-                        <FormControl>
-                            <Input
-                            type="number"
-                            placeholder="15"
-                            value={(field.value || 0) * 100}
-                            onChange={(e) => {
-                                const numValue = parseFloat(e.target.value);
-                                field.onChange(isNaN(numValue) ? 0 : numValue / 100);
-                            }}
-                            />
-                        </FormControl>
                         <FormMessage />
                         </FormItem>
                     )}

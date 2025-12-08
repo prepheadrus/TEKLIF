@@ -33,21 +33,20 @@ import type { InstallationType } from '@/app/installation-types/installation-typ
 
 type Step = 'upload' | 'map' | 'review' | 'importing' | 'done';
 
-const productFields: { key: keyof Omit<Product, 'id' | 'installationTypeId'> | 'supplierName' | 'installationCategoryName'; label: string, required: boolean, description?: string }[] = [
+const productFields: { key: keyof Omit<Product, 'id' | 'installationTypeId' | 'basePrice'> | 'supplierName' | 'installationCategoryName'; label: string, required: boolean, description?: string }[] = [
     { key: 'code', label: 'Ürün Kodu', required: true, description: "Her ürün için benzersiz bir kod (SKU)." },
     { key: 'name', label: 'Ürün Adı', required: true, description: "Ürünün tam ve açıklayıcı adı." },
     { key: 'brand', label: 'Marka', required: true, description: "Ürünün markası." },
     { key: 'model', label: 'Model', required: false, description: "Ürünün spesifik model numarası veya adı (isteğe bağlı)." },
     { key: 'unit', label: 'Birim', required: true, description: "Örn: Adet, Metre, Kg, Set." },
-    { key: 'basePrice', label: 'Birim Alış Fiyatı', required: false, description: "Ürünün alış fiyatı. Satış fiyatı girilmezse bu değer kullanılır." },
-    { key: 'listPrice', label: 'Birim Satış Fiyatı', required: false, description: "Ürünün liste satış fiyatı." },
+    { key: 'listPrice', label: 'Liste Fiyatı (Tedarikçi)', required: false, description: "Tedarikçinin KDV hariç liste fiyatı. Maliyet hesaplaması için kullanılır." },
+    { key: 'discountRate', label: 'İskonto Oranı (%)', required: false, description: "Liste fiyatına uygulanacak tedarikçi iskontosu. Örn: 15." },
     { key: 'currency', label: 'Para Birimi', required: true, description: "Geçerli değerler: TRY, USD, EUR." },
     { key: 'vatRate', label: 'KDV Oranı (%)', required: true, description: "Ürünün KDV oranı. Örn: 20, 10, 1, 0." },
-    { key: 'priceIncludesVat', label: 'Fiyatlara KDV Dahil mi?', required: true, description: "Fiyatların KDV içerip içermediği. EVET veya HAYIR yazın." },
+    { key: 'priceIncludesVat', label: 'Fiyatlara KDV Dahil mi?', required: false, description: "Girilen fiyatların KDV içerip içermediği. EVET veya HAYIR yazın." },
     { key: 'supplierName', label: 'Tedarikçi Adı', required: false, description: "Bu ürünün tedarikçisinin adı. Sistemde yoksa yeni tedarikçi oluşturulur (isteğe bağlı)." },
     { key: 'category', label: 'Genel Kategori', required: false, description: "Ürünün genel kategorisi. Örn: Kazan, Pompa (isteğe bağlı)." },
-    { key: 'installationCategoryName', label: 'Tesisat Kategorisi Adı', required: false, description: "Ürünün ait olduğu detaylı tesisat kategorisinin tam adı (isteğe bağlı)." },
-    { key: 'discountRate', label: 'İskonto Oranı (%)', required: false, description: "Varsayılan satış iskontosu. Örn: 15 (isteğe bağlı)." }
+    { key: 'installationCategoryName', label: 'Tesisat Kategorisi Adı', required: false, description: "Ürünün ait olduğu detaylı tesisat kategorisinin tam adı (isteğe bağlı)." }
 ];
 
 
@@ -111,18 +110,17 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
     const headers = productFields.map(f => f.label);
     const exampleRow = productFields.map(f => {
         if(f.key === 'code') return 'PRD-001';
-        if(f.key === 'name') return 'Örnek Ürün Adı';
+        if(f.key === 'name') return 'Örnek Kazan';
         if(f.key === 'brand') return 'Örnek Marka';
         if(f.key === 'unit') return 'Adet';
-        if(f.key === 'basePrice') return 100;
-        if(f.key === 'listPrice') return 150;
+        if(f.key === 'listPrice') return 1000;
+        if(f.key === 'discountRate') return 15;
         if(f.key === 'currency') return 'TRY';
         if(f.key === 'vatRate') return 20;
         if(f.key === 'priceIncludesVat') return 'HAYIR';
-        if(f.key === 'discountRate') return 10;
         if(f.key === 'supplierName') return 'Örnek Tedarikçi A.Ş.';
-        if(f.key === 'installationCategoryName') return 'Isıtma > Kazanlar > Yoğuşmalı Kazanlar';
-        return ''; // Diğerleri için boş bırak
+        if(f.key === 'installationCategoryName') return 'Isıtma > Kazanlar';
+        return '';
     });
     
     const ws = XLSX.utils.aoa_to_sheet([headers, exampleRow]);
@@ -173,18 +171,19 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
             const productDocRef = doc(productsCollection);
             const newProduct: any = {};
 
+            // Map standard fields
             for (const field of productFields) {
                 const excelHeader = columnMapping[field.key];
                 let value = excelHeader ? row[excelHeader] : undefined;
 
                 if (value !== undefined && value !== null && value !== '') {
-                    if (['basePrice', 'listPrice'].includes(field.key)) {
+                    if (['listPrice'].includes(field.key)) {
                         value = parseFloat(String(value).replace(',', '.')) || 0;
                     }
 
                     if (['discountRate', 'vatRate'].includes(field.key)) {
                         const rate = parseFloat(String(value).replace(',', '.'));
-                        value = isNaN(rate) ? (field.key === 'vatRate' ? 0.20 : 0) : rate / 100;
+                        value = isNaN(rate) ? 0 : rate / 100;
                     }
 
                     if (field.key === 'priceIncludesVat') {
@@ -230,19 +229,19 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
                 }
             }
             
-            // Set defaults for non-mapped optional fields
-            newProduct.basePrice = newProduct.basePrice ?? 0;
-            // If listPrice is not provided or 0, use basePrice
-            newProduct.listPrice = newProduct.listPrice ?? newProduct.basePrice ?? 0;
-            if (newProduct.listPrice === 0 && newProduct.basePrice > 0) {
-              newProduct.listPrice = newProduct.basePrice;
-            }
+            // Set defaults and calculate basePrice
+            newProduct.listPrice = newProduct.listPrice ?? 0;
             newProduct.discountRate = newProduct.discountRate ?? 0;
             newProduct.vatRate = newProduct.vatRate ?? 0.20;
             newProduct.priceIncludesVat = newProduct.priceIncludesVat ?? false;
             newProduct.category = newProduct.category || 'Genel';
             newProduct.model = newProduct.model || '';
 
+            // Calculate basePrice (cost) from list price and discount
+            const netListPrice = newProduct.priceIncludesVat
+              ? newProduct.listPrice / (1 + newProduct.vatRate)
+              : newProduct.listPrice;
+            newProduct.basePrice = netListPrice * (1 - newProduct.discountRate);
 
             batch.set(productDocRef, newProduct);
         }
@@ -455,3 +454,4 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
     </Dialog>
   );
 }
+

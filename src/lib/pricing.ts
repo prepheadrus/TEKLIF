@@ -4,20 +4,20 @@
  */
 
 interface PriceCalculationInput {
-  listPrice: number;
-  basePrice: number;
-  discountRate: number; // 0-1 aralığında, örn: 0.15
-  profitMargin: number;  // 0-1 aralığında, örn: 0.20
-  exchangeRate: number;  // Yabancı para birimi için, TL ise 1 olmalı
+  listPrice: number;       // Tedarikçinin ham liste fiyatı
+  basePrice: number;       // Bu aslında maliyettir, ancak iskonto varsa üzerine yazılır.
+  discountRate: number;    // 0-1 aralığında, örn: 0.15 (Liste fiyatına uygulanan tedarikçi iskontosu)
+  profitMargin: number;    // 0-1 aralığında, örn: 0.20 (Maliyet üzerine eklenecek kâr)
+  exchangeRate: number;    // Yabancı para birimi için, TL ise 1 olmalı
   quantity: number;
-  vatRate: number; // KDV oranı, örn: 0.20
-  priceIncludesVat: boolean; // Fiyatların KDV içerip içermediği
+  vatRate: number;         // KDV oranı, örn: 0.20
+  priceIncludesVat: boolean; // Girdi fiyatlarının KDV içerip içermediği
 }
 
 interface PriceCalculationOutput {
-  cost: number;            // Orijinal para biriminde maliyet (KDV Hariç)
+  cost: number;            // Orijinal para biriminde maliyet (Liste Fiyatı - İskonto) (KDV Hariç)
   tlCost: number;          // TL cinsinden maliyet (KDV Hariç)
-  originalSellPrice: number; // Orijinal para biriminde KDV HARİÇ satış fiyatı
+  originalSellPrice: number; // Orijinal para biriminde KDV HARİÇ satış fiyatı (Maliyet + Kâr)
   tlSellPrice: number;       // TL cinsinden KDV HARİÇ satış fiyatı
   profitAmount: number;    // TL cinsinden BİRİM kâr tutarı
   totalTlSell: number;     // TL cinsinden KDV HARİÇ toplam satış tutarı
@@ -27,6 +27,7 @@ interface PriceCalculationOutput {
 
 /**
  * Verilen bilgilere göre birim ve toplam fiyatları KDV HARİÇ olarak hesaplar.
+ * Yeni Mantık: Maliyet = Liste Fiyatı * (1 - İskonto). Satış Fiyatı = Maliyet * (1 + Kâr).
  * @returns Tüm KDV hariç maliyet, satış ve kâr bilgilerini içeren bir nesne.
  */
 export function calculateItemTotals({
@@ -43,26 +44,22 @@ export function calculateItemTotals({
   // 1. KDV'den Arındırma
   // Eğer fiyatlar KDV dahil girildiyse, KDV hariç hallerini bul.
   const vatDivisor = 1 + (vatRate || 0);
-  const netBasePrice = priceIncludesVat ? basePrice / vatDivisor : basePrice;
+  // `listPrice` tedarikçinin ham liste fiyatıdır.
   const netListPrice = priceIncludesVat ? listPrice / vatDivisor : listPrice;
+  // `basePrice` eğer iskonto yoksa doğrudan maliyettir.
+  const netBasePrice = priceIncludesVat ? basePrice / vatDivisor : basePrice;
+
+  // 2. Birim Maliyet Hesaplaması (Cost)
+  // Maliyet, KDV hariç tedarikçi liste fiyatından iskonto düşülerek bulunur.
+  // Eğer `netListPrice` girilmişse, hesaplama bunun üzerinden yapılır.
+  // Eğer `netListPrice` yoksa, `netBasePrice` doğrudan maliyet olarak kabul edilir.
+  const cost = netListPrice > 0 
+    ? netListPrice * (1 - discountRate)
+    : netBasePrice;
   
-  // 2. Maliyet Hesaplaması (Cost)
-  // Maliyet, KDV hariç alış fiyatıdır.
-  // Bu örnekte, iskonto satış fiyatı üzerinden yapıldığı için, maliyet direkt basePrice (alış fiyatı) olur.
-  // Ancak daha esnek bir yapı için, maliyetin iskonto edilmiş liste fiyatı olduğunu varsayalım.
-  // Bu durumda, maliyet = KDV hariç liste fiyatı * (1 - iskonto) olur.
-  // Şimdilik daha basit olan alış fiyatını maliyet olarak alalım.
-  const cost = netBasePrice > 0 ? netBasePrice : (netListPrice * (1 - discountRate));
-
-
   // 3. Satış Fiyatı Hesaplaması (Sell Price - KDV HARİÇ)
-  // Satış fiyatı, maliyetin üzerine kâr marjının eklenmesiyle bulunur.
-  // KDV hariç satış fiyatı = KDV Hariç Maliyet * (1 + Kâr Oranı)
-  // YA DA
-  // KDV hariç satış fiyatı = KDV Hariç Liste Fiyatı * (1 - İskonto) * (1 + Kâr Marjı)
-  // İkinci yöntem daha yaygındır, çünkü kar genellikle iskontolu fiyat üzerinden hesaplanır.
-  const discountedPrice = netListPrice * (1 - discountRate);
-  const originalSellPrice = discountedPrice * (1 + profitMargin);
+  // Satış fiyatı, birim maliyetin üzerine kâr marjının eklenmesiyle bulunur.
+  const originalSellPrice = cost * (1 + profitMargin);
   
   // 4. TL'ye Çevrim
   const tlCost = cost * exchangeRate;
@@ -90,3 +87,4 @@ export function calculateItemTotals({
     totalProfit,
   };
 }
+
