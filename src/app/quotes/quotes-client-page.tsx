@@ -419,15 +419,20 @@ const handleDuplicateProposal = async (proposalToClone: Proposal) => {
     alert('Revizyon başlatılıyor: ' + proposalToClone.id);
     if (!firestore) return;
     setIsRevising(proposalToClone.rootProposalId);
-    toast({ title: 'Revizyon oluşturuluyor...' });
-
-    console.log('=== REVİZYON DEBUG ===');
-    console.log('1. Orijinal ID:', proposalToClone.id);
 
     try {
-        // 1. Create the new proposal document first and get its ID
-        const newProposalRef = doc(collection(firestore, 'proposals'));
+        // 1. Orijinal kalemleri oku
+        const itemsRef = collection(firestore, 'proposals', proposalToClone.id, 'proposal_items');
+        const itemsSnap = await getDocs(itemsRef);
+        alert('Orijinal kalem sayısı: ' + itemsSnap.docs.length);
 
+        if (itemsSnap.docs.length === 0) {
+            alert('HATA: Orijinal teklifte kalem bulunamadı! ID: ' + proposalToClone.id);
+            setIsRevising(null);
+            return;
+        }
+        
+        // Find latest version number
         const versionsQuery = query(
             collection(firestore, 'proposals'),
             where('rootProposalId', '==', proposalToClone.rootProposalId)
@@ -435,45 +440,41 @@ const handleDuplicateProposal = async (proposalToClone: Proposal) => {
         const versionsSnap = await getDocs(versionsQuery);
         const latestVersionNumber = versionsSnap.size > 0 ? versionsSnap.docs.map(doc => doc.data().version).reduce((a, b) => Math.max(a, b)) : 0;
         
+        // Prepare new proposal data
+        const newProposalRef = doc(collection(firestore, 'proposals'));
         const { id, ...originalData } = proposalToClone;
         const newProposalData = {
             ...originalData,
-            rootProposalId: proposalToClone.rootProposalId, // Ensure rootId is correctly propagated
             version: latestVersionNumber + 1,
             status: 'Draft' as const,
             createdAt: serverTimestamp(),
             versionNote: `Revizyon (v${proposalToClone.version}'dan kopyalandı)`,
         };
-        
-        // 2. Get original items
-        const itemsRef = collection(firestore, 'proposals', proposalToClone.id, 'proposal_items');
-        const itemsSnap = await getDocs(itemsRef);
-        console.log('2. Orijinal kalem sayısı:', itemsSnap.docs.length);
-        console.log('3. Kalemler:', itemsSnap.docs.map(d => d.data()));
 
-        // Start a batch write
+        // Batch oluştur
         const batch = writeBatch(firestore);
         
-        // 3. Set the new proposal document
+        // Ana dokümanı ekle
         batch.set(newProposalRef, newProposalData);
-
-        // 4. Copy all items to the new proposal's subcollection
-        if (!itemsSnap.empty) {
-            itemsSnap.forEach(itemDoc => {
-                const newItemRef = doc(collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'));
-                batch.set(newItemRef, itemDoc.data());
-            });
-        }
-
-        // 5. Commit the batch
-        await batch.commit();
-        console.log('4. Yeni proposal ID:', newProposalRef.id);
         
-        // 6. Verify copied items
-        const newItemsSnapshot = await getDocs(collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'));
-        console.log('5. Kopyalanan kalem sayısı:', newItemsSnapshot.docs.length);
-        console.log('=== DEBUG BİTİŞ ===');
+        // Kalemleri ekle
+        let itemCount = 0;
+        itemsSnap.forEach(itemDoc => {
+            const newItemRef = doc(collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'));
+            batch.set(newItemRef, itemDoc.data());
+            itemCount++;
+        });
+        
+        alert('Batch\'e eklenen kalem sayısı: ' + itemCount);
 
+        // Commit
+        await batch.commit();
+        
+        alert('Batch commit tamamlandı!');
+
+        // Doğrulama
+        const verifySnap = await getDocs(collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'));
+        alert('Doğrulama - Kopyalanan kalem sayısı: ' + verifySnap.docs.length);
 
         toast({
             title: "Başarılı!",
@@ -486,14 +487,12 @@ const handleDuplicateProposal = async (proposalToClone: Proposal) => {
             duration: 10000,
         });
         
-        refetchProposals(); // Refetch to show the new version in the list
+        refetchProposals();
 
     } catch (error: any) {
-        console.error("Teklif revizyon hatası:", error);
-        toast({ variant: "destructive", title: "Hata", description: `Revizyon oluşturulamadı: ${error.message}` });
-        console.log('=== HATA DEBUG ===');
+        alert('HATA: ' + error.message);
         console.error(error);
-        console.log('=== HATA BİTİŞ ===');
+        toast({ variant: "destructive", title: "Hata", description: `Revizyon oluşturulamadı: ${error.message}` });
     } finally {
         setIsRevising(null);
     }
@@ -1075,7 +1074,7 @@ const handleDuplicateProposal = async (proposalToClone: Proposal) => {
                                                                         </Button>
                                                                     )}
                                                                     <Button variant="ghost" size="sm" onClick={(e) => handleViewClick(e, v.id)}>Görüntüle</Button>
-                                                                    <Button variant="ghost" size="sm" onClick={(e) => {e.preventDefault(); router.push(`/quotes/${v.id}/print?customerId=${v.customerId}`)}}>Yazdır</Button>
+                                                                    <Button variant="ghost" size="sm" onClick={(e) => {e.preventDefault(); window.open(`/quotes/${v.id}/print?customerId=${v.customerId}`)}}>Yazdır</Button>
                                                                     <Button variant="outline" size="sm" onClick={async (e) => { e.preventDefault(); await handleDuplicateProposal(v); }} disabled={isRevising === group.rootProposalId}><Copy className="mr-2 h-3 w-3"/>Revize Et</Button>
                                                                     
                                                                     <AlertDialog>
@@ -1197,4 +1196,3 @@ const handleDuplicateProposal = async (proposalToClone: Proposal) => {
     </div>
   );
 }
-
