@@ -530,7 +530,8 @@ export function QuoteDetailClientPage() {
     try {
         const response = await fetch('/api/exchange-rates');
         if (!response.ok) {
-            throw new Error(`API isteği başarısız oldu. Durum: ${response.status}`);
+            const errorData = await response.json();
+            throw new Error(errorData.details || `API isteği başarısız oldu. Durum: ${response.status}`);
         }
         const rates = await response.json();
         
@@ -543,11 +544,8 @@ export function QuoteDetailClientPage() {
             throw new Error("API'den geçerli kur verisi alınamadı.");
         }
     } catch (error: any) {
+        console.error("Döviz kuru API hatası:", error);
         toast({ variant: 'destructive', title: 'Hata', description: `Kurlar alınamadı: ${error.message}` });
-        // Fallback to manual if API fails
-         const newRates = { USD: 32.50, EUR: 35.00 };
-         form.setValue('exchangeRates.USD', newRates.USD, { shouldValidate: true, shouldDirty: true });
-         form.setValue('exchangeRates.EUR', newRates.EUR, { shouldValidate: true, shouldDirty: true });
     } finally {
         setIsFetchingRates(false);
     }
