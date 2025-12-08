@@ -415,25 +415,23 @@ export function QuotesPageContent() {
     }
   };
   
- const handleDuplicateProposal = async (proposalToClone: Proposal) => {
+const handleDuplicateProposal = async (proposalToClone: Proposal) => {
     if (!firestore) return;
     setIsRevising(proposalToClone.rootProposalId);
     toast({ title: 'Revizyon oluşturuluyor...' });
 
-    console.log('=== REVİZYON DEBUG ===');
-    console.log('1. Orijinal ID:', proposalToClone.id);
-
     try {
-        // Find latest version number
+        // 1. Find the latest version number for the proposal group
         const versionsQuery = query(
             collection(firestore, 'proposals'),
             where('rootProposalId', '==', proposalToClone.rootProposalId)
         );
         const versionsSnap = await getDocs(versionsQuery);
-        const latestVersionNumber = versionsSnap.size > 0 ? versionsSnap.docs.map(doc => doc.data().version).reduce((a, b) => Math.max(a, b)) : 0;
+        const latestVersionNumber = versionsSnap.size > 0 
+            ? versionsSnap.docs.map(doc => doc.data().version).reduce((a, b) => Math.max(a, b), 0)
+            : 0;
         
-        // Prepare new proposal data
-        const newProposalRef = doc(collection(firestore, 'proposals'));
+        // 2. Prepare new proposal data
         const { id, ...originalData } = proposalToClone;
         const newProposalData = {
             ...originalData,
@@ -443,43 +441,42 @@ export function QuotesPageContent() {
             versionNote: `Revizyon (v${proposalToClone.version}'dan kopyalandı)`,
         };
         
-        // Get original items
+        // 3. Create the new proposal document first to get its ID
+        const newProposalRef = await addDoc(collection(firestore, 'proposals'), newProposalData);
+
+        // 4. Get the items from the original proposal's subcollection
         const itemsRef = collection(firestore, 'proposals', proposalToClone.id, 'proposal_items');
         const itemsSnap = await getDocs(itemsRef);
-        console.log('2. Orijinal kalem sayısı:', itemsSnap.docs.length);
-        console.log('3. Kalemler:', itemsSnap.docs.map(d => d.data()));
 
-        // Start a batch write
-        const batch = writeBatch(firestore);
+        // 5. Create a batch to copy all items to the new proposal's subcollection
+        if (!itemsSnap.empty) {
+            const batch = writeBatch(firestore);
+            itemsSnap.forEach(itemDoc => {
+                const newItemRef = doc(collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'));
+                batch.set(newItemRef, itemDoc.data());
+            });
+            // Commit the batch of items
+            await batch.commit();
+        }
         
-        // 1. Set the new proposal document
-        batch.set(newProposalRef, newProposalData);
-
-        // 2. Copy all items to the new proposal's subcollection
-        itemsSnap.forEach(itemDoc => {
-            const newItemRef = doc(collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'));
-            batch.set(newItemRef, itemDoc.data());
+        // Refetch proposals to update the list view
+        refetchProposals();
+        
+        // Show success toast with a button to open the new revision
+        toast({ 
+            title: "Başarılı!", 
+            description: `Teklif revize edildi. Yeni versiyon: v${latestVersionNumber + 1}`,
+            action: (
+                <Button size="sm" onClick={() => window.open(`/quotes/${newProposalRef.id}`, '_blank')}>
+                    Görüntüle
+                </Button>
+            ),
+            duration: 10000 // Keep toast longer
         });
-
-        // Commit the batch
-        await batch.commit();
-        console.log('4. Yeni proposal ID:', newProposalRef.id);
-        
-        // Verify copied items
-        const newItemsSnapshot = await getDocs(collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'));
-        console.log('5. Kopyalanan kalem sayısı:', newItemsSnapshot.docs.length);
-        console.log('=== DEBUG BİTİŞ ===');
-
-
-        toast({ title: "Başarılı!", description: `Teklif revize edildi. Yeni versiyon: v${latestVersionNumber + 1}` });
-        window.open(`/quotes/${newProposalRef.id}`, '_blank');
 
     } catch (error: any) {
         console.error("Teklif revizyon hatası:", error);
         toast({ variant: "destructive", title: "Hata", description: `Revizyon oluşturulamadı: ${error.message}` });
-        console.log('=== HATA DEBUG ===');
-        console.error(error);
-        console.log('=== HATA BİTİŞ ===');
     } finally {
         setIsRevising(null);
     }
