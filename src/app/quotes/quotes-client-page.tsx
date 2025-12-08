@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -405,7 +404,7 @@ export function QuotesPageContent() {
         toast({ title: "Başarılı!", description: "Yeni teklif taslağı oluşturuldu." });
         setIsDialogOpen(false);
         form.reset();
-        router.push(`/quotes/${newProposalRef.id}`);
+        window.open(`/quotes/${newProposalRef.id}`, `/quotes/${newProposalRef.id}`);
 
     } catch (error: any) {
         console.error("Teklif oluşturma hatası:", error);
@@ -415,70 +414,57 @@ export function QuotesPageContent() {
     }
   };
   
-const handleDuplicateProposal = async (proposalToClone: Proposal) => {
-    if (!firestore) {
-        alert("Firestore is not initialized.");
-        return;
-    }
+ const handleDuplicateProposal = async (proposalToClone: Proposal) => {
+    if (!firestore) return;
     setIsRevising(proposalToClone.rootProposalId);
     toast({ title: 'Revizyon oluşturuluyor...' });
 
     try {
-        // ADIM 1: Orijinal kalemleri oku
-        const originalItemsRef = collection(firestore, 'proposals', proposalToClone.id, 'proposal_items');
-        const originalItemsSnap = await getDocs(originalItemsRef);
-        const originalItems = originalItemsSnap.docs.map(doc => doc.data());
-        alert('ADIM 1 - Orijinal kalem sayısı: ' + originalItems.length);
-        
-        // ADIM 2: Versiyon hesapla
-        const versionsQuery = query(collection(firestore, 'proposals'), where('rootProposalId', '==', proposalToClone.rootProposalId));
+        const versionsQuery = query(
+            collection(firestore, 'proposals'),
+            where('rootProposalId', '==', proposalToClone.rootProposalId)
+        );
         const versionsSnap = await getDocs(versionsQuery);
-        const latestVersionNumber = versionsSnap.size > 0 
-            ? versionsSnap.docs.map(doc => doc.data().version).reduce((a, b) => Math.max(a, b), 0)
-            : 0;
-        
-        // ADIM 3: Yeni ana teklif dokümanını oluştur
+        const latestVersionNumber = versionsSnap.size > 0 ? versionsSnap.docs.map(doc => doc.data().version).reduce((a, b) => Math.max(a, b)) : 0;
+
+
+        const newProposalRef = doc(collection(firestore, 'proposals'));
+        // Fallback exchange rates
+        const newRates = { USD: 32.50, EUR: 35.00 };
+
         const { id, ...originalData } = proposalToClone;
+
         const newProposalData = {
             ...originalData,
             version: latestVersionNumber + 1,
             status: 'Draft' as const,
             createdAt: serverTimestamp(),
             versionNote: `Revizyon (v${proposalToClone.version}'dan kopyalandı)`,
+            exchangeRates: newRates,
         };
-        const newProposalRef = await addDoc(collection(firestore, 'proposals'), newProposalData);
-        alert('ADIM 3 - Ana doküman yazıldı. ID: ' + newProposalRef.id);
-
-        // ADIM 4: Kalemleri TEK TEK kopyala
-        alert('ADIM 4 başlıyor - Kopyalanacak kalem: ' + originalItems.length);
-        let copiedCount = 0;
-        for (const itemData of originalItems) {
-            await addDoc(
-                collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'),
-                itemData
-            );
-            copiedCount++;
-        }
-        alert('ADIM 4 bitti - Toplam kopyalanan: ' + copiedCount);
         
-        // ADIM 5: Başarı mesajı ve yönlendirme
-        toast({
-            title: "Başarılı!",
-            description: `Teklif revize edildi. Yeni versiyon: v${latestVersionNumber + 1}`,
+        const batch = writeBatch(firestore);
+        batch.set(newProposalRef, newProposalData);
+
+        const itemsRef = collection(firestore, 'proposals', proposalToClone.id, 'proposal_items');
+        const itemsSnap = await getDocs(itemsRef);
+        itemsSnap.forEach(itemDoc => {
+            const newItemRef = doc(collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'));
+            batch.set(newItemRef, itemDoc.data());
         });
 
-        // En son yönlendirme yap
-        router.push(`/quotes/${newProposalRef.id}`);
+        await batch.commit();
+
+        toast({ title: "Başarılı!", description: `Teklif revize edildi. Yeni versiyon: v${latestVersionNumber + 1}` });
+        window.open(`/quotes/${newProposalRef.id}`, `/quotes/${newProposalRef.id}`);
 
     } catch (error: any) {
-        alert('HATA: ' + error.message);
         console.error("Teklif revizyon hatası:", error);
         toast({ variant: "destructive", title: "Hata", description: `Revizyon oluşturulamadı: ${error.message}` });
     } finally {
         setIsRevising(null);
     }
-};
-
+}
   
   const handleDeleteProposal = async (idToDelete: string, rootId: string, isGroupDelete: boolean) => {
     if (!firestore) return;
@@ -692,7 +678,7 @@ const handleDuplicateProposal = async (proposalToClone: Proposal) => {
 
     const handleViewClick = (e: React.MouseEvent, id: string) => {
         e.preventDefault();
-        router.push(`/quotes/${id}`);
+        window.open(`/quotes/${id}`, `/quotes/${id}`);
     }
 
 
@@ -960,7 +946,7 @@ const handleDuplicateProposal = async (proposalToClone: Proposal) => {
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuLabel>İşlemler</DropdownMenuLabel>
                                                     
-                                                    <DropdownMenuItem onClick={async () => await handleDuplicateProposal(group.latestProposal)} disabled={isRevising === group.rootProposalId}>
+                                                    <DropdownMenuItem onClick={() => handleDuplicateProposal(group.latestProposal)} disabled={isRevising === group.rootProposalId}>
                                                         <Copy className="mr-2 h-4 w-4" />
                                                         Yeni Revizyon Oluştur
                                                     </DropdownMenuItem>
@@ -1055,8 +1041,8 @@ const handleDuplicateProposal = async (proposalToClone: Proposal) => {
                                                                         </Button>
                                                                     )}
                                                                     <Button variant="ghost" size="sm" onClick={(e) => handleViewClick(e, v.id)}>Görüntüle</Button>
-                                                                    <Button variant="ghost" size="sm" onClick={(e) => {e.preventDefault(); window.open(`/quotes/${v.id}/print?customerId=${v.customerId}`)}}>Yazdır</Button>
-                                                                    <Button variant="outline" size="sm" onClick={async (e) => { e.preventDefault(); await handleDuplicateProposal(v); }} disabled={isRevising === group.rootProposalId}><Copy className="mr-2 h-3 w-3"/>Revize Et</Button>
+                                                                    <Button variant="ghost" size="sm" onClick={(e) => {e.preventDefault(); window.open(`/quotes/${v.id}/print?customerId=${v.customerId}`, `print_${v.id}`)}}>Yazdır</Button>
+                                                                    <Button variant="outline" size="sm" onClick={() => handleDuplicateProposal(v)} disabled={isRevising === group.rootProposalId}><Copy className="mr-2 h-3 w-3"/>Revize Et</Button>
                                                                     
                                                                     <AlertDialog>
                                                                         <AlertDialogTrigger asChild>
@@ -1139,7 +1125,7 @@ const handleDuplicateProposal = async (proposalToClone: Proposal) => {
                                             <Button variant="outline" size="sm" onClick={(e) => handleViewClick(e, v.id)}>
                                                 <Eye className="mr-2 h-4 w-4" /> Görüntüle
                                             </Button>
-                                            <Button variant="secondary" size="sm" onClick={async (e) => { e.preventDefault(); await handleDuplicateProposal(v); }} disabled={isRevising === v.rootProposalId}>
+                                            <Button variant="secondary" size="sm" onClick={() => handleDuplicateProposal(v)} disabled={isRevising === v.rootProposalId}>
                                                 <Copy className="mr-2 h-3 w-3"/> Revize Et
                                             </Button>
                                         </div>
