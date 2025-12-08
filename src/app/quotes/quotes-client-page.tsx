@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -37,7 +36,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { PlusCircle, MoreHorizontal, Copy, Trash2, Loader2, Search, ChevronDown, Eye, AlertTriangle, FileText, DollarSign, Calculator, CheckSquare, X, FileSpreadsheet, ChevronLeft, ChevronRight, HardHat } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Copy, Trash2, Loader2, Search, ChevronDown, Eye, AlertTriangle, FileText, DollarSign, Calculator, CheckSquare, X, FileSpreadsheet, ChevronLeft, ChevronRight, HardHat, ClipboardList } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Badge } from '@/components/ui/badge';
@@ -51,11 +50,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AssignJobDialog } from '@/components/app/assign-job-dialog';
 import type { Personnel } from '@/app/personnel/personnel-client-page';
+import type { Template } from '@/app/templates/templates-client-page';
+import type { Product } from '@/app/products/products-client-page';
 
 
 const newQuoteSchema = z.object({
   customerId: z.string().min(1, 'Müşteri seçimi zorunludur.'),
   projectName: z.string().min(2, 'Proje adı en az 2 karakter olmalıdır.'),
+  templateId: z.string().optional(),
 });
 
 type NewQuoteFormValues = z.infer<typeof newQuoteSchema>;
@@ -173,6 +175,7 @@ export function QuotesPageContent() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isAssignJobDialogOpen, setIsAssignJobDialogOpen] = useState(false);
   const [proposalToAssign, setProposalToAssign] = useState<Proposal | null>(null);
+  const [templateForNewQuote, setTemplateForNewQuote] = useState<Template | null>(null);
 
 
   const form = useForm<NewQuoteFormValues>({
@@ -180,6 +183,7 @@ export function QuotesPageContent() {
     defaultValues: {
       customerId: '',
       projectName: '',
+      templateId: '',
     },
   });
 
@@ -197,6 +201,9 @@ export function QuotesPageContent() {
   
   const personnelRef = useMemoFirebase(() => (firestore ? query(collection(firestore, 'personnel')) : null), [firestore]);
   const { data: personnel, isLoading: isLoadingPersonnel } = useCollection<Personnel>(personnelRef);
+  
+  const productsRef = useMemoFirebase(() => (firestore ? query(collection(firestore, 'products')) : null), [firestore]);
+  const { data: products } = useCollection<Product>(productsRef);
 
   useEffect(() => {
     setSelectedIds(new Set());
@@ -296,7 +303,6 @@ export function QuotesPageContent() {
 
   const filteredProposalGroups = useMemo(() => {
     if (statusFilter !== 'All') {
-      // If a status filter is active, we don't show groups, so return an empty array.
       return [];
     }
     
@@ -318,14 +324,12 @@ export function QuotesPageContent() {
             if (dateFilter === 'last90days' && proposalDate < ninetyDaysAgo) return false;
         }
 
-        // When statusFilter is 'All', no need for status-based filtering on the group
         return true;
     });
   }, [groupedProposals, searchTerm, statusFilter, dateFilter]);
   
 
   const filteredStats = useMemo(() => {
-    // This calculation now ALWAYS runs on the flat, fully-filtered list of individual proposals.
     const listToProcess = flatFilteredProposals;
 
     const count = listToProcess.length;
@@ -339,7 +343,6 @@ export function QuotesPageContent() {
     };
   }, [flatFilteredProposals]);
 
-  // Pagination Logic
   const paginatedGroups = useMemo(() => {
       const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
       const endIndex = startIndex + ITEMS_PER_PAGE;
@@ -357,10 +360,15 @@ export function QuotesPageContent() {
       return Math.ceil(totalItems / ITEMS_PER_PAGE);
   }, [filteredProposalGroups, flatFilteredProposals, statusFilter]);
 
+  const handleOpenNewQuoteDialog = (template?: Template) => {
+    setTemplateForNewQuote(template || null);
+    form.setValue('templateId', template?.id || '');
+    setIsDialogOpen(true);
+  };
 
   const handleCreateNewQuote = async (values: NewQuoteFormValues) => {
-    if (!firestore) {
-        toast({ variant: "destructive", title: "Hata", description: "Veritabanı bağlantısı kurulamadı." });
+    if (!firestore || !products) {
+        toast({ variant: "destructive", title: "Hata", description: "Veritabanı veya ürün verisi yüklenemedi." });
         return;
     }
     setIsSubmitting(true);
@@ -381,7 +389,6 @@ export function QuotesPageContent() {
         const nextId = (monthProposalsSnap.size + 1).toString().padStart(3, '0');
         const quoteNumber = `${month}${year}/${nextId}`;
 
-        // Fallback exchange rates
         const exchangeRates = { USD: 32.50, EUR: 35.00 };
         const newProposalRef = doc(collection(firestore, 'proposals'));
         
@@ -396,10 +403,44 @@ export function QuotesPageContent() {
             status: 'Draft' as const,
             createdAt: serverTimestamp(),
             exchangeRates: exchangeRates,
-            versionNote: "İlk Versiyon"
+            versionNote: values.templateId ? "Şablondan Oluşturuldu" : "İlk Versiyon"
         };
         
-        await setDoc(newProposalRef, newProposalData);
+        const batch = writeBatch(firestore);
+        batch.set(newProposalRef, newProposalData);
+        
+        // If created from a template, copy items
+        if (values.templateId) {
+            const templateItemsRef = collection(firestore, 'templates', values.templateId, 'template_items');
+            const templateItemsSnap = await getDocs(templateItemsRef);
+            
+            templateItemsSnap.docs.forEach((itemDoc, index) => {
+                const templateItem = itemDoc.data();
+                const product = products.find(p => p.id === templateItem.productId);
+
+                if (product) {
+                    const newItemRef = doc(collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'));
+                    batch.set(newItemRef, {
+                        productId: product.id,
+                        name: product.name,
+                        brand: product.brand,
+                        model: product.model || '',
+                        quantity: templateItem.quantity || 1,
+                        unit: product.unit,
+                        listPrice: product.listPrice,
+                        currency: product.currency,
+                        discountRate: product.discountRate || 0,
+                        profitMargin: 0.2, // Default 20%
+                        basePrice: product.basePrice,
+                        vatRate: product.vatRate,
+                        priceIncludesVat: product.priceIncludesVat,
+                        orderIndex: index
+                    });
+                }
+            });
+        }
+        
+        await batch.commit();
 
         toast({ title: "Başarılı!", description: "Yeni teklif taslağı oluşturuldu." });
         setIsDialogOpen(false);
@@ -429,7 +470,6 @@ export function QuotesPageContent() {
 
 
         const newProposalRef = doc(collection(firestore, 'proposals'));
-        // Fallback exchange rates
         const newRates = { USD: 32.50, EUR: 35.00 };
 
         const { id, ...originalData } = proposalToClone;
@@ -698,7 +738,7 @@ export function QuotesPageContent() {
             </Button>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button>
+                <Button onClick={() => handleOpenNewQuoteDialog()}>
                   <PlusCircle className="mr-2 h-4 w-4" />
                   Yeni Teklif Oluştur
                 </Button>
@@ -707,9 +747,9 @@ export function QuotesPageContent() {
                  <Form {...form}>
                     <form onSubmit={form.handleSubmit(handleCreateNewQuote)} className="space-y-4">
                         <DialogHeader>
-                          <DialogTitle>Yeni Teklif Başlat</DialogTitle>
+                          <DialogTitle>{templateForNewQuote ? `Şablondan Teklif: ${templateForNewQuote.name}` : 'Yeni Teklif Başlat'}</DialogTitle>
                           <DialogDescription>
-                            Yeni bir teklif oluşturmak için müşteri ve proje adı seçin. Güncel döviz kurları otomatik olarak çekilecektir.
+                            Yeni bir teklif oluşturmak için müşteri ve proje adı seçin.
                           </DialogDescription>
                         </DialogHeader>
 
