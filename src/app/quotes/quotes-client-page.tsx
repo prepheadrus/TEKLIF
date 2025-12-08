@@ -416,32 +416,31 @@ export function QuotesPageContent() {
   };
   
 const handleDuplicateProposal = async (proposalToClone: Proposal) => {
-    alert('Revizyon başlatılıyor: ' + proposalToClone.id);
     if (!firestore) return;
     setIsRevising(proposalToClone.rootProposalId);
+    toast({ title: 'Revizyon oluşturuluyor...' });
 
     try {
-        // 1. Orijinal kalemleri oku
+        // 1. ÖNCELİKLE orijinal kalemleri oku
         const itemsRef = collection(firestore, 'proposals', proposalToClone.id, 'proposal_items');
         const itemsSnap = await getDocs(itemsRef);
-        alert('Orijinal kalem sayısı: ' + itemsSnap.docs.length);
-
-        if (itemsSnap.docs.length === 0) {
-            alert('HATA: Orijinal teklifte kalem bulunamadı! ID: ' + proposalToClone.id);
-            setIsRevising(null);
-            return;
-        }
         
-        // Find latest version number
+        alert('1. Orijinal kalem sayısı: ' + itemsSnap.docs.length);
+        
+        // 2. Versiyon hesapla
         const versionsQuery = query(
             collection(firestore, 'proposals'),
             where('rootProposalId', '==', proposalToClone.rootProposalId)
         );
         const versionsSnap = await getDocs(versionsQuery);
-        const latestVersionNumber = versionsSnap.size > 0 ? versionsSnap.docs.map(doc => doc.data().version).reduce((a, b) => Math.max(a, b)) : 0;
+        const latestVersionNumber = versionsSnap.size > 0 
+            ? versionsSnap.docs.map(doc => doc.data().version).reduce((a, b) => Math.max(a, b)) 
+            : 0;
         
-        // Prepare new proposal data
+        // 3. Yeni proposal ref oluştur
         const newProposalRef = doc(collection(firestore, 'proposals'));
+        
+        // 4. Yeni proposal data hazırla
         const { id, ...originalData } = proposalToClone;
         const newProposalData = {
             ...originalData,
@@ -451,47 +450,37 @@ const handleDuplicateProposal = async (proposalToClone: Proposal) => {
             versionNote: `Revizyon (v${proposalToClone.version}'dan kopyalandı)`,
         };
 
-        // Batch oluştur
+        // 5. Batch oluştur
         const batch = writeBatch(firestore);
         
-        // Ana dokümanı ekle
+        // 6. Ana dokümanı batch'e ekle
         batch.set(newProposalRef, newProposalData);
-        
-        // Kalemleri ekle
-        let itemCount = 0;
-        itemsSnap.forEach(itemDoc => {
+
+        // 7. Kalemleri batch'e ekle
+        let addedItemCount = 0;
+        itemsSnap.docs.forEach(itemDoc => {
             const newItemRef = doc(collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'));
             batch.set(newItemRef, itemDoc.data());
-            itemCount++;
+            addedItemCount++;
         });
         
-        alert('Batch\'e eklenen kalem sayısı: ' + itemCount);
+        alert('2. Batch\'e eklenen kalem: ' + addedItemCount);
 
-        // Commit
+        // 8. Batch commit
         await batch.commit();
         
-        alert('Batch commit tamamlandı!');
+        alert('3. Batch commit tamamlandı');
 
-        // Doğrulama
+        // 9. Doğrulama - kopyalanan kalemleri kontrol et
         const verifySnap = await getDocs(collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'));
-        alert('Doğrulama - Kopyalanan kalem sayısı: ' + verifySnap.docs.length);
+        alert('4. Doğrulama - Yeni teklifte kalem: ' + verifySnap.docs.length);
 
-        toast({
-            title: "Başarılı!",
-            description: `Teklif revize edildi. Yeni versiyon: v${latestVersionNumber + 1}`,
-            action: (
-                <Button size="sm" onClick={() => window.open(`/quotes/${newProposalRef.id}`, '_blank')}>
-                    Görüntüle
-                </Button>
-            ),
-            duration: 10000,
-        });
-        
-        refetchProposals();
+        toast({ title: "Başarılı!", description: `Teklif revize edildi. Yeni versiyon: v${latestVersionNumber + 1}` });
+        router.push(`/quotes/${newProposalRef.id}`);
 
     } catch (error: any) {
         alert('HATA: ' + error.message);
-        console.error(error);
+        console.error("Teklif revizyon hatası:", error);
         toast({ variant: "destructive", title: "Hata", description: `Revizyon oluşturulamadı: ${error.message}` });
     } finally {
         setIsRevising(null);
@@ -1104,7 +1093,7 @@ const handleDuplicateProposal = async (proposalToClone: Proposal) => {
                                                         </TableRow>
                                                     ))}
                                                 </TableBody>
-                                            </Table>
+                                             </Table>
                                         </div>
                                     </CollapsibleContent>
                                 </Card>
