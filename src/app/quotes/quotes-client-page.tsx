@@ -416,32 +416,28 @@ export function QuotesPageContent() {
   };
   
 const handleDuplicateProposal = async (proposalToClone: Proposal) => {
-    if (!firestore) return;
+    if (!firestore) {
+        alert("Firestore is not initialized.");
+        return;
+    }
     setIsRevising(proposalToClone.rootProposalId);
     toast({ title: 'Revizyon oluşturuluyor...' });
 
     try {
         // ADIM 1: Orijinal kalemleri oku
-        const itemsRef = collection(firestore, 'proposals', proposalToClone.id, 'proposal_items');
-        const originalItemsSnap = await getDocs(itemsRef);
+        const originalItemsRef = collection(firestore, 'proposals', proposalToClone.id, 'proposal_items');
+        const originalItemsSnap = await getDocs(originalItemsRef);
         const originalItems = originalItemsSnap.docs.map(doc => doc.data());
-        alert('1. Orijinal kalem sayısı: ' + originalItems.length);
-
-        if (originalItems.length === 0) {
-            alert('UYARI: Kopyalanacak kalem bulunamadı. Yine de devam ediliyor.');
-        }
-
+        alert('ADIM 1 - Orijinal kalem sayısı: ' + originalItems.length);
+        
         // ADIM 2: Versiyon hesapla
-        const versionsQuery = query(
-            collection(firestore, 'proposals'),
-            where('rootProposalId', '==', proposalToClone.rootProposalId)
-        );
+        const versionsQuery = query(collection(firestore, 'proposals'), where('rootProposalId', '==', proposalToClone.rootProposalId));
         const versionsSnap = await getDocs(versionsQuery);
         const latestVersionNumber = versionsSnap.size > 0 
-            ? versionsSnap.docs.map(doc => doc.data().version).reduce((a, b) => Math.max(a, b)) 
+            ? versionsSnap.docs.map(doc => doc.data().version).reduce((a, b) => Math.max(a, b), 0)
             : 0;
         
-        // ADIM 3: Yeni proposal data hazırla
+        // ADIM 3: Yeni ana teklif dokümanını oluştur
         const { id, ...originalData } = proposalToClone;
         const newProposalData = {
             ...originalData,
@@ -450,34 +446,29 @@ const handleDuplicateProposal = async (proposalToClone: Proposal) => {
             createdAt: serverTimestamp(),
             versionNote: `Revizyon (v${proposalToClone.version}'dan kopyalandı)`,
         };
-
-        // ADIM 4: Ana dokümanı YAZ ve bekle
         const newProposalRef = await addDoc(collection(firestore, 'proposals'), newProposalData);
-        alert('2. Ana doküman yazıldı. Yeni ID: ' + newProposalRef.id);
+        alert('ADIM 3 - Ana doküman yazıldı. ID: ' + newProposalRef.id);
 
-        // ADIM 5: Kalemleri yeni teklifin altına TEK TEK yaz ve bekle
-        alert('3. Kalemleri kopyalama başlıyor...');
-        let copiedItemCount = 0;
+        // ADIM 4: Kalemleri TEK TEK kopyala
+        alert('ADIM 4 başlıyor - Kopyalanacak kalem: ' + originalItems.length);
+        let copiedCount = 0;
         for (const itemData of originalItems) {
             await addDoc(
                 collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'),
                 itemData
             );
-            copiedItemCount++;
+            copiedCount++;
         }
-        alert('4. Kalem kopyalama bitti. Kopyalanan: ' + copiedItemCount);
-
-        // ADIM 6: Başarı mesajı ve yönlendirme
+        alert('ADIM 4 bitti - Toplam kopyalanan: ' + copiedCount);
+        
+        // ADIM 5: Başarı mesajı ve yönlendirme
         toast({
             title: "Başarılı!",
             description: `Teklif revize edildi. Yeni versiyon: v${latestVersionNumber + 1}`,
-            action: (
-               <Button variant="secondary" size="sm" onClick={() => window.open(`/quotes/${newProposalRef.id}`, '_blank')}>
-                  Görüntüle
-               </Button>
-            )
         });
-        await refetchProposals();
+
+        // En son yönlendirme yap
+        router.push(`/quotes/${newProposalRef.id}`);
 
     } catch (error: any) {
         alert('HATA: ' + error.message);
