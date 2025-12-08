@@ -39,6 +39,9 @@ type ProposalItem = {
     discountRate: number;
     profitMargin: number;
     groupName?: string;
+    basePrice: number;
+    vatRate: number;
+    priceIncludesVat: boolean;
 };
 
 type Customer = {
@@ -46,7 +49,16 @@ type Customer = {
     name: string;
     email?: string;
     phone?: string;
-    address?: string;
+    address?: {
+        street?: string;
+        neighborhood?: string;
+        postalCode?: string;
+        buildingName?: string;
+        city?: string;
+        buildingNumber?: string;
+        apartmentNumber?: string;
+        district?: string;
+    };
     taxNumber?: string;
 };
 
@@ -95,6 +107,7 @@ export function PrintQuoteClientPage() {
         }
         
         let subtotal = 0;
+        let totalVat = 0;
 
         const calculatedItems: CalculatedItem[] = items.map(item => {
             const totals = calculateItemTotals({
@@ -102,6 +115,7 @@ export function PrintQuoteClientPage() {
                 exchangeRate: item.currency === 'USD' ? (proposal.exchangeRates?.USD || 1) : item.currency === 'EUR' ? (proposal.exchangeRates?.EUR || 1) : 1,
             });
             subtotal += totals.totalTlSell;
+            totalVat += totals.totalTlSell * item.vatRate;
             return {
                 ...item,
                 unitPrice: totals.tlSellPrice,
@@ -109,10 +123,10 @@ export function PrintQuoteClientPage() {
             };
         });
 
-        const calculatedVat = subtotal * 0.20;
-        const totalWithVat = subtotal + calculatedVat;
         
-        return { ...proposal, items: calculatedItems, grandTotal: subtotal, grandTotalWithVAT: totalWithVat, vatAmount: calculatedVat };
+        const totalWithVat = subtotal + totalVat;
+        
+        return { ...proposal, items: calculatedItems, grandTotal: subtotal, grandTotalWithVAT: totalWithVat, vatAmount: totalVat };
     })();
 
 
@@ -170,7 +184,7 @@ export function PrintQuoteClientPage() {
 
         // Totals
         wsData.push(['', '', '', '', '', '', '', 'Ara Toplam', calculatedData.grandTotal]);
-        wsData.push(['', '', '', '', '', '', '', 'KDV (%20)', calculatedData.vatAmount]);
+        wsData.push(['', '', '', '', '', '', '', 'KDV Toplam', calculatedData.vatAmount]);
         wsData.push(['', '', '', '', '', '', '', 'Genel Toplam', calculatedData.grandTotalWithVAT]);
         
         const ws = XLSX.utils.aoa_to_sheet(wsData);
