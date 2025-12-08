@@ -44,15 +44,13 @@ export function calculateItemTotals({
   // 1. KDV'den Arındırma
   // Eğer fiyatlar KDV dahil girildiyse, KDV hariç hallerini bul.
   const vatDivisor = 1 + (vatRate || 0);
-  // `listPrice` tedarikçinin ham liste fiyatıdır.
   const netListPrice = priceIncludesVat ? listPrice / vatDivisor : listPrice;
-  // `basePrice` eğer iskonto yoksa doğrudan maliyettir.
   const netBasePrice = priceIncludesVat ? basePrice / vatDivisor : basePrice;
 
   // 2. Birim Maliyet Hesaplaması (Cost)
   // Maliyet, KDV hariç tedarikçi liste fiyatından iskonto düşülerek bulunur.
   // Eğer `netListPrice` girilmişse, hesaplama bunun üzerinden yapılır.
-  // Eğer `netListPrice` yoksa, `netBasePrice` doğrudan maliyet olarak kabul edilir.
+  // Eğer `netListPrice` yoksa veya 0 ise, `netBasePrice` doğrudan maliyet olarak kabul edilir.
   const cost = netListPrice > 0 
     ? netListPrice * (1 - discountRate)
     : netBasePrice;
