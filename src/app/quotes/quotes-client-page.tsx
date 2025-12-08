@@ -416,45 +416,65 @@ export function QuotesPageContent() {
   };
   
 const handleDuplicateProposal = async (proposalToClone: Proposal) => {
+    alert('Revizyon başlatılıyor: ' + proposalToClone.id);
     if (!firestore) return;
     setIsRevising(proposalToClone.rootProposalId);
     toast({ title: 'Revizyon oluşturuluyor...' });
 
+    console.log('=== REVİZYON DEBUG ===');
+    console.log('1. Orijinal ID:', proposalToClone.id);
+
     try {
-        // 1. Find latest version number for the proposal group
+        // 1. Create the new proposal document first and get its ID
+        const newProposalRef = doc(collection(firestore, 'proposals'));
+
         const versionsQuery = query(
             collection(firestore, 'proposals'),
             where('rootProposalId', '==', proposalToClone.rootProposalId)
         );
         const versionsSnap = await getDocs(versionsQuery);
-        const latestVersionNumber = versionsSnap.docs.reduce((max, doc) => Math.max(max, doc.data().version || 0), 0);
-
-        // 2. Create the new proposal document
+        const latestVersionNumber = versionsSnap.size > 0 ? versionsSnap.docs.map(doc => doc.data().version).reduce((a, b) => Math.max(a, b)) : 0;
+        
         const { id, ...originalData } = proposalToClone;
         const newProposalData = {
             ...originalData,
+            rootProposalId: proposalToClone.rootProposalId, // Ensure rootId is correctly propagated
             version: latestVersionNumber + 1,
             status: 'Draft' as const,
             createdAt: serverTimestamp(),
             versionNote: `Revizyon (v${proposalToClone.version}'dan kopyalandı)`,
         };
-        const newProposalRef = await addDoc(collection(firestore, 'proposals'), newProposalData);
-
-        // 3. Get the items from the original proposal's subcollection
+        
+        // 2. Get original items
         const itemsRef = collection(firestore, 'proposals', proposalToClone.id, 'proposal_items');
         const itemsSnap = await getDocs(itemsRef);
+        console.log('2. Orijinal kalem sayısı:', itemsSnap.docs.length);
+        console.log('3. Kalemler:', itemsSnap.docs.map(d => d.data()));
+
+        // Start a batch write
+        const batch = writeBatch(firestore);
         
-        // 4. Create a batch to copy all items to the new proposal's subcollection
+        // 3. Set the new proposal document
+        batch.set(newProposalRef, newProposalData);
+
+        // 4. Copy all items to the new proposal's subcollection
         if (!itemsSnap.empty) {
-            const batch = writeBatch(firestore);
             itemsSnap.forEach(itemDoc => {
                 const newItemRef = doc(collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'));
                 batch.set(newItemRef, itemDoc.data());
             });
-            // Commit the batch of items
-            await batch.commit();
         }
+
+        // 5. Commit the batch
+        await batch.commit();
+        console.log('4. Yeni proposal ID:', newProposalRef.id);
         
+        // 6. Verify copied items
+        const newItemsSnapshot = await getDocs(collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'));
+        console.log('5. Kopyalanan kalem sayısı:', newItemsSnapshot.docs.length);
+        console.log('=== DEBUG BİTİŞ ===');
+
+
         toast({
             title: "Başarılı!",
             description: `Teklif revize edildi. Yeni versiyon: v${latestVersionNumber + 1}`,
@@ -465,17 +485,17 @@ const handleDuplicateProposal = async (proposalToClone: Proposal) => {
             ),
             duration: 10000,
         });
+        
+        refetchProposals(); // Refetch to show the new version in the list
 
     } catch (error: any) {
         console.error("Teklif revizyon hatası:", error);
-        toast({
-            variant: "destructive",
-            title: "Hata",
-            description: `Revizyon oluşturulamadı: ${error.message}`,
-        });
+        toast({ variant: "destructive", title: "Hata", description: `Revizyon oluşturulamadı: ${error.message}` });
+        console.log('=== HATA DEBUG ===');
+        console.error(error);
+        console.log('=== HATA BİTİŞ ===');
     } finally {
         setIsRevising(null);
-        refetchProposals(); // Refetch to show the new version in the list
     }
 };
 
@@ -1177,3 +1197,4 @@ const handleDuplicateProposal = async (proposalToClone: Proposal) => {
     </div>
   );
 }
+
