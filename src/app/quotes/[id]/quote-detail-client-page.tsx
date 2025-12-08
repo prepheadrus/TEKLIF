@@ -307,9 +307,6 @@ export function QuoteDetailClientPage() {
             exchangeRates: proposal.exchangeRates || { USD: 32.5, EUR: 35.0 }
         });
         
-        if (!proposal.exchangeRates?.USD) {
-           handleFetchRates();
-        }
     }
   }, [proposal, initialItems]);
 

@@ -42,10 +42,12 @@ const productFields: { key: keyof Omit<Product, 'id' | 'installationTypeId'> | '
     { key: 'basePrice', label: 'Birim Alış Fiyatı', required: true, description: "Ürünün KDV hariç alış fiyatı." },
     { key: 'listPrice', label: 'Birim Satış Fiyatı', required: true, description: "Ürünün KDV hariç liste satış fiyatı." },
     { key: 'currency', label: 'Para Birimi', required: true, description: "Geçerli değerler: TRY, USD, EUR." },
+    { key: 'vatRate', label: 'KDV Oranı (%)', required: true, description: "Ürünün KDV oranı. Örn: 20, 10, 1, 0." },
+    { key: 'priceIncludesVat', label: 'Fiyatlara KDV Dahil mi?', required: true, description: "Fiyatların KDV içerip içermediği. EVET veya HAYIR yazın." },
     { key: 'supplierName', label: 'Tedarikçi Adı', required: false, description: "Bu ürünün tedarikçisinin adı. Sistemde yoksa yeni tedarikçi oluşturulur (isteğe bağlı)." },
     { key: 'category', label: 'Genel Kategori', required: false, description: "Ürünün genel kategorisi. Örn: Kazan, Pompa (isteğe bağlı)." },
     { key: 'installationCategoryName', label: 'Tesisat Kategorisi Adı', required: false, description: "Ürünün ait olduğu detaylı tesisat kategorisinin tam adı (isteğe bağlı)." },
-    { key: 'discountRate', label: 'İskonto Oranı', required: false, description: "Varsayılan satış iskontosu. Örn: %15 için 0.15 (isteğe bağlı)." }
+    { key: 'discountRate', label: 'İskonto Oranı (%)', required: false, description: "Varsayılan satış iskontosu. Örn: 15 (isteğe bağlı)." }
 ];
 
 
@@ -115,6 +117,9 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
         if(f.key === 'basePrice') return 100;
         if(f.key === 'listPrice') return 150;
         if(f.key === 'currency') return 'TRY';
+        if(f.key === 'vatRate') return 20;
+        if(f.key === 'priceIncludesVat') return 'HAYIR';
+        if(f.key === 'discountRate') return 10;
         if(f.key === 'supplierName') return 'Örnek Tedarikçi A.Ş.';
         if(f.key === 'installationCategoryName') return 'Isıtma > Kazanlar > Yoğuşmalı Kazanlar';
         return ''; // Diğerleri için boş bırak
@@ -147,11 +152,8 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
 
         const supplierNameToIdMap = new Map(suppliers?.map(s => [s.name.toLowerCase(), s.id]));
         
-        // Cache for newly created categories during this import session
-        // Key: full hierarchical path (e.g., 'ısıtma > kazanlar'), Value: Firestore ID
         const categoryPathToIdMap = new Map<string, string>();
         
-        // Pre-populate cache with existing categories
         if (installationTypes) {
             const buildPath = (catId: string, allCats: InstallationType[]): string => {
                 const cat = allCats.find(c => c.id === catId);
@@ -176,8 +178,18 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
                 let value = excelHeader ? row[excelHeader] : undefined;
 
                 if (value !== undefined && value !== null && value !== '') {
-                    if (['basePrice', 'listPrice', 'discountRate'].includes(field.key)) {
+                    if (['basePrice', 'listPrice'].includes(field.key)) {
                         value = parseFloat(String(value).replace(',', '.')) || 0;
+                    }
+
+                    if (['discountRate', 'vatRate'].includes(field.key)) {
+                        const rate = parseFloat(String(value).replace(',', '.'));
+                        value = isNaN(rate) ? 0 : rate / 100;
+                    }
+
+                    if (field.key === 'priceIncludesVat') {
+                        const strValue = String(value).toLowerCase().trim();
+                        value = ['evet', 'true', '1', 'yes'].includes(strValue);
                     }
 
                     if (field.key === 'supplierName') {
@@ -219,7 +231,9 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
             }
             
             // Set defaults for non-mapped optional fields
-            newProduct.discountRate = newProduct.discountRate || 0;
+            newProduct.discountRate = newProduct.discountRate ?? 0;
+            newProduct.vatRate = newProduct.vatRate ?? 0.20;
+            newProduct.priceIncludesVat = newProduct.priceIncludesVat ?? false;
             newProduct.category = newProduct.category || 'Genel';
             newProduct.model = newProduct.model || '';
 
@@ -341,7 +355,7 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
                         <TableBody>
                             {mappedData.map((row, index) => (
                                 <TableRow key={index}>
-                                    {productFields.map(field => <TableCell key={field.key} className={row[field.key] === 'EKSİK BİLGİ' ? 'text-destructive font-bold' : ''}>{row[field.key]}</TableCell>)}
+                                    {productFields.map(field => <TableCell key={field.key} className={row[field.key] === 'EKSİK BİLGİ' ? 'text-destructive font-bold' : ''}>{String(row[field.key])}</TableCell>)}
                                 </TableRow>
                             ))}
                         </TableBody>
@@ -435,5 +449,3 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
     </Dialog>
   );
 }
-
-    

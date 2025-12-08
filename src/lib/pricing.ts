@@ -42,7 +42,7 @@ export function calculateItemTotals({
   
   // 1. KDV'den Arındırma
   // Eğer fiyatlar KDV dahil girildiyse, KDV hariç hallerini bul.
-  const vatDivisor = 1 + vatRate;
+  const vatDivisor = 1 + (vatRate || 0);
   const netBasePrice = priceIncludesVat ? basePrice / vatDivisor : basePrice;
   const netListPrice = priceIncludesVat ? listPrice / vatDivisor : listPrice;
   
