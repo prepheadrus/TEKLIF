@@ -240,13 +240,13 @@ export function CustomersPageContent() {
   const filteredAndSortedCustomers = useMemo(() => {
     return enrichedCustomers
       .filter(c => {
-        const searchLower = searchTerm.toLowerCase();
+        const searchLower = searchTerm.toLocaleLowerCase('tr-TR');
         const searchMatch = searchLower === '' ||
-            c.name.toLowerCase().includes(searchLower) ||
-            (c.email && c.email.toLowerCase().includes(searchLower)) ||
+            c.name.toLocaleLowerCase('tr-TR').includes(searchLower) ||
+            (c.email && c.email.toLocaleLowerCase('tr-TR').includes(searchLower)) ||
             (c.phone && c.phone.includes(searchLower)) ||
-            (c.address?.city && c.address.city.toLowerCase().includes(searchLower)) ||
-            (c.address?.district && c.address.district.toLowerCase().includes(searchLower));
+            (c.address?.city && c.address.city.toLocaleLowerCase('tr-TR').includes(searchLower)) ||
+            (c.address?.district && c.address.district.toLocaleLowerCase('tr-TR').includes(searchLower));
 
         const statusMatch = statusFilter.length === 0 || statusFilter.includes(c.status);
         const cityMatch = cityFilter.length === 0 || (c.address?.city && cityFilter.includes(c.address.city));
@@ -831,3 +831,5 @@ export function CustomersPageContent() {
 export default function CustomersPage() {
     return <CustomersPageContent />;
 }
+
+    

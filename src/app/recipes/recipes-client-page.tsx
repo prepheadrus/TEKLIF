@@ -141,9 +141,10 @@ export function RecipesPageContent() {
   const productsWithRecipeStatus = useMemo(() => {
     if (!products) return [];
     const recipeProductIds = new Set(recipes?.map(r => r.productId));
+    const searchLower = searchTerm.toLocaleLowerCase('tr-TR');
     return products
       .map(p => ({ ...p, hasRecipe: recipeProductIds.has(p.id) }))
-      .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.brand.toLowerCase().includes(searchTerm.toLowerCase()));
+      .filter(p => p.name.toLocaleLowerCase('tr-TR').includes(searchLower) || p.brand.toLocaleLowerCase('tr-TR').includes(searchLower));
   }, [products, recipes, searchTerm]);
 
   const form = useForm<RecipeFormValues>({
@@ -590,3 +591,5 @@ function LaborCostDialog({ isOpen, onOpenChange, laborCosts, onAddLabor, onRefet
         </Dialog>
     )
 }
+
+    

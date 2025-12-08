@@ -137,7 +137,7 @@ const buildCategoryNameMap = (categories: InstallationType[]): Map<string, strin
         node.children.forEach(child => traverse(child, currentName));
     };
 
-    roots.sort((a,b) => a.name.localeCompare(b.name)).forEach(root => traverse(root, ''));
+    roots.sort((a,b) => a.name.localeCompare(b.name, 'tr')).forEach(root => traverse(root, ''));
     return nameMap;
 };
 
@@ -325,11 +325,12 @@ export function ProductsPageContent() {
     const filteredProducts = useMemo(() => {
         if (!products) return [];
         return products.filter(p => {
-            const searchMatch = searchTerm === '' ||
-                p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                p.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                p.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (p.model && p.model.toLowerCase().includes(searchTerm.toLowerCase()));
+            const searchLower = searchTerm.toLocaleLowerCase('tr-TR');
+            const searchMatch = searchLower === '' ||
+                p.name.toLocaleLowerCase('tr-TR').includes(searchLower) ||
+                p.code.toLocaleLowerCase('tr-TR').includes(searchLower) ||
+                p.brand.toLocaleLowerCase('tr-TR').includes(searchLower) ||
+                (p.model && p.model.toLocaleLowerCase('tr-TR').includes(searchLower));
 
             const supplierMatch = supplierFilter.length === 0 || (p.supplierId && supplierFilter.includes(p.supplierId));
             const brandMatch = brandFilter.length === 0 || brandFilter.includes(p.brand);

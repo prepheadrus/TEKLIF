@@ -268,10 +268,11 @@ export function QuotesPageContent() {
     const ninetyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 90).getTime();
 
     return proposals.filter(p => {
+        const searchLower = searchTerm.toLocaleLowerCase('tr-TR');
         const searchMatch = 
-            p.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.quoteNumber.toLowerCase().includes(searchTerm.toLowerCase());
+            p.customerName.toLocaleLowerCase('tr-TR').includes(searchLower) ||
+            p.projectName.toLocaleLowerCase('tr-TR').includes(searchLower) ||
+            p.quoteNumber.toLocaleLowerCase('tr-TR').includes(searchLower);
         if (!searchMatch) return false;
 
         if (dateFilter !== 'all' && p.createdAt) {
@@ -304,10 +305,11 @@ export function QuotesPageContent() {
     const ninetyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 90).getTime();
 
     return groupedProposals.filter(g => {
+        const searchLower = searchTerm.toLocaleLowerCase('tr-TR');
         const searchMatch = 
-            g.latestProposal.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            g.latestProposal.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            g.latestProposal.quoteNumber.toLowerCase().includes(searchTerm.toLowerCase());
+            g.latestProposal.customerName.toLocaleLowerCase('tr-TR').includes(searchLower) ||
+            g.latestProposal.projectName.toLocaleLowerCase('tr-TR').includes(searchLower) ||
+            g.latestProposal.quoteNumber.toLocaleLowerCase('tr-TR').includes(searchLower);
         if (!searchMatch) return false;
 
         if (dateFilter !== 'all' && g.latestProposal.createdAt) {
@@ -1161,3 +1163,5 @@ export function QuotesPageContent() {
     </div>
   );
 }
+
+    

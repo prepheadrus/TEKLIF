@@ -143,10 +143,11 @@ export function AssignmentsPageContent() {
   
   const filteredAssignments = useMemo(() => {
     return enrichedAssignments.filter(a => {
-        const searchMatch = searchTerm === '' ||
-            a.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            a.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            a.personnelName.toLowerCase().includes(searchTerm.toLowerCase());
+        const searchLower = searchTerm.toLocaleLowerCase('tr-TR');
+        const searchMatch = searchLower === '' ||
+            a.projectName.toLocaleLowerCase('tr-TR').includes(searchLower) ||
+            a.customerName.toLocaleLowerCase('tr-TR').includes(searchLower) ||
+            a.personnelName.toLocaleLowerCase('tr-TR').includes(searchLower);
 
         const statusMatch = statusFilter === 'All' || a.paymentStatus === statusFilter;
         
@@ -306,3 +307,5 @@ export function AssignmentsPageContent() {
     </>
   );
 }
+
+    

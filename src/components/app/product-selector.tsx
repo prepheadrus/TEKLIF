@@ -145,7 +145,8 @@ export function ProductSelector({
     }
 
     if (searchTerm) {
-        products = products?.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.brand.toLowerCase().includes(searchTerm.toLowerCase()) || (p.model && p.model.toLowerCase().includes(searchTerm.toLowerCase())));
+        const searchLower = searchTerm.toLocaleLowerCase('tr-TR');
+        products = products?.filter(p => p.name.toLocaleLowerCase('tr-TR').includes(searchLower) || p.brand.toLocaleLowerCase('tr-TR').includes(searchLower) || (p.model && p.model.toLocaleLowerCase('tr-TR').includes(searchLower)));
     }
     return products || [];
   }, [allProducts, searchTerm, selectedCategoryId, categoryDescendants]);

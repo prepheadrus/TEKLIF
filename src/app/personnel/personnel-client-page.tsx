@@ -75,9 +75,10 @@ export function PersonnelPageContent() {
 
   const filteredPersonnel = useMemo(() => {
     if (!personnel) return [];
+    const searchLower = searchTerm.toLocaleLowerCase('tr-TR');
     return personnel.filter(p =>
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.role.toLowerCase().includes(searchTerm.toLowerCase())
+      p.name.toLocaleLowerCase('tr-TR').includes(searchLower) ||
+      p.role.toLocaleLowerCase('tr-TR').includes(searchLower)
     );
   }, [personnel, searchTerm]);
 
@@ -310,3 +311,5 @@ function PersonnelFormDialog({ isOpen, onOpenChange, onSuccess, existingPersonne
     </Dialog>
   );
 }
+
+    
