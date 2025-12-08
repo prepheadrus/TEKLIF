@@ -526,21 +526,37 @@ export function QuoteDetailClientPage() {
   
   const handleFetchRates = async () => {
     setIsFetchingRates(true);
-    toast({ title: 'Kurlar alınıyor...', description: 'Manuel olarak ayarlandı.' });
+    toast({ title: 'Kurlar alınıyor...', description: 'TCMB\'den güncel veriler çekiliyor.' });
     try {
-        // Fallback exchange rates
-        const newRates = { USD: 32.50, EUR: 35.00 };
-        
-        if (newRates && newRates.USD && newRates.EUR) {
+        const response = await fetch('https://www.tcmb.gov.tr/kurlar/today.xml');
+        if (!response.ok) {
+            throw new Error(`TCMB sunucusuna ulaşılamadı. Durum: ${response.status}`);
+        }
+        const xmlText = await response.text();
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlText, "application/xml");
+
+        const usdRate = xmlDoc.querySelector('Currency[Kod="USD"] ForexSelling')?.textContent;
+        const eurRate = xmlDoc.querySelector('Currency[Kod="EUR"] ForexSelling')?.textContent;
+
+        if (usdRate && eurRate) {
+            const newRates = {
+                USD: parseFloat(usdRate),
+                EUR: parseFloat(eurRate),
+            };
             form.setValue('exchangeRates.USD', newRates.USD, { shouldValidate: true, shouldDirty: true });
             form.setValue('exchangeRates.EUR', newRates.EUR, { shouldValidate: true, shouldDirty: true });
             await form.trigger(['exchangeRates.USD', 'exchangeRates.EUR']);
             toast({ title: 'Başarılı!', description: 'Döviz kurları güncellendi.' });
         } else {
-            throw new Error("Geçerli kur bilgisi alınamadı.");
+            throw new Error("XML verisinden kurlar okunamadı.");
         }
     } catch (error: any) {
         toast({ variant: 'destructive', title: 'Hata', description: `Kurlar alınamadı: ${error.message}` });
+        // Fallback to manual if API fails
+         const newRates = { USD: 32.50, EUR: 35.00 };
+         form.setValue('exchangeRates.USD', newRates.USD, { shouldValidate: true, shouldDirty: true });
+         form.setValue('exchangeRates.EUR', newRates.EUR, { shouldValidate: true, shouldDirty: true });
     } finally {
         setIsFetchingRates(false);
     }
