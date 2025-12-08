@@ -528,28 +528,19 @@ export function QuoteDetailClientPage() {
     setIsFetchingRates(true);
     toast({ title: 'Kurlar alınıyor...', description: 'TCMB\'den güncel veriler çekiliyor.' });
     try {
-        const response = await fetch('https://www.tcmb.gov.tr/kurlar/today.xml');
+        const response = await fetch('/api/exchange-rates');
         if (!response.ok) {
-            throw new Error(`TCMB sunucusuna ulaşılamadı. Durum: ${response.status}`);
+            throw new Error(`API isteği başarısız oldu. Durum: ${response.status}`);
         }
-        const xmlText = await response.text();
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(xmlText, "application/xml");
-
-        const usdRate = xmlDoc.querySelector('Currency[Kod="USD"] ForexSelling')?.textContent;
-        const eurRate = xmlDoc.querySelector('Currency[Kod="EUR"] ForexSelling')?.textContent;
-
-        if (usdRate && eurRate) {
-            const newRates = {
-                USD: parseFloat(usdRate),
-                EUR: parseFloat(eurRate),
-            };
-            form.setValue('exchangeRates.USD', newRates.USD, { shouldValidate: true, shouldDirty: true });
-            form.setValue('exchangeRates.EUR', newRates.EUR, { shouldValidate: true, shouldDirty: true });
+        const rates = await response.json();
+        
+        if (rates.USD && rates.EUR) {
+            form.setValue('exchangeRates.USD', rates.USD, { shouldValidate: true, shouldDirty: true });
+            form.setValue('exchangeRates.EUR', rates.EUR, { shouldValidate: true, shouldDirty: true });
             await form.trigger(['exchangeRates.USD', 'exchangeRates.EUR']);
             toast({ title: 'Başarılı!', description: 'Döviz kurları güncellendi.' });
         } else {
-            throw new Error("XML verisinden kurlar okunamadı.");
+            throw new Error("API'den geçerli kur verisi alınamadı.");
         }
     } catch (error: any) {
         toast({ variant: 'destructive', title: 'Hata', description: `Kurlar alınamadı: ${error.message}` });
