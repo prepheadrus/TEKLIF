@@ -437,10 +437,7 @@ const handleDuplicateProposal = async (proposalToClone: Proposal) => {
             ? versionsSnap.docs.map(doc => doc.data().version).reduce((a, b) => Math.max(a, b)) 
             : 0;
         
-        // 3. Yeni proposal ref oluştur
-        const newProposalRef = doc(collection(firestore, 'proposals'));
-        
-        // 4. Yeni proposal data hazırla
+        // 3. Yeni proposal ref oluştur ve ana dokümanı yaz
         const { id, ...originalData } = proposalToClone;
         const newProposalData = {
             ...originalData,
@@ -449,34 +446,36 @@ const handleDuplicateProposal = async (proposalToClone: Proposal) => {
             createdAt: serverTimestamp(),
             versionNote: `Revizyon (v${proposalToClone.version}'dan kopyalandı)`,
         };
+        const newProposalRef = await addDoc(collection(firestore, 'proposals'), newProposalData);
+        alert('Ana doküman yazıldı. Yeni ID: ' + newProposalRef.id);
 
-        // 5. Batch oluştur
-        const batch = writeBatch(firestore);
-        
-        // 6. Ana dokümanı batch'e ekle
-        batch.set(newProposalRef, newProposalData);
 
-        // 7. Kalemleri batch'e ekle
+        // 4. Kalemleri yeni teklifin altına tek tek yaz
         let addedItemCount = 0;
-        itemsSnap.docs.forEach(itemDoc => {
-            const newItemRef = doc(collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'));
-            batch.set(newItemRef, itemDoc.data());
+        for (const itemDoc of itemsSnap.docs) {
+            await addDoc(
+                collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'),
+                itemDoc.data()
+            );
             addedItemCount++;
-        });
-        
-        alert('2. Batch\'e eklenen kalem: ' + addedItemCount);
+        }
+        alert('Kalemler yazıldı: ' + addedItemCount);
 
-        // 8. Batch commit
-        await batch.commit();
-        
-        alert('3. Batch commit tamamlandı');
-
-        // 9. Doğrulama - kopyalanan kalemleri kontrol et
+        // 5. Doğrulama
         const verifySnap = await getDocs(collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'));
-        alert('4. Doğrulama - Yeni teklifte kalem: ' + verifySnap.docs.length);
+        alert('Doğrulama - Kopyalanan kalem sayısı: ' + verifySnap.docs.length);
 
-        toast({ title: "Başarılı!", description: `Teklif revize edildi. Yeni versiyon: v${latestVersionNumber + 1}` });
-        router.push(`/quotes/${newProposalRef.id}`);
+
+        toast({
+          title: "Başarılı!",
+          description: `Teklif revize edildi. Yeni versiyon: v${latestVersionNumber + 1}`,
+          action: (
+             <Button variant="secondary" size="sm" onClick={() => window.open(`/quotes/${newProposalRef.id}`)}>
+                Görüntüle
+             </Button>
+          )
+        });
+        await refetchProposals();
 
     } catch (error: any) {
         alert('HATA: ' + error.message);
