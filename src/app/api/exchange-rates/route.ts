@@ -6,8 +6,7 @@ import { XMLParser } from 'fast-xml-parser';
 export async function GET() {
     try {
         const response = await fetch('https://www.tcmb.gov.tr/kurlar/today.xml', {
-            // Revalidate every hour
-            next: { revalidate: 3600 } 
+            cache: 'no-store' // Disable caching to always get fresh data
         });
 
         if (!response.ok) {
@@ -46,5 +45,5 @@ export async function GET() {
     }
 }
 
-// Enable dynamic routing for this API route
+// Ensure this route is always processed dynamically
 export const dynamic = 'force-dynamic';
