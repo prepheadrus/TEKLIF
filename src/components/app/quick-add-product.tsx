@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useMemo } from 'react';
@@ -119,7 +118,6 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
     resolver: zodResolver(productSchema),
   });
   
-  // Watch for changes in listPrice and discountRate to calculate basePrice
   const watchedListPrice = form.watch('listPrice');
   const watchedDiscountRate = form.watch('discountRate');
   const watchedVatRate = form.watch('vatRate');
@@ -131,21 +129,20 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
     const discountRate = !isNaN(watchedDiscountRate) ? watchedDiscountRate : 0;
     const vatRate = !isNaN(watchedVatRate) ? watchedVatRate : 0;
 
-    // First, get the net list price by removing VAT if it's included
     const netListPrice = watchedPriceIncludesVat ? listPrice / (1 + vatRate) : listPrice;
     
-    // Then, calculate the base price (cost) by applying the discount
     const calculatedBasePrice = netListPrice * (1 - discountRate);
 
     form.setValue('basePrice', parseFloat(calculatedBasePrice.toFixed(2)));
   }, [watchedListPrice, watchedDiscountRate, watchedVatRate, watchedPriceIncludesVat, form]);
-
 
   useEffect(() => {
     if (isOpen) {
         if (existingProduct) {
             form.reset({
                 ...existingProduct,
+                listPrice: existingProduct.listPrice ?? 0,
+                basePrice: existingProduct.basePrice ?? 0,
                 discountRate: existingProduct.discountRate ?? 0,
                 description: existingProduct.description || '',
                 technicalSpecifications: existingProduct.technicalSpecifications || '',
@@ -280,20 +277,27 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
                     )} />
                 </div>
 
-                <FormField control={form.control} name="vatRate" render={({ field }) => (
-                    <FormItem><FormLabel>KDV Oranı</FormLabel>
-                        <Select onValueChange={(val) => field.onChange(parseFloat(val))} value={String(field.value)}>
-                            <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                            <SelectContent>
-                                <SelectItem value="0.2">_20</SelectItem>
-                                <SelectItem value="0.1">_10</SelectItem>
-                                <SelectItem value="0.01">_1</SelectItem>
-                                <SelectItem value="0">KDV'siz</SelectItem>
-                            </SelectContent>
-                        </Select>
+                <Controller
+                    control={form.control}
+                    name="vatRate"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>KDV Oranı (%)</FormLabel>
+                        <FormControl>
+                            <Input
+                            type="number"
+                            placeholder="20"
+                            value={(field.value || 0) * 100}
+                            onChange={(e) => {
+                                const numValue = parseFloat(e.target.value);
+                                field.onChange(isNaN(numValue) ? 0 : numValue / 100);
+                            }}
+                            />
+                        </FormControl>
                         <FormMessage />
-                    </FormItem>
-                )} />
+                        </FormItem>
+                    )}
+                />
                 
                 <FormField control={form.control} name="currency" render={({ field }) => (
                     <FormItem><FormLabel>Para Birimi</FormLabel>
