@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -760,9 +759,15 @@ export function QuoteDetailClientPage() {
                                       </TableRow>
                                       </TableHeader>
                                       <TableBody className="text-sm divide-y divide-slate-100 dark:divide-white/5">
-                                          {fields.map((field, index) => {
-                                              if (field.groupName !== groupName) return null;
-                                              
+                                          {itemsInGroup.length === 0 && (
+                                            <TableRow>
+                                                <TableCell colSpan={11} className="h-24 text-center text-muted-foreground">
+                                                    Bu gruba ürün eklemek için aşağıdaki butonu kullanın.
+                                                </TableCell>
+                                            </TableRow>
+                                          )}
+                                          {itemsInGroup.map((item) => {
+                                              const index = item.originalIndex;
                                               const currentItem = watchedItems?.[index];
                                               if (!currentItem) return null; 
 
@@ -772,7 +777,7 @@ export function QuoteDetailClientPage() {
                                               });
 
                                           return (
-                                              <TableRow key={field.formId} className="hover:bg-slate-50/50 dark:hover:bg-white/5 group/row odd:bg-slate-50/50 dark:odd:bg-white/[.02]">
+                                              <TableRow key={item.formId} className="hover:bg-slate-50/50 dark:hover:bg-white/5 group/row odd:bg-slate-50/50 dark:odd:bg-white/[.02]">
                                                   <TableCell className="py-1.5 pl-4 font-medium text-card-foreground w-[30%]">
                                                       <FormField control={form.control} name={`items.${index}.name`} render={({ field }) => <Input {...field} className="w-full h-7 bg-transparent border-0 border-b-2 border-transparent focus-visible:ring-0 focus:border-primary" />} />
                                                   </TableCell>
