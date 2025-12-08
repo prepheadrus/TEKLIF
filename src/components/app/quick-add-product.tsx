@@ -122,13 +122,23 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
   // Watch for changes in listPrice and discountRate to calculate basePrice
   const watchedListPrice = form.watch('listPrice');
   const watchedDiscountRate = form.watch('discountRate');
+  const watchedVatRate = form.watch('vatRate');
+  const watchedPriceIncludesVat = form.watch('priceIncludesVat');
+
 
   useEffect(() => {
     const listPrice = !isNaN(watchedListPrice) ? watchedListPrice : 0;
     const discountRate = !isNaN(watchedDiscountRate) ? watchedDiscountRate : 0;
-    const calculatedBasePrice = listPrice * (1 - discountRate);
+    const vatRate = !isNaN(watchedVatRate) ? watchedVatRate : 0;
+
+    // First, get the net list price by removing VAT if it's included
+    const netListPrice = watchedPriceIncludesVat ? listPrice / (1 + vatRate) : listPrice;
+    
+    // Then, calculate the base price (cost) by applying the discount
+    const calculatedBasePrice = netListPrice * (1 - discountRate);
+
     form.setValue('basePrice', parseFloat(calculatedBasePrice.toFixed(2)));
-  }, [watchedListPrice, watchedDiscountRate, form]);
+  }, [watchedListPrice, watchedDiscountRate, watchedVatRate, watchedPriceIncludesVat, form]);
 
 
   useEffect(() => {
@@ -275,9 +285,9 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
                         <Select onValueChange={(val) => field.onChange(parseFloat(val))} value={String(field.value)}>
                             <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                             <SelectContent>
-                                <SelectItem value="0.20">%20</SelectItem>
-                                <SelectItem value="0.10">%10</SelectItem>
-                                <SelectItem value="0.01">%1</SelectItem>
+                                <SelectItem value="0.2">_20</SelectItem>
+                                <SelectItem value="0.1">_10</SelectItem>
+                                <SelectItem value="0.01">_1</SelectItem>
                                 <SelectItem value="0">KDV'siz</SelectItem>
                             </SelectContent>
                         </Select>
@@ -358,7 +368,7 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
                     <FormItem className="md:col-span-2"><FormLabel>Açıklama</FormLabel><FormControl><Textarea placeholder="Ürünle ilgili genel açıklamalar, kullanım alanları vb." {...field} /></FormControl><FormMessage /></FormItem>
                  )} />
                  <FormField control={form.control} name="technicalSpecifications" render={({ field }) => (
-                    <FormItem className="md:col-span-2"><FormLabel>Teknik Özellikler</FormLabel><FormControl><Textarea placeholder="Kapasite: 50 kW, Verim: %109, Ağırlık: 45 kg..." {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem className="md:col-span-2"><FormLabel>Teknik Özellikler</FormLabel><FormControl><Textarea placeholder="Kapasite: 50 kW, Verim: _109, Ağırlık: 45 kg..." {...field} /></FormControl><FormMessage /></FormItem>
                  )} />
                  <FormField control={form.control} name="brochureUrl" render={({ field }) => (
                     <FormItem className="md:col-span-2"><FormLabel>Broşür/Döküman Linki</FormLabel><FormControl><Input type="url" placeholder="https://example.com/urun-brosuru.pdf" {...field} /></FormControl><FormMessage /></FormItem>
