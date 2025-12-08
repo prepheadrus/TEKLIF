@@ -421,17 +421,15 @@ const handleDuplicateProposal = async (proposalToClone: Proposal) => {
     toast({ title: 'Revizyon oluşturuluyor...' });
 
     try {
-        // 1. Find the latest version number for the proposal group
+        // 1. Find latest version number for the proposal group
         const versionsQuery = query(
             collection(firestore, 'proposals'),
             where('rootProposalId', '==', proposalToClone.rootProposalId)
         );
         const versionsSnap = await getDocs(versionsQuery);
-        const latestVersionNumber = versionsSnap.size > 0 
-            ? versionsSnap.docs.map(doc => doc.data().version).reduce((a, b) => Math.max(a, b), 0)
-            : 0;
-        
-        // 2. Prepare new proposal data
+        const latestVersionNumber = versionsSnap.docs.reduce((max, doc) => Math.max(max, doc.data().version || 0), 0);
+
+        // 2. Create the new proposal document
         const { id, ...originalData } = proposalToClone;
         const newProposalData = {
             ...originalData,
@@ -440,15 +438,13 @@ const handleDuplicateProposal = async (proposalToClone: Proposal) => {
             createdAt: serverTimestamp(),
             versionNote: `Revizyon (v${proposalToClone.version}'dan kopyalandı)`,
         };
-        
-        // 3. Create the new proposal document first to get its ID
         const newProposalRef = await addDoc(collection(firestore, 'proposals'), newProposalData);
 
-        // 4. Get the items from the original proposal's subcollection
+        // 3. Get the items from the original proposal's subcollection
         const itemsRef = collection(firestore, 'proposals', proposalToClone.id, 'proposal_items');
         const itemsSnap = await getDocs(itemsRef);
-
-        // 5. Create a batch to copy all items to the new proposal's subcollection
+        
+        // 4. Create a batch to copy all items to the new proposal's subcollection
         if (!itemsSnap.empty) {
             const batch = writeBatch(firestore);
             itemsSnap.forEach(itemDoc => {
@@ -459,28 +455,30 @@ const handleDuplicateProposal = async (proposalToClone: Proposal) => {
             await batch.commit();
         }
         
-        // Refetch proposals to update the list view
-        refetchProposals();
-        
-        // Show success toast with a button to open the new revision
-        toast({ 
-            title: "Başarılı!", 
+        toast({
+            title: "Başarılı!",
             description: `Teklif revize edildi. Yeni versiyon: v${latestVersionNumber + 1}`,
             action: (
                 <Button size="sm" onClick={() => window.open(`/quotes/${newProposalRef.id}`, '_blank')}>
                     Görüntüle
                 </Button>
             ),
-            duration: 10000 // Keep toast longer
+            duration: 10000,
         });
 
     } catch (error: any) {
         console.error("Teklif revizyon hatası:", error);
-        toast({ variant: "destructive", title: "Hata", description: `Revizyon oluşturulamadı: ${error.message}` });
+        toast({
+            variant: "destructive",
+            title: "Hata",
+            description: `Revizyon oluşturulamadı: ${error.message}`,
+        });
     } finally {
         setIsRevising(null);
+        refetchProposals(); // Refetch to show the new version in the list
     }
-}
+};
+
   
   const handleDeleteProposal = async (idToDelete: string, rootId: string, isGroupDelete: boolean) => {
     if (!firestore) return;
