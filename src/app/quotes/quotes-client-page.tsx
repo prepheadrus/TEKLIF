@@ -423,18 +423,25 @@ const handleDuplicateProposal = async (proposalToClone: Proposal) => {
     try {
         // ADIM 1: Orijinal kalemleri oku
         const itemsRef = collection(firestore, 'proposals', proposalToClone.id, 'proposal_items');
-        const itemsSnap = await getDocs(itemsRef);
-        const originalItems = itemsSnap.docs.map(doc => doc.data());
-        alert('ADIM 1 - Orijinal kalem sayısı: ' + originalItems.length);
+        const originalItemsSnap = await getDocs(itemsRef);
+        const originalItems = originalItemsSnap.docs.map(doc => doc.data());
+        alert('1. Orijinal kalem sayısı: ' + originalItems.length);
+
+        if (originalItems.length === 0) {
+            alert('UYARI: Kopyalanacak kalem bulunamadı. Yine de devam ediliyor.');
+        }
 
         // ADIM 2: Versiyon hesapla
-        const versionsQuery = query(collection(firestore, 'proposals'), where('rootProposalId', '==', proposalToClone.rootProposalId));
+        const versionsQuery = query(
+            collection(firestore, 'proposals'),
+            where('rootProposalId', '==', proposalToClone.rootProposalId)
+        );
         const versionsSnap = await getDocs(versionsQuery);
         const latestVersionNumber = versionsSnap.size > 0 
             ? versionsSnap.docs.map(doc => doc.data().version).reduce((a, b) => Math.max(a, b)) 
             : 0;
-
-        // ADIM 3: Yeni ana teklif dokümanını oluştur ve YAZ
+        
+        // ADIM 3: Yeni proposal data hazırla
         const { id, ...originalData } = proposalToClone;
         const newProposalData = {
             ...originalData,
@@ -443,34 +450,24 @@ const handleDuplicateProposal = async (proposalToClone: Proposal) => {
             createdAt: serverTimestamp(),
             versionNote: `Revizyon (v${proposalToClone.version}'dan kopyalandı)`,
         };
-        const newProposalRef = await addDoc(collection(firestore, 'proposals'), newProposalData);
-        alert('ADIM 3 - Ana doküman yazıldı. Yeni ID: ' + newProposalRef.id);
-        
-        // ADIM 4: Kalemleri TEK TEK kopyala
-        alert('ADIM 4 başlıyor - Kopyalanacak kalem: ' + originalItems.length);
-        
-        let copiedCount = 0;
-        for (let i = 0; i < originalItems.length; i++) {
-            try {
-                const itemData = originalItems[i];
-                alert('Kalem ' + (i+1) + ' kopyalanıyor: ' + JSON.stringify(itemData).substring(0, 100));
-                
-                const newItemRef = await addDoc(
-                    collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'),
-                    itemData
-                );
-                
-                alert('Kalem ' + (i+1) + ' başarılı. ID: ' + newItemRef.id);
-                copiedCount++;
-            } catch (itemError: any) {
-                alert('Kalem ' + (i+1) + ' HATA: ' + itemError.message);
-                console.error('Kalem kopyalama hatası:', itemError);
-            }
-        }
-        alert('ADIM 4 bitti - Toplam kopyalanan: ' + copiedCount);
-        
 
-        // ADIM 5: Başarı bildirimi ve yönlendirme
+        // ADIM 4: Ana dokümanı YAZ ve bekle
+        const newProposalRef = await addDoc(collection(firestore, 'proposals'), newProposalData);
+        alert('2. Ana doküman yazıldı. Yeni ID: ' + newProposalRef.id);
+
+        // ADIM 5: Kalemleri yeni teklifin altına TEK TEK yaz ve bekle
+        alert('3. Kalemleri kopyalama başlıyor...');
+        let copiedItemCount = 0;
+        for (const itemData of originalItems) {
+            await addDoc(
+                collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'),
+                itemData
+            );
+            copiedItemCount++;
+        }
+        alert('4. Kalem kopyalama bitti. Kopyalanan: ' + copiedItemCount);
+
+        // ADIM 6: Başarı mesajı ve yönlendirme
         toast({
             title: "Başarılı!",
             description: `Teklif revize edildi. Yeni versiyon: v${latestVersionNumber + 1}`,
