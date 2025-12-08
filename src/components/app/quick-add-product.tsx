@@ -17,6 +17,7 @@ import { useFirestore, addDocumentNonBlocking, setDocumentNonBlocking, useCollec
 import { collection, doc } from 'firebase/firestore';
 import type { Product, Supplier } from '@/app/products/products-client-page';
 import { Separator } from '../ui/separator';
+import { Checkbox } from '../ui/checkbox';
 
 const productSchema = z.object({
   // Core Info
@@ -38,6 +39,10 @@ const productSchema = z.object({
   // Categorization
   category: z.string().min(1, "Kategori zorunludur."),
   installationTypeId: z.string().optional().nullable(),
+
+  // VAT Info
+  priceIncludesVat: z.boolean().default(false),
+  vatRate: z.coerce.number().min(0).max(1),
 
   // Detailed Info
   description: z.string().optional(),
@@ -124,12 +129,15 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
                 installationTypeId: existingProduct.installationTypeId || null,
                 supplierId: existingProduct.supplierId || null,
                 brochureUrl: existingProduct.brochureUrl || '',
+                vatRate: existingProduct.vatRate ?? 0.20,
+                priceIncludesVat: existingProduct.priceIncludesVat ?? false
             });
         } else {
             form.reset({
                 code: "", name: "", brand: "", model: "", category: "Genel", installationTypeId: null, unit: "Adet",
                 listPrice: 0, currency: "TRY", discountRate: 0, basePrice: 0, supplierId: null,
                 description: "", technicalSpecifications: "", brochureUrl: "",
+                vatRate: 0.20, priceIncludesVat: false
             });
         }
     }
@@ -235,9 +243,51 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
                 />
 
                 <Separator className="md:col-span-2 my-4" />
-                <h4 className="md:col-span-2 text-lg font-semibold text-primary border-b pb-2 mb-2">Maliyet Bilgileri</h4>
+                <h4 className="md:col-span-2 text-lg font-semibold text-primary border-b pb-2 mb-2">Fiyat Bilgileri</h4>
+                
+                <div className="md:col-span-2 flex items-center space-x-2">
+                    <FormField control={form.control} name="priceIncludesVat" render={({ field }) => (
+                         <FormItem className="flex items-center space-x-2 space-y-0">
+                            <FormControl>
+                                <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                            </FormControl>
+                            <FormLabel className="!mt-0">
+                                Girdiğim Fiyatlara KDV Dahil
+                            </FormLabel>
+                        </FormItem>
+                    )} />
+                </div>
+
+                <FormField control={form.control} name="vatRate" render={({ field }) => (
+                    <FormItem><FormLabel>KDV Oranı</FormLabel>
+                        <Select onValueChange={(val) => field.onChange(parseFloat(val))} value={String(field.value)}>
+                            <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                            <SelectContent>
+                                <SelectItem value="0.20">%20</SelectItem>
+                                <SelectItem value="0.10">%10</SelectItem>
+                                <SelectItem value="0.01">%1</SelectItem>
+                                <SelectItem value="0">KDV'siz</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                )} />
+                
+                <FormField control={form.control} name="currency" render={({ field }) => (
+                    <FormItem><FormLabel>Para Birimi</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl><SelectTrigger><SelectValue placeholder="Seçiniz" /></SelectTrigger></FormControl>
+                            <SelectContent>
+                                <SelectItem value="TRY">TL</SelectItem>
+                                <SelectItem value="USD">USD</SelectItem>
+                                <SelectItem value="EUR">EUR</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    <FormMessage /></FormItem>
+                )} />
+
                 <FormField control={form.control} name="basePrice" render={({ field }) => (
-                    <FormItem><FormLabel>Birim Alış Fiyatı (KDV Hariç)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Birim Alış Fiyatı</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                  <FormField
                     control={form.control}
@@ -264,25 +314,11 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
                         </FormItem>
                     )}
                 />
-
-                <Separator className="md:col-span-2 my-4" />
-                <h4 className="md:col-span-2 text-lg font-semibold text-primary border-b pb-2 mb-2">Satış Bilgileri</h4>
-
+                
                 <FormField control={form.control} name="listPrice" render={({ field }) => (
                     <FormItem><FormLabel>Birim Liste Satış Fiyatı</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
-                <FormField control={form.control} name="currency" render={({ field }) => (
-                    <FormItem><FormLabel>Para Birimi</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl><SelectTrigger><SelectValue placeholder="Seçiniz" /></SelectTrigger></FormControl>
-                            <SelectContent>
-                                <SelectItem value="TRY">TL</SelectItem>
-                                <SelectItem value="USD">USD</SelectItem>
-                                <SelectItem value="EUR">EUR</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    <FormMessage /></FormItem>
-                )} />
+                
                 <Controller
                     control={form.control}
                     name="discountRate"

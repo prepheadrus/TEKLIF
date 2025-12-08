@@ -74,6 +74,9 @@ export type Product = {
   // Categorization
   category: string; // General category
   installationTypeId?: string;
+  // VAT Info
+  vatRate: number;
+  priceIncludesVat: boolean;
 };
 
 export type Supplier = {
@@ -94,6 +97,8 @@ type ProposalItem = {
     currency: 'TRY' | 'USD' | 'EUR';
     discountRate: number;
     profitMargin: number;
+    priceIncludesVat: boolean;
+    vatRate: number;
 }
 
 type ProductAnalytics = {
@@ -771,5 +776,3 @@ export function ProductsPageContent() {
     </div>
   );
 }
-
-    

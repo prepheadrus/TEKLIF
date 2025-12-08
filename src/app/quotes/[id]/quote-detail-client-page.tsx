@@ -94,6 +94,8 @@ const proposalItemSchema = z.object({
   profitMargin: z.coerce.number().min(0),
   groupName: z.string().default('Diğer'),
   basePrice: z.coerce.number().default(0), // Alış fiyatı
+  vatRate: z.coerce.number().default(0.20),
+  priceIncludesVat: z.boolean().default(false),
 });
 
 const proposalSchema = z.object({
@@ -421,6 +423,8 @@ export function QuoteDetailClientPage() {
               profitMargin: 0.2, // Default 20%
               groupName: groupName,
               basePrice: product.basePrice,
+              vatRate: product.vatRate,
+              priceIncludesVat: product.priceIncludesVat
           };
           append(newItem);
       }

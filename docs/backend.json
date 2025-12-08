@@ -334,12 +334,15 @@
         "currency": { "type": "string", "description": "Currency for prices (e.g., TL, USD, EUR)." },
         "discountRate": { "type": "number", "description": "Default sales discount rate (0 to 1)." },
         "basePrice": { "type": "number", "description": "Base cost/purchase price of the material." },
-        "supplierId": { "type": "string", "description": "Reference to the Supplier." }
+        "supplierId": { "type": "string", "description": "Reference to the Supplier." },
+        "vatRate": { "type": "number", "description": "VAT rate for the product (e.g., 0.20 for 20%)." },
+        "priceIncludesVat": { "type": "boolean", "description": "Whether the listPrice and basePrice include VAT." }
       },
       "required": [
         "code",
         "name",
-        "brand"
+        "brand",
+        "vatRate"
       ]
     },
     "Supplier": {
@@ -411,6 +414,19 @@
         "assignedAt": { "type": "string", "format": "date-time", "description": "Timestamp of when the job was assigned." }
       },
       "required": ["proposalId", "personnelId", "assignedAmount", "paymentStatus", "assignedAt"]
+    },
+    "AppSettings": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "AppSettings",
+        "type": "object",
+        "description": "Stores global settings for the application.",
+        "properties": {
+            "monthlyTargetAmount": {
+                "type": "number",
+                "description": "The monthly sales target amount for the dashboard."
+            }
+        },
+        "required": ["monthlyTargetAmount"]
     }
   },
   "auth": {
@@ -515,10 +531,16 @@
           "schema": { "$ref": "#/backend/entities/JobAssignment" },
           "description": "Tracks job assignments to personnel and their payments."
         }
+      },
+      {
+        "path": "/app_settings/{settingsId}",
+        "definition": {
+          "entityName": "AppSettings",
+          "schema": { "$ref": "#/backend/entities/AppSettings" },
+          "description": "Stores global application settings. Should contain a single document with a known ID e.g. 'dashboard'."
+        }
       }
     ],
     "reasoning": "The Firestore structure is simplified by merging 'Materials' into 'Products'. Now, the `products` collection serves as the master list for all sellable or costed items. The `suppliers` collection remains to manage vendor information. This unified approach simplifies data management and aligns better with the user's workflow of picking items from a single master list for proposals."
   }
 }
-
-    
