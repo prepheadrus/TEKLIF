@@ -421,23 +421,20 @@ const handleDuplicateProposal = async (proposalToClone: Proposal) => {
     toast({ title: 'Revizyon oluşturuluyor...' });
 
     try {
-        // 1. ÖNCELİKLE orijinal kalemleri oku
+        // ADIM 1: Orijinal kalemleri oku
         const itemsRef = collection(firestore, 'proposals', proposalToClone.id, 'proposal_items');
         const itemsSnap = await getDocs(itemsRef);
-        
-        alert('1. Orijinal kalem sayısı: ' + itemsSnap.docs.length);
-        
-        // 2. Versiyon hesapla
-        const versionsQuery = query(
-            collection(firestore, 'proposals'),
-            where('rootProposalId', '==', proposalToClone.rootProposalId)
-        );
+        const originalItems = itemsSnap.docs.map(doc => doc.data());
+        alert('ADIM 1 - Orijinal kalem sayısı: ' + originalItems.length);
+
+        // ADIM 2: Versiyon hesapla
+        const versionsQuery = query(collection(firestore, 'proposals'), where('rootProposalId', '==', proposalToClone.rootProposalId));
         const versionsSnap = await getDocs(versionsQuery);
         const latestVersionNumber = versionsSnap.size > 0 
             ? versionsSnap.docs.map(doc => doc.data().version).reduce((a, b) => Math.max(a, b)) 
             : 0;
-        
-        // 3. Yeni proposal ref oluştur ve ana dokümanı yaz
+
+        // ADIM 3: Yeni ana teklif dokümanını oluştur ve YAZ
         const { id, ...originalData } = proposalToClone;
         const newProposalData = {
             ...originalData,
@@ -447,33 +444,41 @@ const handleDuplicateProposal = async (proposalToClone: Proposal) => {
             versionNote: `Revizyon (v${proposalToClone.version}'dan kopyalandı)`,
         };
         const newProposalRef = await addDoc(collection(firestore, 'proposals'), newProposalData);
-        alert('Ana doküman yazıldı. Yeni ID: ' + newProposalRef.id);
-
-
-        // 4. Kalemleri yeni teklifin altına tek tek yaz
-        let addedItemCount = 0;
-        for (const itemDoc of itemsSnap.docs) {
-            await addDoc(
-                collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'),
-                itemDoc.data()
-            );
-            addedItemCount++;
+        alert('ADIM 3 - Ana doküman yazıldı. Yeni ID: ' + newProposalRef.id);
+        
+        // ADIM 4: Kalemleri TEK TEK kopyala
+        alert('ADIM 4 başlıyor - Kopyalanacak kalem: ' + originalItems.length);
+        
+        let copiedCount = 0;
+        for (let i = 0; i < originalItems.length; i++) {
+            try {
+                const itemData = originalItems[i];
+                alert('Kalem ' + (i+1) + ' kopyalanıyor: ' + JSON.stringify(itemData).substring(0, 100));
+                
+                const newItemRef = await addDoc(
+                    collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'),
+                    itemData
+                );
+                
+                alert('Kalem ' + (i+1) + ' başarılı. ID: ' + newItemRef.id);
+                copiedCount++;
+            } catch (itemError: any) {
+                alert('Kalem ' + (i+1) + ' HATA: ' + itemError.message);
+                console.error('Kalem kopyalama hatası:', itemError);
+            }
         }
-        alert('Kalemler yazıldı: ' + addedItemCount);
+        alert('ADIM 4 bitti - Toplam kopyalanan: ' + copiedCount);
+        
 
-        // 5. Doğrulama
-        const verifySnap = await getDocs(collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'));
-        alert('Doğrulama - Kopyalanan kalem sayısı: ' + verifySnap.docs.length);
-
-
+        // ADIM 5: Başarı bildirimi ve yönlendirme
         toast({
-          title: "Başarılı!",
-          description: `Teklif revize edildi. Yeni versiyon: v${latestVersionNumber + 1}`,
-          action: (
-             <Button variant="secondary" size="sm" onClick={() => window.open(`/quotes/${newProposalRef.id}`)}>
-                Görüntüle
-             </Button>
-          )
+            title: "Başarılı!",
+            description: `Teklif revize edildi. Yeni versiyon: v${latestVersionNumber + 1}`,
+            action: (
+               <Button variant="secondary" size="sm" onClick={() => window.open(`/quotes/${newProposalRef.id}`, '_blank')}>
+                  Görüntüle
+               </Button>
+            )
         });
         await refetchProposals();
 
