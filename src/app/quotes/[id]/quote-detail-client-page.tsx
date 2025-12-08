@@ -308,7 +308,7 @@ export function QuoteDetailClientPage() {
         });
         
     }
-  }, [proposal, initialItems]);
+  }, [proposal, initialItems, form, defaultTerms]);
 
 
   useEffect(() => {
