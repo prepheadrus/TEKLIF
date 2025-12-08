@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -419,9 +420,6 @@ export function QuotesPageContent() {
     setIsRevising(proposalToClone.rootProposalId);
     toast({ title: 'Revizyon oluşturuluyor...' });
 
-    console.log('=== REVİZYON DEBUG ===');
-    console.log('1. Orijinal ID:', proposalToClone.id);
-
     try {
         // Find latest version number
         const versionsQuery = query(
@@ -432,7 +430,6 @@ export function QuotesPageContent() {
         const latestVersionNumber = versionsSnap.size > 0 ? versionsSnap.docs.map(doc => doc.data().version).reduce((a, b) => Math.max(a, b)) : 0;
         
         // Prepare new proposal data
-        const newProposalRef = doc(collection(firestore, 'proposals'));
         const { id, ...originalData } = proposalToClone;
         const newProposalData = {
             ...originalData,
@@ -441,34 +438,22 @@ export function QuotesPageContent() {
             createdAt: serverTimestamp(),
             versionNote: `Revizyon (v${proposalToClone.version}'dan kopyalandı)`,
         };
+
+        // Create the new proposal document first
+        const newProposalRef = await addDoc(collection(firestore, 'proposals'), newProposalData);
         
         // Get original items
         const itemsRef = collection(firestore, 'proposals', proposalToClone.id, 'proposal_items');
         const itemsSnap = await getDocs(itemsRef);
-        console.log('2. Orijinal kalem sayısı:', itemsSnap.docs.length);
-        console.log('3. Kalemler:', itemsSnap.docs.map(d => d.data()));
 
-        // Start a batch write
+        // Batch write all items to the new subcollection
         const batch = writeBatch(firestore);
-        
-        // 1. Set the new proposal document
-        batch.set(newProposalRef, newProposalData);
-
-        // 2. Copy all items to the new proposal's subcollection
         itemsSnap.forEach(itemDoc => {
             const newItemRef = doc(collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'));
             batch.set(newItemRef, itemDoc.data());
         });
 
-        // Commit the batch
         await batch.commit();
-        console.log('4. Yeni proposal ID:', newProposalRef.id);
-        
-        // Verify copied items
-        const newItemsSnapshot = await getDocs(collection(firestore, 'proposals', newProposalRef.id, 'proposal_items'));
-        console.log('5. Kopyalanan kalem sayısı:', newItemsSnapshot.docs.length);
-        console.log('=== DEBUG BİTİŞ ===');
-
 
         toast({ title: "Başarılı!", description: `Teklif revize edildi. Yeni versiyon: v${latestVersionNumber + 1}` });
         router.push(`/quotes/${newProposalRef.id}`);
@@ -476,9 +461,6 @@ export function QuotesPageContent() {
     } catch (error: any) {
         console.error("Teklif revizyon hatası:", error);
         toast({ variant: "destructive", title: "Hata", description: `Revizyon oluşturulamadı: ${error.message}` });
-        console.log('=== HATA DEBUG ===');
-        console.error(error);
-        console.log('=== HATA BİTİŞ ===');
     } finally {
         setIsRevising(null);
     }
@@ -1060,7 +1042,7 @@ export function QuotesPageContent() {
                                                                     )}
                                                                     <Button variant="ghost" size="sm" onClick={(e) => handleViewClick(e, v.id)}>Görüntüle</Button>
                                                                     <Button variant="ghost" size="sm" onClick={(e) => {e.preventDefault(); router.push(`/quotes/${v.id}/print?customerId=${v.customerId}`)}}>Yazdır</Button>
-                                                                    <Button variant="outline" size="sm" onClick={async () => await handleDuplicateProposal(v)} disabled={isRevising === group.rootProposalId}><Copy className="mr-2 h-3 w-3"/>Revize Et</Button>
+                                                                    <Button variant="outline" size="sm" onClick={async (e) => { e.preventDefault(); await handleDuplicateProposal(v); }} disabled={isRevising === group.rootProposalId}><Copy className="mr-2 h-3 w-3"/>Revize Et</Button>
                                                                     
                                                                     <AlertDialog>
                                                                         <AlertDialogTrigger asChild>
@@ -1143,7 +1125,7 @@ export function QuotesPageContent() {
                                             <Button variant="outline" size="sm" onClick={(e) => handleViewClick(e, v.id)}>
                                                 <Eye className="mr-2 h-4 w-4" /> Görüntüle
                                             </Button>
-                                            <Button variant="secondary" size="sm" onClick={async () => await handleDuplicateProposal(v)} disabled={isRevising === v.rootProposalId}>
+                                            <Button variant="secondary" size="sm" onClick={async (e) => { e.preventDefault(); await handleDuplicateProposal(v); }} disabled={isRevising === v.rootProposalId}>
                                                 <Copy className="mr-2 h-3 w-3"/> Revize Et
                                             </Button>
                                         </div>
