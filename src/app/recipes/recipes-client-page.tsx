@@ -128,15 +128,14 @@ export function RecipesPageContent() {
 
 
   // --- Data Fetching ---
-  const { data: products, isLoading: isLoadingProducts } = useCollection<Product>(
-    useMemoFirebase(() => (firestore ? query(collection(firestore, 'products')) : null), [firestore])
-  );
-  const { data: recipes, isLoading: isLoadingRecipes, refetch: refetchRecipes } = useCollection<Recipe>(
-    useMemoFirebase(() => (firestore ? query(collection(firestore, 'recipes')) : null), [firestore])
-  );
-  const { data: laborCosts, isLoading: isLoadingLabor, refetch: refetchLabor } = useCollection<LaborCost>(
-    useMemoFirebase(() => (firestore ? query(collection(firestore, 'labor_costs')) : null), [firestore])
-  );
+  const productsQuery = useMemoFirebase(() => (firestore ? query(collection(firestore, 'products')) : null), [firestore]);
+  const { data: products, isLoading: isLoadingProducts } = useCollection<Product>(productsQuery);
+  
+  const recipesQuery = useMemoFirebase(() => (firestore ? query(collection(firestore, 'recipes')) : null), [firestore]);
+  const { data: recipes, isLoading: isLoadingRecipes, refetch: refetchRecipes } = useCollection<Recipe>(recipesQuery);
+  
+  const laborCostsQuery = useMemoFirebase(() => (firestore ? query(collection(firestore, 'labor_costs')) : null), [firestore]);
+  const { data: laborCosts, isLoading: isLoadingLabor, refetch: refetchLabor } = useCollection<LaborCost>(laborCostsQuery);
 
   const productsWithRecipeStatus = useMemo(() => {
     if (!products) return [];
@@ -591,5 +590,3 @@ function LaborCostDialog({ isOpen, onOpenChange, laborCosts, onAddLabor, onRefet
         </Dialog>
     )
 }
-
-    

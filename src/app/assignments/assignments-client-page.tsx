@@ -109,15 +109,20 @@ export function AssignmentsPageContent() {
   const [selectedAssignment, setSelectedAssignment] = useState<EnrichedJobAssignment | null>(null);
 
   // --- Data Fetching ---
-  const { data: assignments, isLoading: isLoadingAssignments, refetch: refetchAssignments } = useCollection<JobAssignment>(
-    useMemoFirebase(() => (firestore ? query(collection(firestore, 'job_assignments'), orderBy('assignedAt', 'desc')) : null), [firestore])
-  );
-  const { data: personnel, isLoading: isLoadingPersonnel } = useCollection<Personnel>(
-    useMemoFirebase(() => (firestore ? collection(firestore, 'personnel') : null), [firestore])
-  );
-  const { data: proposals, isLoading: isLoadingProposals } = useCollection<Proposal>(
-    useMemoFirebase(() => (firestore ? collection(firestore, 'proposals') : null), [firestore])
-  );
+  const assignmentsQuery = useMemoFirebase(() => (
+    firestore ? query(collection(firestore, 'job_assignments'), orderBy('assignedAt', 'desc')) : null
+  ), [firestore]);
+  const { data: assignments, isLoading: isLoadingAssignments, refetch: refetchAssignments } = useCollection<JobAssignment>(assignmentsQuery);
+
+  const personnelQuery = useMemoFirebase(() => (
+    firestore ? collection(firestore, 'personnel') : null
+  ), [firestore]);
+  const { data: personnel, isLoading: isLoadingPersonnel } = useCollection<Personnel>(personnelQuery);
+
+  const proposalsQuery = useMemoFirebase(() => (
+    firestore ? collection(firestore, 'proposals') : null
+  ), [firestore]);
+  const { data: proposals, isLoading: isLoadingProposals } = useCollection<Proposal>(proposalsQuery);
   
   // --- Data Enrichment ---
   const enrichedAssignments = useMemo((): EnrichedJobAssignment[] => {
@@ -307,5 +312,3 @@ export function AssignmentsPageContent() {
     </>
   );
 }
-
-    

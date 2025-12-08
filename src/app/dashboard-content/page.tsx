@@ -143,29 +143,29 @@ export function DashboardContent() {
   const [isTargetDialogOpen, setIsTargetDialogOpen] = useState(false);
 
   // --- Data Fetching ---
-  const proposalsRef = useMemoFirebase(
+  const proposalsQuery = useMemoFirebase(
     () => (firestore ? query(collection(firestore, 'proposals'), orderBy('createdAt', 'desc')) : null),
     [firestore]
   );
-  const { data: proposals, isLoading: isLoadingProposals } = useCollection<Proposal>(proposalsRef);
+  const { data: proposals, isLoading: isLoadingProposals } = useCollection<Proposal>(proposalsQuery);
 
-  const customersRef = useMemoFirebase(
+  const customersQuery = useMemoFirebase(
     () => (firestore ? collection(firestore, 'customers') : null),
     [firestore]
   );
-  const { data: customers, isLoading: isLoadingCustomers } = useCollection<Customer>(customersRef);
+  const { data: customers, isLoading: isLoadingCustomers } = useCollection<Customer>(customersQuery);
 
-  const productsRef = useMemoFirebase(
+  const productsQuery = useMemoFirebase(
     () => (firestore ? collection(firestore, 'products') : null),
     [firestore]
   );
-  const { data: allProducts, isLoading: isLoadingProducts } = useCollection<Product>(productsRef);
+  const { data: allProducts, isLoading: isLoadingProducts } = useCollection<Product>(productsQuery);
 
-  const settingsRef = useMemoFirebase(
+  const settingsDocRef = useMemoFirebase(
     () => (firestore ? doc(firestore, 'app_settings', 'dashboard') : null),
     [firestore]
   );
-  const { data: settings, refetch: refetchSettings } = useDoc<AppSettings>(settingsRef);
+  const { data: settings, refetch: refetchSettings } = useDoc<AppSettings>(settingsDocRef);
   
   // --- Memoized Stats Calculation ---
   const { stats, recentProposals, monthlyTarget, monthlyTrendData, statusDistributionData } = useMemo(() => {
