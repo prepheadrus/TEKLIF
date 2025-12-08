@@ -1,5 +1,3 @@
-
-
 'use client';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -98,7 +96,7 @@ const proposalItemSchema = z.object({
   basePrice: z.coerce.number().default(0), // Alış fiyatı
   vatRate: z.coerce.number().default(0.20),
   priceIncludesVat: z.boolean().default(false),
-  createdAt: z.any().optional(), // To preserve order
+  orderIndex: z.coerce.number(),
 });
 
 const proposalSchema = z.object({
@@ -251,7 +249,7 @@ export function QuoteDetailClientPage() {
   const { data: proposal, isLoading: isProposalLoading } = useDoc<Proposal>(proposalRef);
 
   const proposalItemsRef = useMemoFirebase(
-    () => (firestore && proposalId ? query(collection(firestore, 'proposals', proposalId, 'proposal_items'), orderBy('createdAt', 'asc')) : null),
+    () => (firestore && proposalId ? query(collection(firestore, 'proposals', proposalId, 'proposal_items'), orderBy('orderIndex', 'asc')) : null),
     [firestore, proposalId]
   );
   const { data: initialItems, isLoading: isLoadingItems, refetch: refetchItems } = useCollection<ProposalItem>(proposalItemsRef);
@@ -425,7 +423,7 @@ export function QuoteDetailClientPage() {
               basePrice: product.basePrice,
               vatRate: product.vatRate,
               priceIncludesVat: product.priceIncludesVat,
-              createdAt: new Date(), // Add timestamp on client-side for sorting before save
+              orderIndex: fields.length,
           };
           append(newItem, { shouldFocus: false });
       }
@@ -524,12 +522,10 @@ export function QuoteDetailClientPage() {
           batch.delete(doc(itemsCollectionRef, id));
       });
 
-      data.items.forEach((item) => {
+      data.items.forEach((item, index) => {
         const { ...dbItem } = item;
-        // If it's a new item (doesn't have a DB id), set its createdAt timestamp
-        if (!item.id) {
-          dbItem.createdAt = serverTimestamp();
-        }
+        // Update orderIndex for all items to match current form order
+        dbItem.orderIndex = index;
         
         const itemRef = item.id
           ? doc(itemsCollectionRef, item.id)
