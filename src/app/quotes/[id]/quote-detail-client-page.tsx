@@ -12,6 +12,7 @@ import {
   getDocs,
   query,
   serverTimestamp,
+  orderBy,
 } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
@@ -95,6 +96,7 @@ const proposalItemSchema = z.object({
   basePrice: z.coerce.number().default(0), // Alış fiyatı
   vatRate: z.coerce.number().default(0.20),
   priceIncludesVat: z.boolean().default(false),
+  createdAt: z.any().optional(), // To preserve order
 });
 
 const proposalSchema = z.object({
@@ -247,7 +249,7 @@ export function QuoteDetailClientPage() {
   const { data: proposal, isLoading: isProposalLoading } = useDoc<Proposal>(proposalRef);
 
   const proposalItemsRef = useMemoFirebase(
-    () => (firestore && proposalId ? collection(firestore, 'proposals', proposalId, 'proposal_items') : null),
+    () => (firestore && proposalId ? query(collection(firestore, 'proposals', proposalId, 'proposal_items'), orderBy('createdAt', 'asc')) : null),
     [firestore, proposalId]
   );
   const { data: initialItems, isLoading: isLoadingItems, refetch: refetchItems } = useCollection<ProposalItem>(proposalItemsRef);
@@ -420,7 +422,8 @@ export function QuoteDetailClientPage() {
               groupName: groupName,
               basePrice: product.basePrice,
               vatRate: product.vatRate,
-              priceIncludesVat: product.priceIncludesVat
+              priceIncludesVat: product.priceIncludesVat,
+              createdAt: new Date(), // Add timestamp on client-side for sorting before save
           };
           append(newItem, { shouldFocus: false });
       }
@@ -521,6 +524,11 @@ export function QuoteDetailClientPage() {
 
       data.items.forEach((item) => {
         const { ...dbItem } = item;
+        // If it's a new item (doesn't have a DB id), set its createdAt timestamp
+        if (!item.id) {
+          dbItem.createdAt = serverTimestamp();
+        }
+        
         const itemRef = item.id
           ? doc(itemsCollectionRef, item.id)
           : doc(itemsCollectionRef);
