@@ -39,8 +39,8 @@ const productFields: { key: keyof Omit<Product, 'id' | 'installationTypeId'> | '
     { key: 'brand', label: 'Marka', required: true, description: "Ürünün markası." },
     { key: 'model', label: 'Model', required: false, description: "Ürünün spesifik model numarası veya adı (isteğe bağlı)." },
     { key: 'unit', label: 'Birim', required: true, description: "Örn: Adet, Metre, Kg, Set." },
-    { key: 'basePrice', label: 'Birim Alış Fiyatı', required: false, description: "Ürünün KDV hariç alış fiyatı." },
-    { key: 'listPrice', label: 'Birim Satış Fiyatı', required: false, description: "Ürünün KDV hariç liste satış fiyatı." },
+    { key: 'basePrice', label: 'Birim Alış Fiyatı', required: false, description: "Ürünün alış fiyatı. Satış fiyatı girilmezse bu değer kullanılır." },
+    { key: 'listPrice', label: 'Birim Satış Fiyatı', required: false, description: "Ürünün liste satış fiyatı." },
     { key: 'currency', label: 'Para Birimi', required: true, description: "Geçerli değerler: TRY, USD, EUR." },
     { key: 'vatRate', label: 'KDV Oranı (%)', required: true, description: "Ürünün KDV oranı. Örn: 20, 10, 1, 0." },
     { key: 'priceIncludesVat', label: 'Fiyatlara KDV Dahil mi?', required: true, description: "Fiyatların KDV içerip içermediği. EVET veya HAYIR yazın." },
@@ -232,7 +232,11 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
             
             // Set defaults for non-mapped optional fields
             newProduct.basePrice = newProduct.basePrice ?? 0;
-            newProduct.listPrice = newProduct.listPrice ?? 0;
+            // If listPrice is not provided or 0, use basePrice
+            newProduct.listPrice = newProduct.listPrice ?? newProduct.basePrice ?? 0;
+            if (newProduct.listPrice === 0 && newProduct.basePrice > 0) {
+              newProduct.listPrice = newProduct.basePrice;
+            }
             newProduct.discountRate = newProduct.discountRate ?? 0;
             newProduct.vatRate = newProduct.vatRate ?? 0.20;
             newProduct.priceIncludesVat = newProduct.priceIncludesVat ?? false;

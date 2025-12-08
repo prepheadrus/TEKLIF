@@ -143,6 +143,15 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
     }
   }, [isOpen, existingProduct, form]);
 
+  const watchedBasePrice = form.watch('basePrice');
+
+  useEffect(() => {
+    const listPrice = form.getValues('listPrice');
+    if (watchedBasePrice > 0 && (listPrice === 0 || !listPrice)) {
+      form.setValue('listPrice', watchedBasePrice);
+    }
+  }, [watchedBasePrice, form]);
+
   const onSubmit = async (values: ProductFormValues) => {
     if (!firestore) {
       toast({ variant: "destructive", title: "Hata", description: "Veritabanı bağlantısı kurulamamış." });
