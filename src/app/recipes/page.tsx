@@ -1,10 +1,125 @@
-import { Metadata } from 'next';
-import { RecipesPageContent } from '@/app/recipes/recipes-client-page';
+'use client';
 
-export const metadata: Metadata = {
-    title: 'Reçeteler',
-};
+import { useState, type ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
+import { Building, Home, Users, Package, FileText, Layers, ClipboardList, Menu, HardHat, ClipboardCheck, Settings } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { ThemeToggle } from '@/components/app/theme-toggle';
+import dynamic from 'next/dynamic';
 
-export default function RecipesPage() {
-    return <RecipesPageContent />;
+const MobileNav = dynamic(() => import('@/components/app/app-layout').then(mod => mod.MobileNavComponent), { ssr: false });
+
+const navItems = [
+    { href: '/', label: 'Anasayfa', icon: Home, target: '/' },
+    { href: '/quotes', label: 'Teklifler', icon: FileText, target: '/quotes' },
+    { href: '/customers', label: 'Müşteriler', icon: Users, target: '/customers' },
+    { href: '/products', label: 'Ürünler', icon: Package, target: '/products' },
+    { href: '/installation-types', label: 'Kategoriler', icon: Layers, target: '/installation-types' },
+    { href: '/templates', label: 'Şablonlar', icon: ClipboardList, target: '/templates' },
+    { href: '/personnel', label: 'Ustalar', icon: HardHat, target: '/personnel' },
+    { href: '/assignments', label: 'İş Atamaları', icon: ClipboardCheck, target: '/assignments' },
+    { href: '/settings', label: 'Ayarlar', icon: Settings, target: '/settings' },
+];
+
+const NavItem = ({ href, label, target }: { href: string, label: string, target: string }) => {
+    const pathname = usePathname();
+    const isActive = pathname === href;
+
+    const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+        e.preventDefault();
+        // Check if a window with this target name already exists. If not, open it. If so, focus it.
+        window.open(href, target); 
+    }
+
+    return (
+        <a 
+            href={href}
+            onClick={handleClick}
+            className={cn(
+                "px-3 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer",
+                isActive 
+                    ? "text-primary bg-primary/10" 
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-slate-50 dark:hover:bg-slate-800"
+            )}
+        >
+            {label}
+        </a>
+    )
+}
+
+export const MobileNavComponent = () => {
+    const [open, setOpen] = useState(false);
+
+    const handleLinkClick = (e: React.MouseEvent, href: string, target: string) => {
+        e.preventDefault();
+        window.open(href, target);
+        setOpen(false);
+    }
+    
+    return (
+        <Sheet open={open} onOpenChange={setOpen}>
+            <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                    <Menu className="h-6 w-6" />
+                    <span className="sr-only">Menüyü aç</span>
+                </Button>
+            </SheetTrigger>
+            <SheetContent side="left">
+                 <a href="/" onClick={(e) => handleLinkClick(e, '/', '/')} className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200 mb-8">
+                    <Building className="h-6 w-6 text-primary" />
+                    <span className="text-lg">MechQuote</span>
+                </a>
+                <nav className="flex flex-col gap-2">
+                    {navItems.map((item) => (
+                        <a 
+                            key={item.href}
+                            href={item.href}
+                            onClick={(e) => handleLinkClick(e, item.href, item.target)}
+                            className="text-lg text-slate-700 hover:text-primary dark:text-slate-300 dark:hover:text-primary"
+                        >
+                            {item.label}
+                        </a>
+                    ))}
+                </nav>
+            </SheetContent>
+        </Sheet>
+    )
+}
+
+
+export function AppLayout({ children }: { children: ReactNode }) {
+  return (
+    <div className={cn("flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950")}>
+      <header className="sticky top-0 z-30 flex-shrink-0 bg-white/95 dark:bg-slate-900/80 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800 print-hidden">
+        <div className="mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+                <div className="flex items-center gap-8">
+                    <a href="/" onClick={(e) => { e.preventDefault(); window.open('/', '/'); }} className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200">
+                        <Building className="h-6 w-6 text-primary" />
+                        <span className="text-lg">MechQuote</span>
+                    </a>
+                    <nav className="hidden md:flex gap-1">
+                         {navItems.map((item) => (
+                            <NavItem key={item.href} href={item.href} label={item.label} target={item.target} />
+                        ))}
+                    </nav>
+                </div>
+                <div className="flex items-center gap-2">
+                     <div id="exchange-rate-portal"></div>
+                     <ThemeToggle />
+                    <div className="md:hidden">
+                        <MobileNavComponent />
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="sub-header-portal"></div>
+      </header>
+       <main className="flex-1 flex flex-col">
+            {children}
+        </main>
+    </div>
+  );
 }

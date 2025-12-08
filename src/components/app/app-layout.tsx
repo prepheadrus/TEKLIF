@@ -3,7 +3,7 @@
 
 import { useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
-import { Building, Home, Users, Package, FileText, Layers, BookCopy, Menu, HardHat, ClipboardCheck, Settings } from 'lucide-react';
+import { Building, Home, Users, Package, FileText, Layers, ClipboardList, Menu, HardHat, ClipboardCheck, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -18,7 +18,7 @@ const navItems = [
     { href: '/customers', label: 'Müşteriler', icon: Users, target: '/customers' },
     { href: '/products', label: 'Ürünler', icon: Package, target: '/products' },
     { href: '/installation-types', label: 'Kategoriler', icon: Layers, target: '/installation-types' },
-    { href: '/recipes', label: 'Reçeteler', icon: BookCopy, target: '/recipes' },
+    { href: '/templates', label: 'Şablonlar', icon: ClipboardList, target: '/templates' },
     { href: '/personnel', label: 'Ustalar', icon: HardHat, target: '/personnel' },
     { href: '/assignments', label: 'İş Atamaları', icon: ClipboardCheck, target: '/assignments' },
     { href: '/settings', label: 'Ayarlar', icon: Settings, target: '/settings' },
