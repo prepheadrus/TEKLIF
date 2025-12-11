@@ -50,6 +50,70 @@
       },
       "required": ["customerId", "content", "type", "authorId", "createdAt"]
     },
+    "LaborCost": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "LaborCost",
+      "type": "object",
+      "description": "Represents the cost of a specific type of labor.",
+      "properties": {
+        "role": {
+          "type": "string",
+          "description": "The name or role of the labor (e.g., Usta Yevmiye, Kaynak İşçiliği)."
+        },
+        "cost": {
+          "type": "number",
+          "description": "The cost for the specified unit of labor."
+        },
+        "unit": {
+          "type": "string",
+          "description": "The unit of measurement for the labor cost (e.g., Gün, Saat, İş)."
+        }
+      },
+      "required": [
+        "role",
+        "cost",
+        "unit"
+      ]
+    },
+    "Recipe": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Recipe",
+      "type": "object",
+      "description": "Defines the materials and labor required to produce a single unit of a product.",
+      "properties": {
+        "productId": {
+          "type": "string",
+          "description": "The ID of the product this recipe is for. (Links to a Product document)"
+        },
+        "recipeItems": {
+          "type": "array",
+          "description": "A list of materials and labor that make up the product.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "description": "The type of the item, either 'material' or 'labor'.",
+                "enum": ["material", "labor"]
+              },
+              "itemId": {
+                "type": "string",
+                "description": "The ID of the Product (acting as material) or LaborCost document."
+              },
+              "quantity": {
+                "type": "number",
+                "description": "The quantity of the material or the number of labor units."
+              }
+            },
+            "required": ["type", "itemId", "quantity"]
+          }
+        }
+      },
+      "required": [
+        "productId",
+        "recipeItems"
+      ]
+    },
     "Template": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Template",
@@ -432,6 +496,22 @@
         }
       },
       {
+        "path": "/labor_costs/{laborCostId}",
+        "definition": {
+          "entityName": "LaborCost",
+          "schema": { "$ref": "#/backend/entities/LaborCost" },
+          "description": "Represents the cost of labor for a specific role."
+        }
+      },
+      {
+        "path": "/recipes/{recipeId}",
+        "definition": {
+          "entityName": "Recipe",
+          "schema": { "$ref": "#/backend/entities/Recipe" },
+          "description": "Represents a recipe or bill of materials for a product."
+        }
+      },
+      {
         "path": "/templates/{templateId}",
         "definition": {
           "entityName": "Template",
@@ -528,6 +608,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is simplified by merging 'Materials' into 'Products'. Now, the `products` collection serves as the master list for all sellable or costed items. The `suppliers` collection remains to manage vendor information. The 'Recipe' and 'LaborCost' concepts have been replaced by a more flexible 'Template' system for creating reusable proposal structures."
+    "reasoning": "The Firestore structure is simplified by merging 'Materials' into 'Products'. Now, the `products` collection serves as the master list for all sellable or costed items. The `suppliers` collection remains to manage vendor information. The 'Recipe' and 'LaborCost' concepts have been added to support creating bill-of-materials style product assemblies."
   }
 }
