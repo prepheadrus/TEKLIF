@@ -145,8 +145,11 @@ export function ProductSelector({
     }
 
     if (searchTerm) {
-        const searchLower = searchTerm.toLocaleLowerCase('tr-TR');
-        products = products?.filter(p => p.name.toLocaleLowerCase('tr-TR').includes(searchLower) || p.brand.toLocaleLowerCase('tr-TR').includes(searchLower) || (p.model && p.model.toLocaleLowerCase('tr-TR').includes(searchLower)));
+        const searchTerms = searchTerm.toLocaleLowerCase('tr-TR').split(' ').filter(term => term.length > 0);
+        products = products?.filter(p => {
+            const productText = `${p.name} ${p.brand} ${p.model || ''}`.toLocaleLowerCase('tr-TR');
+            return searchTerms.every(term => productText.includes(term));
+        });
     }
     return products || [];
   }, [allProducts, searchTerm, selectedCategoryId, categoryDescendants]);
@@ -269,5 +272,3 @@ export function ProductSelector({
     </Dialog>
   );
 }
-
-    
