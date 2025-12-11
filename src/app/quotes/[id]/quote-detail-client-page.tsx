@@ -401,6 +401,11 @@ export function QuoteDetailClientPage() {
           }
       );
 
+      // Determine the net list price (VAT exclusive)
+      const netListPrice = product.priceIncludesVat
+        ? product.listPrice / (1 + product.vatRate)
+        : product.listPrice;
+
       if (existingItemIndex !== -1) {
           const existingItem = form.getValues(`items.${existingItemIndex}`);
           update(existingItemIndex, {
@@ -415,14 +420,14 @@ export function QuoteDetailClientPage() {
               model: product.model || '',
               unit: product.unit,
               quantity: 1,
-              listPrice: product.listPrice,
+              listPrice: netListPrice, // Use the calculated net price
               currency: product.currency,
               discountRate: product.discountRate || 0,
               profitMargin: 0.2, // Default 20%
               groupName: groupName,
               basePrice: product.basePrice,
               vatRate: product.vatRate,
-              priceIncludesVat: product.priceIncludesVat,
+              priceIncludesVat: false, // It's now always VAT-exclusive in the form
               orderIndex: fields.length,
           };
           append(newItem, { shouldFocus: false });
