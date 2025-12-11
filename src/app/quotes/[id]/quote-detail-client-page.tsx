@@ -423,7 +423,7 @@ export function QuoteDetailClientPage() {
               listPrice: netListPrice, // Use the calculated net price
               currency: product.currency,
               discountRate: product.discountRate || 0,
-              profitMargin: 0.2, // Default 20%
+              profitMargin: 0, // Default to 0
               groupName: groupName,
               basePrice: product.basePrice,
               vatRate: product.vatRate,
