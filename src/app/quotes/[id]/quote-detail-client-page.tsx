@@ -286,6 +286,35 @@ export function QuoteDetailClientPage() {
   const calculatedTotals = calculateAllTotals(watchedItems, watchedRates);
 
 
+  // --- Event Handlers ---
+  const handleFetchRates = async () => {
+    setIsFetchingRates(true);
+    toast({ title: 'Kurlar alınıyor...', description: 'TCMB\'den güncel veriler çekiliyor.' });
+    try {
+        const response = await fetch('/api/exchange-rates');
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.details || `API isteği başarısız oldu. Durum: ${response.status}`);
+        }
+        const rates = await response.json();
+        
+        if (rates.USD && rates.EUR) {
+            form.setValue('exchangeRates.USD', rates.USD, { shouldValidate: true, shouldDirty: true });
+            form.setValue('exchangeRates.EUR', rates.EUR, { shouldValidate: true, shouldDirty: true });
+            await form.trigger(['exchangeRates.USD', 'exchangeRates.EUR']);
+            toast({ title: 'Başarılı!', description: 'Döviz kurları güncellendi.' });
+        } else {
+            throw new Error("API'den geçerli kur verisi alınamadı.");
+        }
+    } catch (error: any) {
+        console.error("Döviz kuru API hatası:", error);
+        toast({ variant: 'destructive', title: 'Hata', description: `Kurlar alınamadı: ${error.message}` });
+    } finally {
+        setIsFetchingRates(false);
+    }
+  }
+
+
   // --- Effects ---
    useEffect(() => {
     setSubHeaderPortal(document.getElementById('sub-header-portal'));
@@ -321,31 +350,7 @@ export function QuoteDetailClientPage() {
 
   // Sayfa yüklendiğinde güncel kurları otomatik çek
   useEffect(() => {
-    const fetchInitialRates = async () => {
-      try {
-        const response = await fetch('/api/exchange-rates');
-        if (response.ok) {
-          const rates = await response.json();
-          if (rates.USD && rates.EUR) {
-            // Mevcut form değerleri ile karşılaştır, farklıysa güncelle
-            const currentUSD = form.getValues('exchangeRates.USD');
-            const currentEUR = form.getValues('exchangeRates.EUR');
-            
-            if (currentUSD !== rates.USD || currentEUR !== rates.EUR) {
-              form.setValue('exchangeRates.USD', rates.USD, { shouldDirty: false });
-              form.setValue('exchangeRates.EUR', rates.EUR, { shouldDirty: false });
-              console.log('Kurlar otomatik güncellendi:', rates);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Otomatik kur çekme hatası:', error);
-        // Hata durumunda sessizce devam et, mevcut değerleri koru
-      }
-    };
-
-    // Sadece component mount olduğunda çalıştır
-    fetchInitialRates();
+    handleFetchRates();
   }, []); // Boş dependency array = sadece ilk yüklemede çalışır
 
 
@@ -564,33 +569,6 @@ export function QuoteDetailClientPage() {
     setIsProductSelectorOpen(true);
   };
   
-  const handleFetchRates = async () => {
-    setIsFetchingRates(true);
-    toast({ title: 'Kurlar alınıyor...', description: 'TCMB\'den güncel veriler çekiliyor.' });
-    try {
-        const response = await fetch('/api/exchange-rates');
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.details || `API isteği başarısız oldu. Durum: ${response.status}`);
-        }
-        const rates = await response.json();
-        
-        if (rates.USD && rates.EUR) {
-            form.setValue('exchangeRates.USD', rates.USD, { shouldValidate: true, shouldDirty: true });
-            form.setValue('exchangeRates.EUR', rates.EUR, { shouldValidate: true, shouldDirty: true });
-            await form.trigger(['exchangeRates.USD', 'exchangeRates.EUR']);
-            toast({ title: 'Başarılı!', description: 'Döviz kurları güncellendi.' });
-        } else {
-            throw new Error("API'den geçerli kur verisi alınamadı.");
-        }
-    } catch (error: any) {
-        console.error("Döviz kuru API hatası:", error);
-        toast({ variant: 'destructive', title: 'Hata', description: `Kurlar alınamadı: ${error.message}` });
-    } finally {
-        setIsFetchingRates(false);
-    }
-  }
-
   const handlePrint = () => {
     if (!proposal) return;
     const url = `/quotes/${proposalId}/print?customerId=${proposal.customerId}`;
