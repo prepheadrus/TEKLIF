@@ -431,7 +431,6 @@ export function QuotesPageContent() {
             const templateItemsRef = collection(firestore, 'templates', values.templateId, 'template_items');
             const templateItemsSnap = await getDocs(templateItemsRef);
             
-            let totalAmount = 0;
             templateItemsSnap.docs.forEach((itemDoc, index) => {
                 const templateItem = itemDoc.data();
                 const product = products.find(p => p.id === templateItem.productId);
@@ -447,12 +446,13 @@ export function QuotesPageContent() {
                         unit: product.unit,
                         listPrice: product.listPrice,
                         currency: product.currency,
-                        discountRate: product.discountRate || 0,
-                        profitMargin: 0.2, // Default 20%
+                        discountRate: 0, // Set to 0 for new proposals
+                        profitMargin: 0, // Set to 0 for new proposals
                         basePrice: product.basePrice,
                         vatRate: product.vatRate,
                         priceIncludesVat: product.priceIncludesVat,
-                        orderIndex: index
+                        orderIndex: index,
+                        createdAt: serverTimestamp(),
                     });
                 }
             });
