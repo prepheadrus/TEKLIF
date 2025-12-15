@@ -241,18 +241,26 @@ export function CustomersPageContent() {
     return enrichedCustomers
       .filter(c => {
         const searchLower = searchTerm.toLocaleLowerCase('tr-TR');
-        const searchMatch = searchLower === '' ||
-            c.name.toLocaleLowerCase('tr-TR').includes(searchLower) ||
-            (c.email && c.email.toLocaleLowerCase('tr-TR').includes(searchLower)) ||
-            (c.phone && c.phone.includes(searchLower)) ||
-            (c.address?.city && c.address.city.toLocaleLowerCase('tr-TR').includes(searchLower)) ||
-            (c.address?.district && c.address.district.toLocaleLowerCase('tr-TR').includes(searchLower));
+        const searchTerms = searchLower.split(' ').filter(term => term.length > 0);
+
+        if (searchTerms.length > 0) {
+            const customerText = `
+                ${c.name} 
+                ${c.email || ''} 
+                ${c.phone || ''} 
+                ${c.address?.city || ''} 
+                ${c.address?.district || ''}
+            `.toLocaleLowerCase('tr-TR');
+
+            const isMatch = searchTerms.every(term => customerText.includes(term));
+            if (!isMatch) return false;
+        }
 
         const statusMatch = statusFilter.length === 0 || statusFilter.includes(c.status);
         const cityMatch = cityFilter.length === 0 || (c.address?.city && cityFilter.includes(c.address.city));
         const tagMatch = tagFilter.length === 0 || c.tags?.some(tag => tagFilter.includes(tag));
         
-        return searchMatch && statusMatch && cityMatch && tagMatch;
+        return statusMatch && cityMatch && tagMatch;
       })
       .sort((a, b) => {
         let aValue: any;
@@ -831,5 +839,3 @@ export function CustomersPageContent() {
 export default function CustomersPage() {
     return <CustomersPageContent />;
 }
-
-    

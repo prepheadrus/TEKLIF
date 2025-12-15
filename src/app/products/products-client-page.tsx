@@ -330,18 +330,18 @@ export function ProductsPageContent() {
     const filteredProducts = useMemo(() => {
         if (!products) return [];
         return products.filter(p => {
-            const searchLower = searchTerm.toLocaleLowerCase('tr-TR');
-            const searchMatch = searchLower === '' ||
-                p.name.toLocaleLowerCase('tr-TR').includes(searchLower) ||
-                p.code.toLocaleLowerCase('tr-TR').includes(searchLower) ||
-                p.brand.toLocaleLowerCase('tr-TR').includes(searchLower) ||
-                (p.model && p.model.toLocaleLowerCase('tr-TR').includes(searchLower));
+            const searchTerms = searchTerm.toLocaleLowerCase('tr-TR').split(' ').filter(term => term.length > 0);
+            if (searchTerms.length > 0) {
+                const productText = `${p.name} ${p.code} ${p.brand} ${p.model || ''}`.toLocaleLowerCase('tr-TR');
+                const isMatch = searchTerms.every(term => productText.includes(term));
+                if (!isMatch) return false;
+            }
 
             const supplierMatch = supplierFilter.length === 0 || (p.supplierId && supplierFilter.includes(p.supplierId));
             const brandMatch = brandFilter.length === 0 || brandFilter.includes(p.brand);
             const categoryMatch = categoryFilter.length === 0 || (p.installationTypeId && categoryFilter.includes(p.installationTypeId));
 
-            return searchMatch && supplierMatch && brandMatch && categoryMatch;
+            return supplierMatch && brandMatch && categoryMatch;
         });
     }, [products, searchTerm, supplierFilter, brandFilter, categoryFilter]);
 

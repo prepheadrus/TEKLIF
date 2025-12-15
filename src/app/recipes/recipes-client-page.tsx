@@ -139,10 +139,15 @@ export function RecipesPageContent() {
   const productsWithRecipeStatus = useMemo(() => {
     if (!products) return [];
     const recipeProductIds = new Set(recipes?.map(r => r.productId));
-    const searchLower = searchTerm.toLocaleLowerCase('tr-TR');
+    const searchTerms = searchTerm.toLocaleLowerCase('tr-TR').split(' ').filter(term => term.length > 0);
+
     return products
       .map(p => ({ ...p, hasRecipe: recipeProductIds.has(p.id) }))
-      .filter(p => p.name.toLocaleLowerCase('tr-TR').includes(searchLower) || p.brand.toLocaleLowerCase('tr-TR').includes(searchLower));
+      .filter(p => {
+        if (searchTerms.length === 0) return true;
+        const productText = `${p.name} ${p.brand}`.toLocaleLowerCase('tr-TR');
+        return searchTerms.every(term => productText.includes(term));
+      });
   }, [products, recipes, searchTerm]);
 
   const form = useForm<RecipeFormValues>({

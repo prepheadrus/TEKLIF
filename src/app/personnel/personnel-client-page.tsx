@@ -75,11 +75,13 @@ export function PersonnelPageContent() {
 
   const filteredPersonnel = useMemo(() => {
     if (!personnel) return [];
-    const searchLower = searchTerm.toLocaleLowerCase('tr-TR');
-    return personnel.filter(p =>
-      p.name.toLocaleLowerCase('tr-TR').includes(searchLower) ||
-      p.role.toLocaleLowerCase('tr-TR').includes(searchLower)
-    );
+    const searchTerms = searchTerm.toLocaleLowerCase('tr-TR').split(' ').filter(term => term.length > 0);
+    if (searchTerms.length === 0) return personnel;
+
+    return personnel.filter(p => {
+        const personnelText = `${p.name} ${p.role}`.toLocaleLowerCase('tr-TR');
+        return searchTerms.every(term => personnelText.includes(term));
+    });
   }, [personnel, searchTerm]);
 
   const handleOpenAddDialog = () => {

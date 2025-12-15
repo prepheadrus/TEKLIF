@@ -148,15 +148,17 @@ export function AssignmentsPageContent() {
   
   const filteredAssignments = useMemo(() => {
     return enrichedAssignments.filter(a => {
-        const searchLower = searchTerm.toLocaleLowerCase('tr-TR');
-        const searchMatch = searchLower === '' ||
-            a.projectName.toLocaleLowerCase('tr-TR').includes(searchLower) ||
-            a.customerName.toLocaleLowerCase('tr-TR').includes(searchLower) ||
-            a.personnelName.toLocaleLowerCase('tr-TR').includes(searchLower);
+        const searchTerms = searchTerm.toLocaleLowerCase('tr-TR').split(' ').filter(term => term.length > 0);
+
+        if (searchTerms.length > 0) {
+            const assignmentText = `${a.projectName} ${a.customerName} ${a.personnelName}`.toLocaleLowerCase('tr-TR');
+            const isMatch = searchTerms.every(term => assignmentText.includes(term));
+            if (!isMatch) return false;
+        }
 
         const statusMatch = statusFilter === 'All' || a.paymentStatus === statusFilter;
         
-        return searchMatch && statusMatch;
+        return statusMatch;
     })
   }, [enrichedAssignments, searchTerm, statusFilter]);
   

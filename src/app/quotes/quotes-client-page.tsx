@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -292,12 +293,12 @@ export function QuotesPageContent() {
     const ninetyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 90).getTime();
 
     return proposals.filter(p => {
-        const searchLower = searchTerm.toLocaleLowerCase('tr-TR');
-        const searchMatch = 
-            p.customerName.toLocaleLowerCase('tr-TR').includes(searchLower) ||
-            p.projectName.toLocaleLowerCase('tr-TR').includes(searchLower) ||
-            p.quoteNumber.toLocaleLowerCase('tr-TR').includes(searchLower);
-        if (!searchMatch) return false;
+        const searchTerms = searchTerm.toLocaleLowerCase('tr-TR').split(' ').filter(term => term.length > 0);
+        if (searchTerms.length > 0) {
+            const proposalText = `${p.customerName} ${p.projectName} ${p.quoteNumber}`.toLocaleLowerCase('tr-TR');
+            const isMatch = searchTerms.every(term => proposalText.includes(term));
+            if (!isMatch) return false;
+        }
 
         if (dateFilter !== 'all' && p.createdAt) {
             const proposalDate = p.createdAt.seconds * 1000;
@@ -328,12 +329,12 @@ export function QuotesPageContent() {
     const ninetyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 90).getTime();
 
     return groupedProposals.filter(g => {
-        const searchLower = searchTerm.toLocaleLowerCase('tr-TR');
-        const searchMatch = 
-            g.latestProposal.customerName.toLocaleLowerCase('tr-TR').includes(searchLower) ||
-            g.latestProposal.projectName.toLocaleLowerCase('tr-TR').includes(searchLower) ||
-            g.latestProposal.quoteNumber.toLocaleLowerCase('tr-TR').includes(searchLower);
-        if (!searchMatch) return false;
+        const searchTerms = searchTerm.toLocaleLowerCase('tr-TR').split(' ').filter(term => term.length > 0);
+        if (searchTerms.length > 0) {
+            const proposalText = `${g.latestProposal.customerName} ${g.latestProposal.projectName} ${g.latestProposal.quoteNumber}`.toLocaleLowerCase('tr-TR');
+            const isMatch = searchTerms.every(term => proposalText.includes(term));
+            if (!isMatch) return false;
+        }
 
         if (dateFilter !== 'all' && g.latestProposal.createdAt) {
             const proposalDate = g.latestProposal.createdAt.seconds * 1000;
