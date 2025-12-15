@@ -13,7 +13,7 @@ import dynamic from 'next/dynamic';
 const MobileNav = dynamic(() => import('@/components/app/app-layout').then(mod => mod.MobileNavComponent), { ssr: false });
 
 const navItems = [
-    { href: '/', label: 'Anasayfa', icon: Home, target: '/' },
+    { href: '/', label: 'Anasayfa', icon: Home, target: 'mechquote-main' },
     { href: '/quotes', label: 'Teklifler', icon: FileText, target: '/quotes' },
     { href: '/customers', label: 'Müşteriler', icon: Users, target: '/customers' },
     { href: '/products', label: 'Ürünler', icon: Package, target: '/products' },
@@ -31,7 +31,6 @@ const NavItem = ({ href, label, target }: { href: string, label: string, target:
 
     const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
         e.preventDefault();
-        // Check if a window with this target name already exists. If not, open it. If so, focus it.
         window.open(href, target); 
     }
 
@@ -69,7 +68,7 @@ export const MobileNavComponent = () => {
                 </Button>
             </SheetTrigger>
             <SheetContent side="left">
-                 <a href="/" onClick={(e) => handleLinkClick(e, '/', '/')} className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200 mb-8">
+                 <a href="/" onClick={(e) => handleLinkClick(e, '/', 'mechquote-main')} className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200 mb-8">
                     <Building className="h-6 w-6 text-primary" />
                     <span className="text-lg">MechQuote</span>
                 </a>
@@ -98,7 +97,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
         <div className="mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
                 <div className="flex items-center gap-8">
-                    <a href="/" onClick={(e) => { e.preventDefault(); window.open('/', '/'); }} className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200">
+                    <a href="/" onClick={(e) => { e.preventDefault(); window.open('/', 'mechquote-main'); }} className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200">
                         <Building className="h-6 w-6 text-primary" />
                         <span className="text-lg">MechQuote</span>
                     </a>
