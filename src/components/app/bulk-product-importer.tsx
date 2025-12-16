@@ -36,7 +36,7 @@ type Step = 'upload' | 'map' | 'review' | 'importing' | 'done';
 const productFields: { key: keyof Omit<Product, 'id' | 'installationTypeId' | 'basePrice'> | 'supplierName' | 'installationCategoryName'; label: string, required: boolean, description?: string }[] = [
     { key: 'code', label: 'Ürün Kodu', required: true, description: "Her ürün için benzersiz bir kod (SKU)." },
     { key: 'name', label: 'Ürün Adı', required: true, description: "Ürünün tam ve açıklayıcı adı." },
-    { key: 'brand', label: 'Marka', required: true, description: "Ürünün markası." },
+    { key: 'brand', label: 'Marka', required: false, description: "Ürünün markası." },
     { key: 'model', label: 'Model', required: false, description: "Ürünün spesifik model numarası veya adı (isteğe bağlı)." },
     { key: 'unit', label: 'Birim', required: true, description: "Örn: Adet, Metre, Kg, Set." },
     { key: 'listPrice', label: 'Liste Fiyatı (Tedarikçi)', required: false, description: "Tedarikçinin KDV hariç liste fiyatı. Maliyet hesaplaması için kullanılır." },
@@ -235,6 +235,7 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
             newProduct.vatRate = newProduct.vatRate ?? 0.20;
             newProduct.priceIncludesVat = newProduct.priceIncludesVat ?? false;
             newProduct.category = newProduct.category || 'Genel';
+            newProduct.brand = newProduct.brand || '';
             newProduct.model = newProduct.model || '';
 
             // Calculate basePrice (cost) from list price and discount
@@ -454,4 +455,3 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
     </Dialog>
   );
 }
-
