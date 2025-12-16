@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -39,6 +40,7 @@ import {
     TrendingUp,
     Tags,
     DollarSign,
+    Copy,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase, deleteDocumentNonBlocking } from '@/firebase';
@@ -206,6 +208,7 @@ export function ProductsPageContent() {
   const [isImporterOpen, setIsImporterOpen] = useState(false);
   const [analytics, setAnalytics] = useState<ProductAnalytics | null>(null);
   const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(true);
+  const [isCopyMode, setIsCopyMode] = useState(false);
 
   // --- Data Fetching ---
   const productsQuery = useMemoFirebase(
@@ -360,13 +363,21 @@ export function ProductsPageContent() {
   // --- Event Handlers ---
   const handleOpenAddDialog = () => {
     setEditingProduct(null);
+    setIsCopyMode(false);
     setIsDialogOpen(true);
   };
 
   const handleOpenEditDialog = (product: Product) => {
     setEditingProduct(product);
+    setIsCopyMode(false);
     setIsDialogOpen(true);
   };
+
+  const handleOpenCopyDialog = (product: Product) => {
+    setEditingProduct(product);
+    setIsCopyMode(true);
+    setIsDialogOpen(true);
+  }
 
   const handleDeleteProduct = (productId: string) => {
     if (!firestore) return;
@@ -705,6 +716,10 @@ export function ProductsPageContent() {
                             <Edit />
                             Düzenle
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleOpenCopyDialog(product)}>
+                            <Copy />
+                            Kopyala
+                          </DropdownMenuItem>
                            <DropdownMenuItem disabled>
                             <DollarSign />
                             Fiyat Güncelle
@@ -765,6 +780,7 @@ export function ProductsPageContent() {
             refetchProducts();
         }}
         existingProduct={editingProduct}
+        isCopyMode={isCopyMode}
       />
       <BulkProductImporter
         isOpen={isImporterOpen}
@@ -776,3 +792,4 @@ export function ProductsPageContent() {
     </div>
   );
 }
+

@@ -56,6 +56,7 @@ interface QuickAddProductProps {
     onOpenChange: (open: boolean) => void;
     onSuccess?: () => void;
     existingProduct?: Product | null;
+    isCopyMode?: boolean;
 }
 
 type InstallationType = {
@@ -92,7 +93,7 @@ const buildCategoryTree = (categories: InstallationType[]): { id: string; name: 
     return flattenedList;
 };
 
-export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProduct }: QuickAddProductProps) {
+export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProduct, isCopyMode }: QuickAddProductProps) {
   const { toast } = useToast();
   const firestore = useFirestore();
 
@@ -139,7 +140,7 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
   useEffect(() => {
     if (isOpen) {
         if (existingProduct) {
-            form.reset({
+            const formData = {
                 ...existingProduct,
                 listPrice: existingProduct.listPrice ?? 0,
                 basePrice: existingProduct.basePrice ?? 0,
@@ -151,7 +152,12 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
                 brochureUrl: existingProduct.brochureUrl || '',
                 vatRate: existingProduct.vatRate ?? 0.20,
                 priceIncludesVat: existingProduct.priceIncludesVat ?? false
-            });
+            };
+            if (isCopyMode) {
+                formData.code = `${existingProduct.code}-KOPYA`; // Suggest a new code
+                formData.name = `${existingProduct.name} (Kopya)`;
+            }
+            form.reset(formData);
         } else {
             form.reset({
                 code: "", name: "", brand: "", model: "", category: "Genel", installationTypeId: null, unit: "Adet",
@@ -161,7 +167,7 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
             });
         }
     }
-  }, [isOpen, existingProduct, form]);
+  }, [isOpen, existingProduct, isCopyMode, form]);
 
   const onSubmit = async (values: ProductFormValues) => {
     if (!firestore) {
@@ -180,7 +186,7 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
     };
     
     try {
-        if (existingProduct) {
+        if (existingProduct && !isCopyMode) {
             const productDocRef = doc(firestore, 'products', existingProduct.id);
             setDocumentNonBlocking(productDocRef, dataToSave, { merge: true });
             toast({ title: "Başarılı", description: "Ürün başarıyla güncellendi." });
@@ -197,15 +203,26 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
     }
   };
 
-  const isEditMode = !!existingProduct;
+  const isEditMode = !!existingProduct && !isCopyMode;
+  
+  let dialogTitle = 'Yeni Ürün/Malzeme Ekle';
+  let dialogDescription = 'Sisteme yeni bir ürün, malzeme veya hizmet ekleyin.';
+  if(isEditMode) {
+    dialogTitle = 'Ürünü Düzenle';
+    dialogDescription = 'Ürün bilgilerini güncelleyin.';
+  } else if(isCopyMode) {
+      dialogTitle = 'Ürünü Kopyala';
+      dialogDescription = 'Bu ürünü kopyalayarak yeni bir ürün oluşturun. Benzersiz bir ürün kodu girdiğinizden emin olun.';
+  }
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>{isEditMode ? 'Ürünü Düzenle' : 'Yeni Ürün/Malzeme Ekle'}</DialogTitle>
+          <DialogTitle>{dialogTitle}</DialogTitle>
           <DialogDescription>
-             {isEditMode ? 'Ürün bilgilerini güncelleyin.' : 'Sisteme yeni bir ürün, malzeme veya hizmet ekleyin.'}
+             {dialogDescription}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
