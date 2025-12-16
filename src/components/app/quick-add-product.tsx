@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useMemo } from 'react';
@@ -153,10 +154,6 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
                 vatRate: existingProduct.vatRate ?? 0.20,
                 priceIncludesVat: existingProduct.priceIncludesVat ?? false
             };
-            if (isCopyMode) {
-                formData.code = `${existingProduct.code}-KOPYA`;
-                formData.name = `${existingProduct.name} (Kopya)`;
-            }
             form.reset(formData);
         } else {
             form.reset({

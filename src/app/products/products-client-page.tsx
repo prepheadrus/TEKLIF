@@ -373,8 +373,45 @@ export function ProductsPageContent() {
     setIsDialogOpen(true);
   };
 
-  const handleOpenCopyDialog = (product: Product) => {
-    setEditingProduct(product);
+  const handleOpenCopyDialog = (productToCopy: Product) => {
+    if (!products) return;
+
+    // Base code is the part before a potential trailing number, e.g., "CODE-A" from "CODE-A-10"
+    const baseCodeMatch = productToCopy.code.match(/^(.*?)(\d*)$/);
+    let baseCode = productToCopy.code;
+    if (baseCodeMatch) {
+        // Check if the original code ends with a number separated by a hyphen
+        const lastPart = productToCopy.code.split('-').pop();
+        if (!isNaN(Number(lastPart))) {
+            baseCode = productToCopy.code.substring(0, productToCopy.code.lastIndexOf('-'));
+        }
+    }
+    
+    // Find all existing codes that start with the base code + hyphen
+    const regex = new RegExp(`^${baseCode}-?(\\d+)$`);
+    let maxNum = 0;
+
+    products.forEach(p => {
+        const match = p.code.match(regex);
+        if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > maxNum) {
+                maxNum = num;
+            }
+        }
+    });
+
+    const newCodeNumber = maxNum + 1;
+    const newCode = `${baseCode}-${newCodeNumber}`;
+    const newName = `${productToCopy.name.replace(/\(Kopya \d+\)$/, '').trim()} (Kopya ${newCodeNumber})`;
+
+    const copiedProduct = {
+      ...productToCopy,
+      code: newCode,
+      name: newName,
+    };
+
+    setEditingProduct(copiedProduct);
     setIsCopyMode(true);
     setIsDialogOpen(true);
   }
