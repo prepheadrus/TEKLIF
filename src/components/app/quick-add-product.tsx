@@ -154,7 +154,7 @@ export function QuickAddProduct({ isOpen, onOpenChange, onSuccess, existingProdu
                 priceIncludesVat: existingProduct.priceIncludesVat ?? false
             };
             if (isCopyMode) {
-                formData.code = `${existingProduct.code}-KOPYA`; // Suggest a new code
+                formData.code = `${existingProduct.code}-KOPYA`;
                 formData.name = `${existingProduct.name} (Kopya)`;
             }
             form.reset(formData);

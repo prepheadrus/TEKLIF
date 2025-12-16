@@ -792,4 +792,3 @@ export function ProductsPageContent() {
     </div>
   );
 }
-
