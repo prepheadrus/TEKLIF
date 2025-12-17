@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
@@ -23,7 +24,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, doc, writeBatch, query, where, getDocs } from 'firebase/firestore';
+import { collection, doc, writeBatch, query, where, getDocs, DocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { FileUp, TableProperties, CheckCircle, ArrowRight, Loader2, Info, Download } from 'lucide-react';
 import { ScrollArea } from '../ui/scroll-area';
@@ -148,11 +149,21 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
             return;
         }
 
-        // Fetch existing products to check for updates
+        // Fetch existing products in chunks to avoid the 30-value limit
         const productCodesFromExcel = parsedData.map(row => row[columnMapping['code']]).filter(Boolean);
-        const existingProductsQuery = query(productsCollection, where('code', 'in', productCodesFromExcel));
-        const existingProductsSnap = await getDocs(existingProductsQuery);
-        const existingProductsMap = new Map(existingProductsSnap.docs.map(doc => [doc.data().code, doc.id]));
+        const existingProductsMap = new Map<string, string>();
+        const chunkSize = 30;
+
+        for (let i = 0; i < productCodesFromExcel.length; i += chunkSize) {
+            const chunk = productCodesFromExcel.slice(i, i + chunkSize);
+            if (chunk.length > 0) {
+                const existingProductsQuery = query(productsCollection, where('code', 'in', chunk));
+                const existingProductsSnap = await getDocs(existingProductsQuery);
+                existingProductsSnap.docs.forEach(doc => {
+                    existingProductsMap.set(doc.data().code, doc.id);
+                });
+            }
+        }
 
         const supplierNameToIdMap = new Map(suppliers?.map(s => [s.name.toLowerCase(), s.id]));
         
