@@ -148,6 +148,12 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
             return;
         }
 
+        // Fetch existing products to check for updates
+        const productCodesFromExcel = parsedData.map(row => row[columnMapping['code']]).filter(Boolean);
+        const existingProductsQuery = query(productsCollection, where('code', 'in', productCodesFromExcel));
+        const existingProductsSnap = await getDocs(existingProductsQuery);
+        const existingProductsMap = new Map(existingProductsSnap.docs.map(doc => [doc.data().code, doc.id]));
+
         const supplierNameToIdMap = new Map(suppliers?.map(s => [s.name.toLowerCase(), s.id]));
         
         const categoryPathToIdMap = new Map<string, string>();
@@ -168,9 +174,8 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
         
 
         for (const row of parsedData) {
-            const productDocRef = doc(productsCollection);
-            const newProduct: any = {};
-
+            const productData: any = {};
+            
             // Map standard fields
             for (const field of productFields) {
                 const excelHeader = columnMapping[field.key];
@@ -194,12 +199,12 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
                     if (field.key === 'supplierName') {
                       const supplierName = String(value).toLowerCase().trim();
                       if (supplierNameToIdMap.has(supplierName)) {
-                          newProduct['supplierId'] = supplierNameToIdMap.get(supplierName);
+                          productData['supplierId'] = supplierNameToIdMap.get(supplierName);
                       } else {
                           const newSupplierRef = doc(suppliersCollection);
                           batch.set(newSupplierRef, { name: String(value).trim() });
                           supplierNameToIdMap.set(supplierName, newSupplierRef.id);
-                          newProduct['supplierId'] = newSupplierRef.id;
+                          productData['supplierId'] = newSupplierRef.id;
                       }
                     } else if (field.key === 'installationCategoryName') {
                         const categoryHierarchy = String(value).split('>').map(s => s.trim());
@@ -220,9 +225,9 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
                                 parentId = newCategoryRef.id;
                             }
                         }
-                        newProduct['installationTypeId'] = parentId;
+                        productData['installationTypeId'] = parentId;
                     } else {
-                      newProduct[field.key] = value;
+                      productData[field.key] = value;
                     }
                 } else if(field.required) {
                     throw new Error(`'${field.label}' alanı için veri bulunamadı. Lütfen eşleştirmeyi kontrol edin veya dosyanıza sütun ekleyin.`);
@@ -230,21 +235,32 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
             }
             
             // Set defaults and calculate basePrice
-            newProduct.listPrice = newProduct.listPrice ?? 0;
-            newProduct.discountRate = newProduct.discountRate ?? 0;
-            newProduct.vatRate = newProduct.vatRate ?? 0.20;
-            newProduct.priceIncludesVat = newProduct.priceIncludesVat ?? false;
-            newProduct.category = newProduct.category || 'Genel';
-            newProduct.brand = newProduct.brand || '';
-            newProduct.model = newProduct.model || '';
+            productData.listPrice = productData.listPrice ?? 0;
+            productData.discountRate = productData.discountRate ?? 0;
+            productData.vatRate = productData.vatRate ?? 0.20;
+            productData.priceIncludesVat = productData.priceIncludesVat ?? false;
+            productData.category = productData.category || 'Genel';
+            productData.brand = productData.brand || '';
+            productData.model = productData.model || '';
 
             // Calculate basePrice (cost) from list price and discount
-            const netListPrice = newProduct.priceIncludesVat
-              ? newProduct.listPrice / (1 + newProduct.vatRate)
-              : newProduct.listPrice;
-            newProduct.basePrice = netListPrice * (1 - newProduct.discountRate);
+            const netListPrice = productData.priceIncludesVat
+              ? productData.listPrice / (1 + productData.vatRate)
+              : productData.listPrice;
+            productData.basePrice = netListPrice * (1 - productData.discountRate);
+            
+            const productCode = productData.code;
+            const existingProductId = existingProductsMap.get(productCode);
 
-            batch.set(productDocRef, newProduct);
+            if (existingProductId) {
+                // Update existing product
+                const productDocRef = doc(productsCollection, existingProductId);
+                batch.update(productDocRef, productData);
+            } else {
+                // Create new product
+                const productDocRef = doc(productsCollection);
+                batch.set(productDocRef, productData);
+            }
         }
 
         await batch.commit();
@@ -382,7 +398,7 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
             <div className="flex flex-col items-center justify-center h-full p-8 text-center">
                 <CheckCircle className="w-16 h-16 text-green-500 mb-6" />
                 <h3 className="text-2xl font-bold mb-2">İçeri Aktarma Başarılı!</h3>
-                <p className="text-muted-foreground">{parsedData.length} ürün başarıyla veritabanına eklendi.</p>
+                <p className="text-muted-foreground">{parsedData.length} ürün başarıyla işlendi (Yeni eklendi veya güncellendi).</p>
             </div>
         )
       default:
@@ -403,7 +419,7 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
              return (
                 <DialogFooter>
                     <Button variant="outline" onClick={() => setStep('map')}>Geri Dön</Button>
-                    <Button onClick={handleImport}>İçeri Aktar</Button>
+                    <Button onClick={handleImport}>İçeri Aktar ve Güncelle</Button>
                 </DialogFooter>
             )
         case 'done':
@@ -444,7 +460,7 @@ export function BulkProductImporter({ isOpen, onOpenChange, onSuccess }: { isOpe
             {step === 'review' && <CheckCircle className="h-6 w-6" />}
             {getDialogTitle()}
           </DialogTitle>
-           {step !== 'importing' && step !== 'done' && <DialogDescription>Excel dosyanızdaki ürünleri sisteme hızlıca aktarın.</DialogDescription>}
+           {step !== 'importing' && step !== 'done' && <DialogDescription>Excel dosyanızdaki ürünleri sisteme hızlıca aktarın veya mevcut ürünleri güncelleyin.</DialogDescription>}
         </DialogHeader>
         <div className="flex-1 overflow-auto -mx-6 px-6 border-y">
             {renderContent()}
