@@ -51,7 +51,7 @@ export function useDoc<T = any>(
   const [refreshToggle, setRefreshToggle] = useState(false);
   const { isUserLoading } = useUser(); // Get user loading state
 
-  const isLoading = isUserLoading || (!data && !error);
+  const isLoading = isUserLoading || (data === null && error === null);
   
   const refetch = useCallback(() => {
     setRefreshToggle(prev => !prev);
@@ -66,6 +66,8 @@ export function useDoc<T = any>(
       return;
     }
 
+    // Reset state on new ref
+    setData(null);
     setError(null);
 
     const unsubscribe = onSnapshot(
@@ -75,9 +77,9 @@ export function useDoc<T = any>(
           setData({ ...(snapshot.data() as T), id: snapshot.id });
         } else {
           // Document does not exist
-          setData(null);
+          setData(null); // Explicitly set to null if not found
+          setError(new Error("Document does not exist.")); // Set an error to stop loading state
         }
-        setError(null); // Clear any previous error on successful snapshot (even if doc doesn't exist)
       },
       (error: FirestoreError) => {
         const contextualError = new FirestorePermissionError({
