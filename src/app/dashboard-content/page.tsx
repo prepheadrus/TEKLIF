@@ -551,7 +551,7 @@ export function DashboardContent() {
                                       <span className="text-sm text-muted-foreground">Toplam Gelir</span>
                                       <span className="font-bold text-lg text-green-600">{formatCurrency(product.totalRevenue)}</span>
                                   </div>
-                                  <Button variant="outline" size="sm" className="mt-2" onClick={() => router.push(`/products/${product.id}`)}>Detay</Button>
+                                  <Button variant="outline" size="sm" className="mt-2" onClick={() => window.open(`/products/${product.id}`, '/products')}>Detay</Button>
                               </CardContent>
                           </Card>
                       ))}
@@ -617,7 +617,7 @@ export function DashboardContent() {
                       </TableHeader>
                       <TableBody>
                           {recentProposals.map(p => (
-                              <TableRow key={p.id} className="cursor-pointer" onClick={() => router.push(`/quotes/${p.id}`)}>
+                              <TableRow key={p.id} className="cursor-pointer" onClick={() => window.open(`/quotes/${p.id}`, '/quotes')}>
                                   <TableCell>
                                       <div className="font-medium">{p.customerName}</div>
                                   </TableCell>
@@ -654,4 +654,6 @@ export default function DashboardContentPage() {
     return <DashboardContent />;
 }
     
+    
+
     

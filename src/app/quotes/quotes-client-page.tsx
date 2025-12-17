@@ -464,7 +464,7 @@ export function QuotesPageContent() {
         toast({ title: "Başarılı!", description: "Yeni teklif taslağı oluşturuldu." });
         setIsDialogOpen(false);
         form.reset();
-        window.open(`/quotes/${newProposalRef.id}`, `/quotes/${newProposalRef.id}`);
+        window.open(`/quotes/${newProposalRef.id}`, '/quotes');
 
     } catch (error: any) {
         console.error("Teklif oluşturma hatası:", error);
@@ -515,7 +515,7 @@ export function QuotesPageContent() {
         await batch.commit();
 
         toast({ title: "Başarılı!", description: `Teklif revize edildi. Yeni versiyon: v${latestVersionNumber + 1}` });
-        window.open(`/quotes/${newProposalRef.id}`, `/quotes/${newProposalRef.id}`);
+        window.open(`/quotes/${newProposalRef.id}`, '/quotes');
 
     } catch (error: any) {
         console.error("Teklif revizyon hatası:", error);
@@ -737,7 +737,7 @@ export function QuotesPageContent() {
 
     const handleViewClick = (e: React.MouseEvent, id: string) => {
         e.preventDefault();
-        window.open(`/quotes/${id}`, `/quotes/${id}`);
+        window.open(`/quotes/${id}`, `/quotes`);
     }
 
 
@@ -1100,7 +1100,7 @@ export function QuotesPageContent() {
                                                                         </Button>
                                                                     )}
                                                                     <Button variant="ghost" size="sm" onClick={(e) => handleViewClick(e, v.id)}>Görüntüle</Button>
-                                                                    <Button variant="ghost" size="sm" onClick={(e) => {e.preventDefault(); window.open(`/quotes/${v.id}/print?customerId=${v.customerId}`, `print_${v.id}`)}}>Yazdır</Button>
+                                                                    <Button variant="ghost" size="sm" onClick={(e) => {e.preventDefault(); window.open(`/quotes/${v.id}/print?customerId=${v.customerId}`, `/quotes/${v.id}/print`)}}>Yazdır</Button>
                                                                     <Button variant="outline" size="sm" onClick={() => handleDuplicateProposal(v)} disabled={isRevising === group.rootProposalId}><Copy className="mr-2 h-3 w-3"/>Revize Et</Button>
                                                                     
                                                                     <AlertDialog>
@@ -1222,3 +1222,5 @@ export function QuotesPageContent() {
     </div>
   );
 }
+
+    

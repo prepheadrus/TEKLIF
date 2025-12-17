@@ -234,7 +234,7 @@ export function PrintQuoteClientPage() {
     return (
         <div data-print-page>
             <div className="fixed top-4 right-4 z-50 print:hidden no-print flex items-center gap-2">
-                <Button variant="outline" onClick={() => router.back()}>
+                <Button variant="outline" onClick={() => window.open(`/quotes/${proposalId}`, '/quotes')}>
                     <ChevronLeft className="mr-2 h-4 w-4" />
                     Teklife Geri Dön
                 </Button>
@@ -268,3 +268,5 @@ export function PrintQuoteClientPage() {
         </div>
     );
 }
+
+    
