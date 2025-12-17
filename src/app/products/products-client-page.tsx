@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Table,
@@ -41,6 +41,7 @@ import {
     Tags,
     DollarSign,
     Copy,
+    Download,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase, deleteDocumentNonBlocking } from '@/firebase';
@@ -53,6 +54,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { BulkProductImporter } from '@/components/app/bulk-product-importer';
 import { Skeleton } from '@/components/ui/skeleton';
 import { calculateItemTotals } from '@/lib/pricing';
+import * as XLSX from 'xlsx';
 
 // Combined type for a product/material
 export type Product = {
@@ -380,15 +382,21 @@ export function ProductsPageContent() {
     const baseCodeMatch = productToCopy.code.match(/^(.*?)(\d*)$/);
     let baseCode = productToCopy.code;
     if (baseCodeMatch) {
-        // Check if the original code ends with a number separated by a hyphen
+        // Check if the original code ends with a number separated by a hyphen or just a number
         const lastPart = productToCopy.code.split('-').pop();
         if (!isNaN(Number(lastPart))) {
-            baseCode = productToCopy.code.substring(0, productToCopy.code.lastIndexOf('-'));
+             baseCode = productToCopy.code.substring(0, productToCopy.code.lastIndexOf('-'));
+        } else {
+            // It might be just a number at the end, without a hyphen
+            const match = productToCopy.code.match(/^(.*?)(\d+)$/);
+            if (match) {
+                baseCode = match[1];
+            }
         }
     }
     
-    // Find all existing codes that start with the base code + hyphen
-    const regex = new RegExp(`^${baseCode}-?(\\d+)$`);
+    // Find all existing codes that start with the base code
+    const regex = new RegExp(`^${baseCode.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}-?(\\d+)$`);
     let maxNum = 0;
 
     products.forEach(p => {
@@ -448,6 +456,39 @@ export function ProductsPageContent() {
         toast({variant: 'destructive', title: 'Hata', description: `Ürünler silinemedi: ${error.message}`});
     }
   };
+
+  const handleExportToExcel = useCallback(() => {
+    if (!products || !suppliers || !installationTypes) {
+        toast({
+            variant: 'destructive',
+            title: 'Veri Eksik',
+            description: 'Dışa aktarma için tüm ürün verileri henüz yüklenmedi.'
+        });
+        return;
+    }
+
+    const dataToExport = products.map(p => ({
+        'Ürün Kodu': p.code,
+        'Ürün Adı': p.name,
+        'Marka': p.brand,
+        'Model': p.model,
+        'Birim': p.unit,
+        'Liste Fiyatı (Tedarikçi)': p.listPrice,
+        'İskonto Oranı (%)': (p.discountRate || 0) * 100,
+        'Para Birimi': p.currency,
+        'KDV Oranı (%)': (p.vatRate || 0) * 100,
+        'Fiyatlara KDV Dahil mi?': p.priceIncludesVat ? 'EVET' : 'HAYIR',
+        'Tedarikçi Adı': p.supplierId ? supplierMap.get(p.supplierId) : '',
+        'Genel Kategori': p.category,
+        'Tesisat Kategorisi Adı': p.installationTypeId ? categoryNameMap.get(p.installationTypeId) : '',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Ürünler");
+    XLSX.writeFile(wb, "urunler.xlsx");
+
+  }, [products, suppliers, installationTypes, supplierMap, categoryNameMap, toast]);
   
   const toggleAllSelection = (isChecked: boolean) => {
     if (!filteredProducts) return;
@@ -509,6 +550,10 @@ export function ProductsPageContent() {
           <p className="text-muted-foreground">Tekliflerinizde kullandığınız tüm ürün, malzeme ve hizmetleri yönetin.</p>
         </div>
         <div className="flex items-center space-x-2">
+            <Button onClick={handleExportToExcel} variant="outline" disabled={!products || products.length === 0}>
+                <Download className="mr-2 h-4 w-4" />
+                Tümünü Excel'e Aktar
+            </Button>
             <Button onClick={() => setIsImporterOpen(true)} variant="outline">
               <UploadCloud className="mr-2 h-4 w-4" />
               Excel ile Ürün Yükle
