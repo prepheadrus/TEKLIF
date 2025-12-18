@@ -70,6 +70,10 @@ type Customer = {
   name: string;
   email?: string;
   phone?: string;
+  address?: {
+    city?: string;
+    district?: string;
+  };
 };
 
 export type Proposal = {
@@ -207,12 +211,21 @@ export function QuotesPageContent() {
   const filteredCustomers = useMemo(() => {
     if (!customers) return [];
     if (!customerSearchTerm) return customers;
-    const searchLower = customerSearchTerm.toLowerCase();
-    return customers.filter(c => 
-        c.name.toLowerCase().includes(searchLower) ||
-        c.email?.toLowerCase().includes(searchLower) ||
-        c.phone?.includes(searchLower)
-    );
+
+    const searchTerms = customerSearchTerm.toLocaleLowerCase('tr-TR').split(' ').filter(Boolean);
+    if (searchTerms.length === 0) return customers;
+
+    return customers.filter(c => {
+      const customerText = `
+        ${c.name} 
+        ${c.email || ''} 
+        ${c.phone || ''}
+        ${c.address?.city || ''}
+        ${c.address?.district || ''}
+      `.toLocaleLowerCase('tr-TR');
+
+      return searchTerms.every(term => customerText.includes(term));
+    });
   }, [customers, customerSearchTerm]);
 
 
