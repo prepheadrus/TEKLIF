@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { PlusCircle, MoreHorizontal, Copy, Trash2, Loader2, Search, ChevronDown, Eye, AlertTriangle, FileText, DollarSign, Calculator, CheckSquare, X, FileSpreadsheet, ChevronLeft, ChevronRight, HardHat, ClipboardList } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Copy, Trash2, Loader2, Search, ChevronDown, Eye, AlertTriangle, FileText, DollarSign, Calculator, CheckSquare, X, FileSpreadsheet, ChevronLeft, ChevronRight, HardHat, ClipboardList, Mail, Phone } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Badge } from '@/components/ui/badge';
@@ -54,6 +54,7 @@ import { AssignJobDialog } from '@/components/app/assign-job-dialog';
 import type { Personnel } from '@/app/personnel/personnel-client-page';
 import type { Template } from '@/app/templates/templates-client-page';
 import type { Product } from '@/app/products/products-client-page';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 
 const newQuoteSchema = z.object({
@@ -181,6 +182,8 @@ export function QuotesPageContent() {
   const [isAssignJobDialogOpen, setIsAssignJobDialogOpen] = useState(false);
   const [proposalToAssign, setProposalToAssign] = useState<Proposal | null>(null);
   const [templateForNewQuote, setTemplateForNewQuote] = useState<Template | null>(null);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
 
 
   const form = useForm<NewQuoteFormValues>({
@@ -200,6 +203,18 @@ export function QuotesPageContent() {
   
   const customersRef = useMemoFirebase(() => (firestore ? collection(firestore, 'customers') : null), [firestore]);
   const { data: customers, isLoading: isLoadingCustomers } = useCollection<Customer>(customersRef);
+
+  const filteredCustomers = useMemo(() => {
+    if (!customers) return [];
+    if (!customerSearchTerm) return customers;
+    const searchLower = customerSearchTerm.toLowerCase();
+    return customers.filter(c => 
+        c.name.toLowerCase().includes(searchLower) ||
+        c.email?.toLowerCase().includes(searchLower) ||
+        c.phone?.includes(searchLower)
+    );
+  }, [customers, customerSearchTerm]);
+
 
   const jobAssignmentsRef = useMemoFirebase(() => (firestore ? collection(firestore, 'job_assignments') : null), [firestore]);
   const { data: jobAssignments, isLoading: isLoadingAssignments, refetch: refetchAssignments } = useCollection<JobAssignment>(jobAssignmentsRef);
@@ -230,6 +245,18 @@ export function QuotesPageContent() {
     setSelectedIds(new Set());
     setCurrentPage(1); // Reset page on filter change
   }, [statusFilter, dateFilter, searchTerm, sortOrder]);
+
+  useEffect(() => {
+    if (isDialogOpen) {
+      setCustomerSearchTerm('');
+      setSelectedCustomerId(null);
+      form.reset({ customerId: '', projectName: '', templateId: templateForNewQuote?.id || '' });
+    }
+  }, [isDialogOpen, templateForNewQuote, form]);
+  
+  useEffect(() => {
+    form.setValue('customerId', selectedCustomerId || '');
+  }, [selectedCustomerId, form]);
 
 
   const groupedProposals = useMemo((): ProposalGroup[] => {
@@ -383,7 +410,6 @@ export function QuotesPageContent() {
 
   const handleOpenNewQuoteDialog = (template?: Template) => {
     setTemplateForNewQuote(template || null);
-    form.setValue('templateId', template?.id || '');
     setIsDialogOpen(true);
   };
 
@@ -765,7 +791,7 @@ export function QuotesPageContent() {
                   Yeni Teklif Oluştur
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="sm:max-w-xl">
                  <Form {...form}>
                     <form onSubmit={form.handleSubmit(handleCreateNewQuote)} className="space-y-4">
                         <DialogHeader>
@@ -775,37 +801,47 @@ export function QuotesPageContent() {
                           </DialogDescription>
                         </DialogHeader>
 
-                        <FormField
-                            control={form.control}
-                            name="customerId"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Müşteri</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                    <FormControl>
-                                    <SelectTrigger disabled={isLoadingCustomers}>
-                                        <SelectValue placeholder={isLoadingCustomers ? "Müşteriler yükleniyor..." : "Bir müşteri seçin"} />
-                                    </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                    {customers?.map((customer) => (
-                                        <SelectItem key={customer.id} value={customer.id}>
-                                            <div className="flex flex-col">
-                                                <span className="font-semibold">{customer.name}</span>
-                                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                    {customer.email && <span>{customer.email}</span>}
-                                                    {customer.email && customer.phone && <span>|</span>}
-                                                    {customer.phone && <span>{customer.phone}</span>}
-                                                </div>
-                                            </div>
-                                        </SelectItem>
-                                    ))}
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                        <div className="space-y-2">
+                            <FormLabel htmlFor="customer-search">Müşteri</FormLabel>
+                            <div className="relative">
+                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input 
+                                    id="customer-search"
+                                    placeholder="Müşteri adı, e-posta veya telefon ara..." 
+                                    className="pl-8"
+                                    value={customerSearchTerm}
+                                    onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                                />
+                            </div>
+                             <ScrollArea className="h-48 rounded-md border">
+                                <div className="p-2 space-y-1">
+                                {isLoadingCustomers ? (
+                                    <div className="text-center p-4 text-muted-foreground">Müşteriler yükleniyor...</div>
+                                ) : filteredCustomers.length > 0 ? (
+                                    filteredCustomers.map(customer => (
+                                    <div 
+                                        key={customer.id} 
+                                        onClick={() => setSelectedCustomerId(customer.id)}
+                                        className={cn(
+                                            "p-2 rounded-md cursor-pointer hover:bg-accent",
+                                            selectedCustomerId === customer.id && "bg-primary text-primary-foreground hover:bg-primary/90"
+                                        )}
+                                    >
+                                        <div className="font-semibold">{customer.name}</div>
+                                        <div className="text-xs flex items-center gap-2 opacity-80">
+                                            {customer.email && <div className="flex items-center gap-1"><Mail className="h-3 w-3"/><span>{customer.email}</span></div>}
+                                            {customer.phone && <div className="flex items-center gap-1"><Phone className="h-3 w-3"/><span>{customer.phone}</span></div>}
+                                        </div>
+                                    </div>
+                                    ))
+                                ) : (
+                                    <div className="text-center p-4 text-muted-foreground">Müşteri bulunamadı.</div>
+                                )}
+                                </div>
+                            </ScrollArea>
+                            <FormField control={form.control} name="customerId" render={() => <FormMessage />} />
+                        </div>
+
                         <FormField
                             control={form.control}
                             name="projectName"
