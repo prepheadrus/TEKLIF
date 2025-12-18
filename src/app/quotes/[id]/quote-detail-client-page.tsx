@@ -78,6 +78,7 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Textarea } from '@/components/ui/textarea';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 const proposalItemSchema = z.object({
@@ -646,7 +647,7 @@ export function QuoteDetailClientPage() {
         <main className="flex-1 overflow-y-auto px-8 py-8 space-y-6 bg-slate-100/70 dark:bg-slate-900/50">
           
               <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
-                  
+                  <TooltipProvider>
                   {allGroups.map(([groupName, itemsInGroup]) => {
                       const groupTotals = calculatedTotals.groupTotals[groupName];
                       const groupSubTotalTRY = groupTotals?.totalSellInTRY || 0;
@@ -764,6 +765,12 @@ export function QuoteDetailClientPage() {
                                                   ...currentItem,
                                                   exchangeRate: currentItem.currency === 'USD' ? watchedRates.USD : currentItem.currency === 'EUR' ? watchedRates.EUR : 1,
                                               });
+                                              
+                                              const unitVatAmount = itemTotals.tlSellPrice * currentItem.vatRate;
+                                              const unitPriceWithVat = itemTotals.tlSellPrice + unitVatAmount;
+                                              const totalVatAmount = itemTotals.totalTlSell * currentItem.vatRate;
+                                              const totalPriceWithVat = itemTotals.totalTlSell + totalVatAmount;
+
 
                                           return (
                                               <TableRow key={item.formId} className="hover:bg-slate-50/50 dark:hover:bg-white/5 group/row odd:bg-slate-50/50 dark:odd:bg-white/[.02]">
@@ -857,8 +864,30 @@ export function QuoteDetailClientPage() {
                                                           <span className="text-xs font-mono text-green-600 font-semibold tabular-nums w-20 text-left">+{formatCurrency(itemTotals.totalProfit)}</span>
                                                       </div>
                                                   </TableCell>
-                                                  <TableCell className="text-right font-mono tabular-nums font-semibold text-slate-600 dark:text-slate-300 py-1.5">{formatCurrency(itemTotals.tlSellPrice)}</TableCell>
-                                                  <TableCell className="text-right font-bold font-mono tabular-nums text-slate-800 dark:text-slate-100 py-1.5">{formatCurrency(itemTotals.totalTlSell)}</TableCell>
+                                                  <TableCell className="text-right font-mono tabular-nums font-semibold text-slate-600 dark:text-slate-300 py-1.5">
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild><span>{formatCurrency(itemTotals.tlSellPrice)}</span></TooltipTrigger>
+                                                        <TooltipContent>
+                                                          <div className="space-y-1 font-sans text-sm">
+                                                            <div className="flex justify-between gap-4"><span className="text-muted-foreground">KDV Hariç:</span> <span className="font-mono font-semibold">{formatCurrency(itemTotals.tlSellPrice)}</span></div>
+                                                            <div className="flex justify-between gap-4"><span className="text-muted-foreground">KDV (%{(currentItem.vatRate * 100).toFixed(0)}):</span> <span className="font-mono font-semibold">{formatCurrency(unitVatAmount)}</span></div>
+                                                            <div className="flex justify-between gap-4 font-bold border-t pt-1 mt-1"><span >KDV Dahil:</span> <span className="font-mono">{formatCurrency(unitPriceWithVat)}</span></div>
+                                                          </div>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                  </TableCell>
+                                                  <TableCell className="text-right font-bold font-mono tabular-nums text-slate-800 dark:text-slate-100 py-1.5">
+                                                     <Tooltip>
+                                                        <TooltipTrigger asChild><span>{formatCurrency(itemTotals.totalTlSell)}</span></TooltipTrigger>
+                                                        <TooltipContent>
+                                                          <div className="space-y-1 font-sans text-sm">
+                                                            <div className="flex justify-between gap-4"><span className="text-muted-foreground">KDV Hariç:</span> <span className="font-mono font-semibold">{formatCurrency(itemTotals.totalTlSell)}</span></div>
+                                                            <div className="flex justify-between gap-4"><span className="text-muted-foreground">KDV (%{(currentItem.vatRate * 100).toFixed(0)}):</span> <span className="font-mono font-semibold">{formatCurrency(totalVatAmount)}</span></div>
+                                                            <div className="flex justify-between gap-4 font-bold border-t pt-1 mt-1"><span >KDV Dahil:</span> <span className="font-mono">{formatCurrency(totalPriceWithVat)}</span></div>
+                                                          </div>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                  </TableCell>
                                                   <TableCell className="px-2 text-center py-1.5">
                                                       <Button variant="ghost" size="icon" onClick={() => remove(index)} className="h-7 w-7 text-slate-400 hover:text-red-500 opacity-0 group-hover/row:opacity-100 transition-opacity">
                                                       <Trash2 className="h-4 w-4" />
@@ -913,6 +942,7 @@ export function QuoteDetailClientPage() {
                       </Collapsible>
                       )
                   })}
+                  </TooltipProvider>
                   <div className="space-y-4">
                       <Button type="button" variant="outline" className="w-full" onClick={handleAddNewGroup}>
                           <PlusCircle className="mr-2 h-4 w-4" />
