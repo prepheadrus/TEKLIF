@@ -74,7 +74,15 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       return;
     }
 
-    setUserAuthState({ user: null, isUserLoading: true, userError: null }); // Reset on auth instance change
+    // This check is important. If there's already a user (from a previous session),
+    // we don't need to show a loading state for long. The onAuthStateChanged will fire
+    // almost immediately with the cached user.
+    if(auth.currentUser){
+      setUserAuthState({ user: auth.currentUser, isUserLoading: false, userError: null });
+    } else {
+       setUserAuthState({ user: null, isUserLoading: true, userError: null });
+    }
+
 
     const unsubscribe = onAuthStateChanged(
       auth,
@@ -106,8 +114,12 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   return (
     <FirebaseContext.Provider value={contextValue}>
       <FirebaseErrorListener />
-      {/* Render children only after the initial auth check is complete */}
-      {!userAuthState.isUserLoading && children}
+      {/* 
+        Render children immediately. The data-fetching hooks (`useDoc`, `useCollection`)
+        will now correctly wait for the `isUserLoading` state from the `useUser` hook 
+        before proceeding, preventing requests with `auth: null`.
+      */}
+      {children}
     </FirebaseContext.Provider>
   );
 };
