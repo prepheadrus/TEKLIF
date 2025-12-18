@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -66,6 +67,8 @@ type NewQuoteFormValues = z.infer<typeof newQuoteSchema>;
 type Customer = {
   id: string;
   name: string;
+  email?: string;
+  phone?: string;
 };
 
 export type Proposal = {
@@ -787,7 +790,14 @@ export function QuotesPageContent() {
                                     <SelectContent>
                                     {customers?.map((customer) => (
                                         <SelectItem key={customer.id} value={customer.id}>
-                                            {customer.name}
+                                            <div className="flex flex-col">
+                                                <span className="font-semibold">{customer.name}</span>
+                                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                    {customer.email && <span>{customer.email}</span>}
+                                                    {customer.email && customer.phone && <span>|</span>}
+                                                    {customer.phone && <span>{customer.phone}</span>}
+                                                </div>
+                                            </div>
                                         </SelectItem>
                                     ))}
                                     </SelectContent>
