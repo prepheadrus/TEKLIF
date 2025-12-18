@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, type ReactNode } from 'react';
@@ -8,9 +7,6 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { ThemeToggle } from '@/components/app/theme-toggle';
-import dynamic from 'next/dynamic';
-
-const MobileNav = dynamic(() => import('@/components/app/app-layout').then(mod => mod.MobileNavComponent), { ssr: false });
 
 const navItems = [
     { href: '/', label: 'Anasayfa', icon: Home, target: 'mechquote-main' },

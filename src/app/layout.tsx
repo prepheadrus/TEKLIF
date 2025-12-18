@@ -1,6 +1,5 @@
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
-import { NoSsr } from '@/components/no-ssr';
 import { AppProvider } from '@/components/app/app-provider';
 import type { Metadata } from 'next';
 import { FirebaseClientProvider } from '@/firebase';
@@ -35,20 +34,18 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <NoSsr>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <FirebaseClientProvider>
-              <AppProvider>
-                <AppLayout>{children}</AppLayout>
-              </AppProvider>
-            </FirebaseClientProvider>
-          </ThemeProvider>
-        </NoSsr>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <FirebaseClientProvider>
+            <AppProvider>
+              <AppLayout>{children}</AppLayout>
+            </AppProvider>
+          </FirebaseClientProvider>
+        </ThemeProvider>
         <Toaster />
       </body>
     </html>
