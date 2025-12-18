@@ -66,7 +66,7 @@ export function useDoc<T = any>(
       return;
     }
 
-    // Reset state on new ref
+    // Reset state on new ref or refresh
     setData(null);
     setError(null);
 
@@ -75,6 +75,7 @@ export function useDoc<T = any>(
       (snapshot: DocumentSnapshot<DocumentData>) => {
         if (snapshot.exists()) {
           setData({ ...(snapshot.data() as T), id: snapshot.id });
+          setError(null);
         } else {
           // Document does not exist
           setData(null); // Explicitly set to null if not found

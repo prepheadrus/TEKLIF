@@ -65,7 +65,7 @@ export function useCollection<T = any>(
   const [refreshToggle, setRefreshToggle] = useState(false);
   const { isUserLoading } = useUser(); // Get user loading state
 
-  const isLoading = isUserLoading || (!data && !error);
+  const isLoading = isUserLoading || (data === null && error === null);
 
   const refetch = useCallback(() => {
     setRefreshToggle(prev => !prev);
@@ -79,9 +79,10 @@ export function useCollection<T = any>(
       return;
     }
 
+    // Reset state on new ref or refresh
+    setData(null);
     setError(null);
 
-    // Directly use memoizedTargetRefOrQuery as it's assumed to be the final query
     const unsubscribe = onSnapshot(
       memoizedTargetRefOrQuery,
       (snapshot: QuerySnapshot<DocumentData>) => {
