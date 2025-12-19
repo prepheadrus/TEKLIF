@@ -191,7 +191,9 @@ const StatCard = ({ title, value, icon, isLoading }: { title: string, value: str
 );
 
 const formatCurrency = (amount: number, currency = 'TRY') => {
-    return new Intl.NumberFormat('tr-TR', { style: 'currency', currency }).format(amount);
+    // Intl.NumberFormat expects ISO 4217 currency codes. 'TL' is not valid, 'TRY' is.
+    const validCurrency = currency.toUpperCase() === 'TL' ? 'TRY' : currency;
+    return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: validCurrency }).format(amount);
 };
 
 
