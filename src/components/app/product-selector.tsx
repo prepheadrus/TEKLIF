@@ -95,6 +95,13 @@ const CategoryNode = ({ node, level, onSelect, selectedCategoryId }: { node: Tre
     )
 }
 
+const formatCurrency = (amount: number, currency: string) => {
+    // Intl.NumberFormat expects ISO 4217 currency codes. 'TL' is not valid, 'TRY' is.
+    const validCurrency = currency.toUpperCase() === 'TL' ? 'TRY' : currency;
+    return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: validCurrency }).format(amount);
+};
+
+
 export function ProductSelector({
   isOpen,
   onOpenChange,
@@ -244,7 +251,7 @@ export function ProductSelector({
                           <p className="font-medium">{product.name}</p>
                           <p className="text-sm text-muted-foreground">{product.brand} - {product.model}</p>
                         </label>
-                        <div className="text-sm font-mono">{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: product.currency }).format(product.listPrice)}</div>
+                        <div className="text-sm font-mono">{formatCurrency(product.listPrice, product.currency)}</div>
                       </div>
                     ))
                   )}
