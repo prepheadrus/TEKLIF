@@ -96,9 +96,12 @@ const CategoryNode = ({ node, level, onSelect, selectedCategoryId }: { node: Tre
 }
 
 const formatCurrency = (amount: number, currency: string) => {
-    // Intl.NumberFormat expects ISO 4217 currency codes. 'TL' is not valid, 'TRY' is.
-    const validCurrency = currency ? (currency.toUpperCase() === 'TL' ? 'TRY' : currency) : 'TRY';
-    return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: validCurrency }).format(amount);
+    const validCurrencies = ['TRY', 'USD', 'EUR'];
+    const currencyCode = currency && validCurrencies.includes(currency.toUpperCase())
+      ? currency.toUpperCase()
+      : 'TRY';
+
+    return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: currencyCode }).format(amount);
 };
 
 
