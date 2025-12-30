@@ -1,9 +1,8 @@
-
 {
   "indexes": [
     {
       "collectionGroup": "proposals",
-      "queryScope": "COLLECTION",
+      "queryScope": "COLLECTION_GROUP",
       "fields": [
         {
           "fieldPath": "customerId",
