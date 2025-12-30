@@ -15,11 +15,9 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
     return initializeFirebase();
   }, []); // Empty dependency array ensures this runs only once on mount
   
-  useEffect(() => {
-    // As soon as the auth service is initialized, initiate anonymous sign-in.
-    // This happens right at the app's entry point, before any data-fetching hooks run.
-    initiateAnonymousSignIn(firebaseServices.auth);
-  }, [firebaseServices.auth]);
+  // As soon as the auth service is initialized, initiate anonymous sign-in.
+  // This happens right at the app's entry point, before any data-fetching hooks run.
+  initiateAnonymousSignIn(firebaseServices.auth);
 
   return (
     <FirebaseProvider
