@@ -329,15 +329,15 @@ export function QuotesPageContent() {
         }
     });
   }, [proposals, jobAssignments, personnel, sortOrder]);
-  
-  const flatFilteredProposals = useMemo(() => {
-    if (!proposals) return [];
-    
+
+  const applyFilters = (items: any[], isGrouped: boolean) => {
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30).getTime();
     const ninetyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 90).getTime();
 
-    return proposals.filter(p => {
+    return items.filter(item => {
+        const p = isGrouped ? item.latestProposal : item;
+        
         const searchTerms = searchTerm.toLocaleLowerCase('tr-TR').split(' ').filter(term => term.length > 0);
         if (searchTerms.length > 0) {
             const proposalText = `${p.customerName} ${p.projectName} ${p.quoteNumber}`.toLocaleLowerCase('tr-TR');
@@ -356,7 +356,16 @@ export function QuotesPageContent() {
         }
 
         return true;
-    }).sort((a, b) => {
+    });
+  };
+
+  const filteredProposalGroups = useMemo(() => applyFilters(groupedProposals, true), [groupedProposals, searchTerm, dateFilter]);
+  
+  const flatFilteredProposals = useMemo(() => {
+    if (!proposals) return [];
+    
+    // Use the same filtering logic as the grouped view, but on the flat list
+    return applyFilters(proposals, false).sort((a, b) => {
         if (!a.createdAt) return 1;
         if (!b.createdAt) return -1;
         const timeA = a.createdAt instanceof Timestamp ? a.createdAt.seconds : a.createdAt.seconds;

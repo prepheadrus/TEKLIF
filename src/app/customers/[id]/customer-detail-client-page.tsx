@@ -102,11 +102,16 @@ export function CustomerDetailClientPage() {
         versions.sort((a,b) => (b.version || 0) - (a.version || 0));
         return versions;
     }).sort((a,b) => {
-        if (!a[0]?.createdAt) return 1;
-        if (!b[0]?.createdAt) return -1;
-        const timeA = a[0].createdAt instanceof Timestamp ? a[0].createdAt.seconds : a[0].createdAt.seconds;
-        const timeB = b[0].createdAt instanceof Timestamp ? b[0].createdAt.seconds : b[0].createdAt.seconds;
-        return timeB - timeA;
+        const timeA = a[0]?.createdAt;
+        const timeB = b[0]?.createdAt;
+
+        if (!timeA) return 1;
+        if (!timeB) return -1;
+        
+        const secondsA = timeA instanceof Timestamp ? timeA.seconds : timeA.seconds;
+        const secondsB = timeB instanceof Timestamp ? timeB.seconds : timeB.seconds;
+
+        return secondsB - secondsA;
     });
 
     return {
