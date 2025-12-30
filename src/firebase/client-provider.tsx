@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useMemo, type ReactNode, useEffect } from 'react';
+import React, { useMemo, type ReactNode } from 'react';
 import { FirebaseProvider } from '@/firebase/provider';
-import { initializeFirebase, initiateAnonymousSignIn } from '@/firebase';
-import { Auth } from 'firebase/auth';
+import { initializeFirebase } from '@/firebase';
 
 interface FirebaseClientProviderProps {
   children: ReactNode;
@@ -15,10 +14,6 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
     return initializeFirebase();
   }, []); // Empty dependency array ensures this runs only once on mount
   
-  // As soon as the auth service is initialized, initiate anonymous sign-in.
-  // This happens right at the app's entry point, before any data-fetching hooks run.
-  initiateAnonymousSignIn(firebaseServices.auth);
-
   return (
     <FirebaseProvider
       firebaseApp={firebaseServices.firebaseApp}

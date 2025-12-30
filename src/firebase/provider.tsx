@@ -5,6 +5,7 @@ import { FirebaseApp } from 'firebase/app';
 import { Firestore } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
+import { Loader2 } from 'lucide-react';
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -74,16 +75,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       return;
     }
 
-    // This check is important. If there's already a user (from a previous session),
-    // we don't need to show a loading state for long. The onAuthStateChanged will fire
-    // almost immediately with the cached user.
-    if(auth.currentUser){
-      setUserAuthState({ user: auth.currentUser, isUserLoading: false, userError: null });
-    } else {
-       setUserAuthState({ user: null, isUserLoading: true, userError: null });
-    }
-
-
     const unsubscribe = onAuthStateChanged(
       auth,
       (firebaseUser) => { // Auth state determined
@@ -114,12 +105,16 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   return (
     <FirebaseContext.Provider value={contextValue}>
       <FirebaseErrorListener />
-      {/* 
-        Render children immediately. The data-fetching hooks (`useDoc`, `useCollection`)
-        will now correctly wait for the `isUserLoading` state from the `useUser` hook 
-        before proceeding, preventing requests with `auth: null`.
-      */}
-      {children}
+      {userAuthState.isUserLoading ? (
+        <div className="flex h-screen w-full items-center justify-center">
+            <div className="flex flex-col items-center gap-4">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                <p className="text-muted-foreground">Oturum doğrulanıyor...</p>
+            </div>
+        </div>
+      ) : (
+        children
+      )}
     </FirebaseContext.Provider>
   );
 };
