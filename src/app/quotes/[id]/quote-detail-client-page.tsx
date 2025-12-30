@@ -338,7 +338,10 @@ export function QuoteDetailClientPage() {
             exchangeRates: proposal.exchangeRates || { USD: 32.5, EUR: 35.0 }
         });
         
+        // Fetch rates only after the form has been reset with data from the database
+        handleFetchRates();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proposal, initialItems, form, defaultTerms]);
 
 
@@ -348,11 +351,6 @@ export function QuoteDetailClientPage() {
         groupNameInputRef.current.select();
     }
   }, [editingGroupName]);
-
-  // Sayfa yüklendiğinde güncel kurları otomatik çek
-  useEffect(() => {
-    handleFetchRates();
-  }, []); // Boş dependency array = sadece ilk yüklemede çalışır
 
 
   const allGroups = useMemo(() => {
