@@ -10,7 +10,6 @@ import {
 } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { useUser } from '@/firebase/provider';
 
 
 /** Utility type to add an 'id' field to a given type T. */
@@ -49,7 +48,7 @@ export function useDoc<T = any>(
   const [data, setData] = useState<StateDataType>(null);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
   const [refreshToggle, setRefreshToggle] = useState(false);
-  const { isUserLoading } = useUser(); // Get user loading state
+  const isUserLoading = false; // Hardcoded to false
 
   const isLoading = isUserLoading || (data === null && error === null);
   
@@ -60,7 +59,7 @@ export function useDoc<T = any>(
 
   useEffect(() => {
     // Wait for user to be loaded and for the docRef to be available
-    if (isUserLoading || !memoizedDocRef) {
+    if (!memoizedDocRef) {
       setData(null);
       setError(null);
       return;
@@ -83,21 +82,14 @@ export function useDoc<T = any>(
         }
       },
       (error: FirestoreError) => {
-        const contextualError = new FirestorePermissionError({
-          operation: 'get',
-          path: memoizedDocRef.path,
-        })
-
-        setError(contextualError)
-        setData(null)
-
-        // trigger global error propagation
-        errorEmitter.emit('permission-error', contextualError);
+        console.error("Firestore Error in useDoc:", error);
+        setError(error);
+        setData(null);
       }
     );
 
     return () => unsubscribe();
-  }, [memoizedDocRef, isUserLoading, refreshToggle]); // Re-run if the memoizedDocRef, user loading state, or refreshToggle changes.
+  }, [memoizedDocRef, refreshToggle]); // Re-run if the memoizedDocRef, user loading state, or refreshToggle changes.
 
   return { data, isLoading, error, refetch };
 }

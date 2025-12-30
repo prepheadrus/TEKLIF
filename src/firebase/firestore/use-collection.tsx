@@ -11,7 +11,6 @@ import {
 } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { useUser } from '@/firebase/provider';
 
 
 /** Utility type to add an 'id' field to a given type T. */
@@ -63,7 +62,7 @@ export function useCollection<T = any>(
   const [data, setData] = useState<StateDataType>(null);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
   const [refreshToggle, setRefreshToggle] = useState(false);
-  const { isUserLoading } = useUser(); // Get user loading state
+  const isUserLoading = false; // Hardcoded to false
 
   const isLoading = isUserLoading || (data === null && error === null);
 
@@ -73,7 +72,7 @@ export function useCollection<T = any>(
 
   useEffect(() => {
     // Wait for user to be loaded and for the query/ref to be available
-    if (isUserLoading || !memoizedTargetRefOrQuery) {
+    if (!memoizedTargetRefOrQuery) {
       setData(null);
       setError(null);
       return;
@@ -94,27 +93,14 @@ export function useCollection<T = any>(
         setError(null);
       },
       (error: FirestoreError) => {
-        // This logic extracts the path from either a ref or a query
-        const path: string =
-          memoizedTargetRefOrQuery.type === 'collection'
-            ? (memoizedTargetRefOrQuery as CollectionReference).path
-            : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString()
-
-        const contextualError = new FirestorePermissionError({
-          operation: 'list',
-          path,
-        })
-
-        setError(contextualError)
-        setData(null)
-
-        // trigger global error propagation
-        errorEmitter.emit('permission-error', contextualError);
+        console.error("Firestore Error in useCollection:", error);
+        setError(error);
+        setData(null);
       }
     );
 
     return () => unsubscribe();
-  }, [memoizedTargetRefOrQuery, refreshToggle, isUserLoading]); // Re-run if the target query/reference, user loading state, or refreshToggle changes.
+  }, [memoizedTargetRefOrQuery, refreshToggle]); // Re-run if the target query/reference, user loading state, or refreshToggle changes.
 
   return { data, isLoading, error, refetch };
 }
