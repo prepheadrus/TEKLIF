@@ -481,9 +481,7 @@
     }
   },
   "auth": {
-    "providers": [
-      "anonymous"
-    ]
+    "providers": []
   },
   "firestore": {
     "structure": [
