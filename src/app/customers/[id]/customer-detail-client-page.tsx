@@ -244,7 +244,7 @@ export function CustomerDetailClientPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {isLoading ? (
+                        {areProposalsLoading ? (
                             [...Array(3)].map((_, i) => <TableRow key={i}><TableCell colSpan={6} className="p-2"><div className="h-8 bg-gray-200 animate-pulse rounded-md"/></TableCell></TableRow>)
                         ) : proposalGroups.length > 0 ? (
                             proposalGroups.flatMap(group => 
