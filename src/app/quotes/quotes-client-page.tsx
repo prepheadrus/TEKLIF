@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { addDoc, collection, doc, serverTimestamp, getDocs, query, orderBy, where, writeBatch, setDoc, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, serverTimestamp, getDocs, query, orderBy, where, writeBatch, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import Papa from 'papaparse';
 
 import {
@@ -83,7 +83,7 @@ export type Proposal = {
     projectName: string;
     totalAmount: number;
     status: 'Draft' | 'Sent' | 'Approved' | 'Rejected';
-    createdAt: { seconds: number } | null;
+    createdAt: { seconds: number } | Timestamp | null;
     version: number;
     rootProposalId: string;
     customerId: string;
@@ -105,7 +105,7 @@ type ProposalGroup = {
     assignedPersonnelName?: string;
 }
 
-function getStatusBadge(status: Proposal['status']) {
+export function getStatusBadge(status: Proposal['status']) {
   switch (status) {
     case 'Approved':
       return <Badge variant="default" className="bg-green-600 hover:bg-green-600/80">Onaylandı</Badge>;
@@ -123,8 +123,11 @@ const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(amount);
 };
 
-const formatDate = (timestamp: { seconds: number } | null) => {
+const formatDate = (timestamp: { seconds: number } | Timestamp | null) => {
     if (!timestamp) return '-';
+    if(timestamp instanceof Timestamp) {
+        return timestamp.toDate().toLocaleDateString('tr-TR');
+    }
     return new Date(timestamp.seconds * 1000).toLocaleDateString('tr-TR');
 };
 
@@ -314,8 +317,8 @@ export function QuotesPageContent() {
             assignedPersonnelName,
         };
     }).sort((a, b) => {
-        const timeA = a.latestProposal.createdAt?.seconds ?? 0;
-        const timeB = b.latestProposal.createdAt?.seconds ?? 0;
+        const timeA = a.latestProposal.createdAt instanceof Timestamp ? a.latestProposal.createdAt.seconds : a.latestProposal.createdAt?.seconds ?? 0;
+        const timeB = b.latestProposal.createdAt instanceof Timestamp ? b.latestProposal.createdAt.seconds : b.latestProposal.createdAt?.seconds ?? 0;
         
         if (timeA === 0 && timeB !== 0) return 1;
         if (timeB === 0 && timeA !== 0) return -1;
@@ -344,9 +347,9 @@ export function QuotesPageContent() {
         }
 
         if (dateFilter !== 'all' && p.createdAt) {
-            const proposalDate = p.createdAt.seconds * 1000;
-            if (dateFilter === 'last30days' && proposalDate < thirtyDaysAgo) return false;
-            if (dateFilter === 'last90days' && proposalDate < ninetyDaysAgo) return false;
+            const proposalTime = p.createdAt instanceof Timestamp ? p.createdAt.toMillis() : p.createdAt.seconds * 1000;
+            if (dateFilter === 'last30days' && proposalTime < thirtyDaysAgo) return false;
+            if (dateFilter === 'last90days' && proposalTime < ninetyDaysAgo) return false;
         }
         
         if (statusFilter !== 'All') {
@@ -355,8 +358,8 @@ export function QuotesPageContent() {
 
         return true;
     }).sort((a, b) => {
-        const timeA = a.createdAt?.seconds ?? 0;
-        const timeB = b.createdAt?.seconds ?? 0;
+        const timeA = a.createdAt instanceof Timestamp ? a.createdAt.seconds : a.createdAt?.seconds ?? 0;
+        const timeB = b.latestProposal.createdAt instanceof Timestamp ? b.latestProposal.createdAt.seconds : b.latestProposal.createdAt?.seconds ?? 0;
         return sortOrder === 'newest' ? timeB - timeA : timeA - timeB;
     });
   }, [proposals, searchTerm, statusFilter, dateFilter, sortOrder]);
@@ -380,9 +383,9 @@ export function QuotesPageContent() {
         }
 
         if (dateFilter !== 'all' && g.latestProposal.createdAt) {
-            const proposalDate = g.latestProposal.createdAt.seconds * 1000;
-            if (dateFilter === 'last30days' && proposalDate < thirtyDaysAgo) return false;
-            if (dateFilter === 'last90days' && proposalDate < ninetyDaysAgo) return false;
+            const proposalTime = g.latestProposal.createdAt instanceof Timestamp ? g.latestProposal.createdAt.toMillis() : g.latestProposal.createdAt.seconds * 1000;
+            if (dateFilter === 'last30days' && proposalTime < thirtyDaysAgo) return false;
+            if (dateFilter === 'last90days' && proposalTime < ninetyDaysAgo) return false;
         }
 
         return true;

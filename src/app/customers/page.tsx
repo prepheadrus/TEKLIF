@@ -61,7 +61,8 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  AlertTriangle
+  AlertTriangle,
+  Eye
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { QuickAddCustomer } from '@/components/app/quick-add-customer';
@@ -709,7 +710,7 @@ export function CustomersPageContent() {
                               aria-label={`${customer.name} seç`}
                           />
                         </TableCell>
-                        <TableCell className="font-medium" onClick={() => handleOpenEditDialog(customer)}>
+                        <TableCell className="font-medium cursor-pointer hover:underline" onClick={() => router.push(`/customers/${customer.id}`)}>
                           {customer.name}
                           {(customer.address?.district || customer.address?.city) && (
                             <div className="text-xs text-muted-foreground">
@@ -777,20 +778,23 @@ export function CustomersPageContent() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>İşlemler</DropdownMenuLabel>
+                               <DropdownMenuItem onClick={() => router.push(`/customers/${customer.id}`)}>
+                                <Eye className="mr-2 h-4 w-4"/> Detayları Gör
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleOpenEditDialog(customer)}>
-                                <Edit /> Düzenle / Not Ekle
+                                <Edit className="mr-2 h-4 w-4" /> Düzenle
                               </DropdownMenuItem>
                               <DropdownMenuItem disabled>
-                                <FilePlus /> Teklif Oluştur
+                                <FilePlus className="mr-2 h-4 w-4" /> Teklif Oluştur
                               </DropdownMenuItem>
                                <DropdownMenuItem onClick={() => window.location.href = `mailto:${customer.email}`}>
-                                <Mail /> E-posta Gönder
+                                <Mail className="mr-2 h-4 w-4" /> E-posta Gönder
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                   <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600 focus:bg-red-100 focus:text-red-700">
-                                    <Trash2 /> Sil
+                                    <Trash2 className="mr-2 h-4 w-4" /> Sil
                                   </DropdownMenuItem>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
