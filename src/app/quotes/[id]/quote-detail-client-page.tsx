@@ -300,8 +300,8 @@ export function QuoteDetailClientPage() {
         const rates = await response.json();
         
         if (rates.USD && rates.EUR) {
-            form.setValue('exchangeRates.USD', rates.USD, { shouldValidate: true, shouldDirty: true });
-            form.setValue('exchangeRates.EUR', rates.EUR, { shouldValidate: true, shouldDirty: true });
+            form.setValue('exchangeRates.USD', rates.USD, { shouldDirty: true });
+            form.setValue('exchangeRates.EUR', rates.EUR, { shouldDirty: true });
             await form.trigger(['exchangeRates.USD', 'exchangeRates.EUR']);
             toast({ title: 'Başarılı!', description: 'Döviz kurları güncellendi.' });
         } else {
