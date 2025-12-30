@@ -317,11 +317,10 @@ export function QuotesPageContent() {
             assignedPersonnelName,
         };
     }).sort((a, b) => {
-        const timeA = a.latestProposal.createdAt instanceof Timestamp ? a.latestProposal.createdAt.seconds : a.latestProposal.createdAt?.seconds ?? 0;
-        const timeB = b.latestProposal.createdAt instanceof Timestamp ? b.latestProposal.createdAt.seconds : b.latestProposal.createdAt?.seconds ?? 0;
-        
-        if (timeA === 0 && timeB !== 0) return 1;
-        if (timeB === 0 && timeA !== 0) return -1;
+        if (!a.latestProposal?.createdAt) return 1;
+        if (!b.latestProposal?.createdAt) return -1;
+        const timeA = a.latestProposal.createdAt instanceof Timestamp ? a.latestProposal.createdAt.seconds : a.latestProposal.createdAt.seconds;
+        const timeB = b.latestProposal.createdAt instanceof Timestamp ? b.latestProposal.createdAt.seconds : b.latestProposal.createdAt.seconds;
         
         if (sortOrder === 'newest') {
           return timeB - timeA;
@@ -358,40 +357,14 @@ export function QuotesPageContent() {
 
         return true;
     }).sort((a, b) => {
-        const timeA = a.createdAt instanceof Timestamp ? a.createdAt.seconds : a.createdAt?.seconds ?? 0;
-        const timeB = b.latestProposal.createdAt instanceof Timestamp ? b.latestProposal.createdAt.seconds : b.latestProposal.createdAt?.seconds ?? 0;
+        if (!a.createdAt) return 1;
+        if (!b.createdAt) return -1;
+        const timeA = a.createdAt instanceof Timestamp ? a.createdAt.seconds : a.createdAt.seconds;
+        const timeB = b.createdAt instanceof Timestamp ? b.createdAt.seconds : b.createdAt.seconds;
         return sortOrder === 'newest' ? timeB - timeA : timeA - timeB;
     });
   }, [proposals, searchTerm, statusFilter, dateFilter, sortOrder]);
 
-
-  const filteredProposalGroups = useMemo(() => {
-    if (statusFilter !== 'All') {
-      return [];
-    }
-    
-    const now = new Date();
-    const thirtyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30).getTime();
-    const ninetyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 90).getTime();
-
-    return groupedProposals.filter(g => {
-        const searchTerms = searchTerm.toLocaleLowerCase('tr-TR').split(' ').filter(term => term.length > 0);
-        if (searchTerms.length > 0) {
-            const proposalText = `${g.latestProposal.customerName} ${g.latestProposal.projectName} ${g.latestProposal.quoteNumber}`.toLocaleLowerCase('tr-TR');
-            const isMatch = searchTerms.every(term => proposalText.includes(term));
-            if (!isMatch) return false;
-        }
-
-        if (dateFilter !== 'all' && g.latestProposal.createdAt) {
-            const proposalTime = g.latestProposal.createdAt instanceof Timestamp ? g.latestProposal.createdAt.toMillis() : g.latestProposal.createdAt.seconds * 1000;
-            if (dateFilter === 'last30days' && proposalTime < thirtyDaysAgo) return false;
-            if (dateFilter === 'last90days' && proposalTime < ninetyDaysAgo) return false;
-        }
-
-        return true;
-    });
-  }, [groupedProposals, searchTerm, statusFilter, dateFilter]);
-  
 
   const filteredStats = useMemo(() => {
     const listToProcess = flatFilteredProposals;

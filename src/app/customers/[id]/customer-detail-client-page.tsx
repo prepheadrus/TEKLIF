@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -53,7 +54,7 @@ const StatCard = ({ title, value, icon, isLoading }: { title: string, value: str
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(amount);
 };
-const formatDate = (timestamp?: { seconds: number } | Timestamp) => {
+const formatDate = (timestamp?: { seconds: number } | Timestamp | null) => {
     if (!timestamp) return '-';
     if (timestamp instanceof Timestamp) {
         return timestamp.toDate().toLocaleDateString('tr-TR');
@@ -90,6 +91,7 @@ export function CustomerDetailClientPage() {
 
     const groups: Record<string, Proposal[]> = {};
     proposals.forEach(p => {
+        if (!p.rootProposalId) return; // Guard against proposals without rootId
         if (!groups[p.rootProposalId]) {
             groups[p.rootProposalId] = [];
         }
@@ -99,7 +101,13 @@ export function CustomerDetailClientPage() {
     const sortedGroups = Object.values(groups).map(versions => {
         versions.sort((a,b) => (b.version || 0) - (a.version || 0));
         return versions;
-    }).sort((a,b) => (b[0].createdAt?.seconds || 0) - (a[0].createdAt?.seconds || 0));
+    }).sort((a,b) => {
+        if (!a[0]?.createdAt) return 1;
+        if (!b[0]?.createdAt) return -1;
+        const timeA = a[0].createdAt instanceof Timestamp ? a[0].createdAt.seconds : a[0].createdAt.seconds;
+        const timeB = b[0].createdAt instanceof Timestamp ? b[0].createdAt.seconds : b[0].createdAt.seconds;
+        return timeB - timeA;
+    });
 
     return {
         stats: {
