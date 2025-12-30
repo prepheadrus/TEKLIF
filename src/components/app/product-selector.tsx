@@ -1,6 +1,5 @@
-
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -24,10 +23,11 @@ import {
 import { collection, query } from 'firebase/firestore';
 import type { Product } from '@/app/products/products-client-page';
 import type { InstallationType, TreeNode } from '@/app/installation-types/installation-types-client-page';
-import { Loader2, Search, ChevronRight, ChevronDown } from 'lucide-react';
+import { Loader2, Search, ChevronRight, ChevronDown, PlusCircle } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { QuickAddProduct } from './quick-add-product';
 
 
 interface ProductSelectorProps {
@@ -112,12 +112,14 @@ export function ProductSelector({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<Map<string, Product>>(new Map());
+  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+
 
   const productsQuery = useMemoFirebase(
     () => (firestore ? query(collection(firestore, 'products')) : null),
     [firestore]
   );
-  const { data: allProducts, isLoading: isLoadingProducts } = useCollection<Product>(productsQuery);
+  const { data: allProducts, isLoading: isLoadingProducts, refetch: refetchProducts } = useCollection<Product>(productsQuery);
 
   const installationTypesQuery = useMemoFirebase(
     () => (firestore ? query(collection(firestore, 'installation_types')) : null),
@@ -186,8 +188,13 @@ export function ProductSelector({
     onOpenChange(false);
   }
 
+  const handleQuickAddSuccess = () => {
+    refetchProducts(); // Refetch the products list after a new one is added
+  }
+
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-6xl h-[90vh] flex flex-col p-0">
         <div className="p-6 pb-0">
@@ -226,8 +233,8 @@ export function ProductSelector({
           <ResizableHandle withHandle />
           <ResizablePanel defaultSize={70}>
             <div className="flex flex-col h-full">
-              <div className="p-4 border-b">
-                <div className="relative">
+              <div className="p-4 border-b flex justify-between items-center">
+                <div className="relative flex-1">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="Ürün adı, marka veya model ara..."
@@ -236,6 +243,10 @@ export function ProductSelector({
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
+                 <Button variant="outline" className="ml-4" onClick={() => setIsQuickAddOpen(true)}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Yeni Ürün Oluştur
+                </Button>
               </div>
               <ScrollArea className="flex-1">
                 <div className="space-y-2 p-4">
@@ -277,5 +288,11 @@ export function ProductSelector({
         </div>
       </DialogContent>
     </Dialog>
+     <QuickAddProduct
+        isOpen={isQuickAddOpen}
+        onOpenChange={setIsQuickAddOpen}
+        onSuccess={handleQuickAddSuccess}
+      />
+    </>
   );
 }
