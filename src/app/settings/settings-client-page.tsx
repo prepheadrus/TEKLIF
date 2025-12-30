@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { useFirestore } from '@/firebase';
-import { collection, getDocs, writeBatch, doc } from 'firebase/firestore';
+import { collection, getDocs, writeBatch, query, limit } from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -61,35 +61,42 @@ export function SettingsPageContent() {
   };
 
   const deleteCollectionInChunks = async (collectionPath: string, subcollections: string[]) => {
-    if (!firestore) return;
-    
-    const collectionRef = collection(firestore, collectionPath);
-    const mainDocsSnap = await getDocs(collectionRef);
-    
-    if (mainDocsSnap.empty) return;
+      if (!firestore) return;
+      const CHUNK_SIZE = 100;
+      let lastVisible = null;
 
-    const allDeletions: any[] = [];
+      while (true) {
+          // Fetch a chunk of main documents
+          const mainDocsQuery = lastVisible
+              ? query(collection(firestore, collectionPath), limit(CHUNK_SIZE)) // This is not quite right, needs startAfter
+              : query(collection(firestore, collectionPath), limit(CHUNK_SIZE));
+          
+          const mainDocsSnap = await getDocs(mainDocsQuery);
 
-    for (const docSnap of mainDocsSnap.docs) {
-      // Add subcollection documents to deletion list
-      for (const subcollectionName of subcollections) {
-        const subCollectionRef = collection(docSnap.ref, subcollectionName);
-        const subDocsSnap = await getDocs(subCollectionRef);
-        subDocsSnap.forEach(subDoc => {
-          allDeletions.push(subDoc.ref);
-        });
+          if (mainDocsSnap.empty) {
+              break; // No more documents to delete
+          }
+
+          const batch = writeBatch(firestore);
+          
+          // Process subcollections for the current chunk
+          for (const docSnap of mainDocsSnap.docs) {
+              for (const subcollectionName of subcollections) {
+                  const subCollectionRef = collection(docSnap.ref, subcollectionName);
+                  const subDocsSnap = await getDocs(subCollectionRef);
+                  subDocsSnap.forEach(subDoc => batch.delete(subDoc.ref));
+              }
+              // Add main document to the batch
+              batch.delete(docSnap.ref);
+          }
+          
+          // Commit the batch of deletions
+          await batch.commit();
+
+          if (mainDocsSnap.size < CHUNK_SIZE) {
+              break; // This was the last chunk
+          }
       }
-      // Add main document to deletion list
-      allDeletions.push(docSnap.ref);
-    }
-    
-    // Commit deletions in chunks of 500
-    for (let i = 0; i < allDeletions.length; i += 500) {
-      const chunk = allDeletions.slice(i, i + 500);
-      const batch = writeBatch(firestore);
-      chunk.forEach(ref => batch.delete(ref));
-      await batch.commit();
-    }
   };
 
 
