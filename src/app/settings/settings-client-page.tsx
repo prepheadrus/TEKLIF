@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { useFirestore } from '@/firebase';
-import { collection, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, getDocs, writeBatch, doc } from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -38,6 +38,7 @@ const COLLECTIONS_TO_MANAGE = [
   { id: 'installation_types', name: 'Tesisat Kategorileri', subcollections: [] },
   { id: 'suppliers', name: 'Tedarikçiler', subcollections: [] },
   { id: 'labor_costs', name: 'İşçilik Maliyetleri', subcollections: [] },
+  { id: 'templates', name: 'Teklif Şablonları', subcollections: ['template_items'] },
   { id: 'app_settings', name: 'Uygulama Ayarları (Aylık Hedef vb.)', subcollections: [] },
 ];
 
@@ -59,6 +60,39 @@ export function SettingsPageContent() {
     });
   };
 
+  const deleteCollectionInChunks = async (collectionPath: string, subcollections: string[]) => {
+    if (!firestore) return;
+    
+    const collectionRef = collection(firestore, collectionPath);
+    const mainDocsSnap = await getDocs(collectionRef);
+    
+    if (mainDocsSnap.empty) return;
+
+    const allDeletions: any[] = [];
+
+    for (const docSnap of mainDocsSnap.docs) {
+      // Add subcollection documents to deletion list
+      for (const subcollectionName of subcollections) {
+        const subCollectionRef = collection(docSnap.ref, subcollectionName);
+        const subDocsSnap = await getDocs(subCollectionRef);
+        subDocsSnap.forEach(subDoc => {
+          allDeletions.push(subDoc.ref);
+        });
+      }
+      // Add main document to deletion list
+      allDeletions.push(docSnap.ref);
+    }
+    
+    // Commit deletions in chunks of 500
+    for (let i = 0; i < allDeletions.length; i += 500) {
+      const chunk = allDeletions.slice(i, i + 500);
+      const batch = writeBatch(firestore);
+      chunk.forEach(ref => batch.delete(ref));
+      await batch.commit();
+    }
+  };
+
+
   const handleDeleteSelectedData = async () => {
     if (!firestore || selectedCollections.size === 0) {
       toast({
@@ -79,31 +113,7 @@ export function SettingsPageContent() {
       const collectionsToDelete = COLLECTIONS_TO_MANAGE.filter(c => selectedCollections.has(c.id));
 
       for (const collectionInfo of collectionsToDelete) {
-        const mainCollectionRef = collection(firestore, collectionInfo.id);
-        const mainDocsSnap = await getDocs(mainCollectionRef);
-        const batch = writeBatch(firestore);
-
-        if (mainDocsSnap.empty) {
-          console.log(`Koleksiyon boş: ${collectionInfo.id}, geçiliyor.`);
-          continue;
-        }
-
-        console.log(`${mainDocsSnap.size} belge silinecek: ${collectionInfo.id}`);
-
-        for (const docSnap of mainDocsSnap.docs) {
-          // Önce alt koleksiyonları temizle
-          if (collectionInfo.subcollections.length > 0) {
-            for (const subcollectionName of collectionInfo.subcollections) {
-              const subcollectionRef = collection(docSnap.ref, subcollectionName);
-              const subcollectionSnap = await getDocs(subcollectionRef);
-              subcollectionSnap.forEach(subDoc => batch.delete(subDoc.ref));
-            }
-          }
-          // Ana belgeyi sil
-          batch.delete(docSnap.ref);
-        }
-        await batch.commit();
-        console.log(`Koleksiyon temizlendi: ${collectionInfo.id}`);
+        await deleteCollectionInChunks(collectionInfo.id, collectionInfo.subcollections);
       }
 
       toast({
