@@ -54,6 +54,7 @@ interface PrintDocumentProps {
     altBaslik: string;
     adres: string;
     email: string;
+    web: string;
     telefon: string;
     kase?: string;
   };
@@ -86,7 +87,7 @@ const formatAddress = (address: PrintDocumentProps['customer']['address']): stri
     if(address.city) cityPart += address.city;
     if(cityPart) parts.push(cityPart);
 
-    if(address.postalCode) parts.push(address.postalCode);
+    if(address.postalCode) parts.push(cityPart);
     
     return parts.join(', ');
 }
@@ -122,7 +123,7 @@ export const PrintDocument = forwardRef<HTMLDivElement, PrintDocumentProps>(
               <p className="font-bold text-sm text-black">{firma.ad}</p>
               <p className="text-gray-600">{firma.altBaslik}</p>
               <p className="text-gray-500 mt-1">{firma.adres}</p>
-              <p className="text-gray-500">{firma.email} | {firma.telefon}</p>
+              <p className="text-gray-500">{firma.email} | {firma.web} | {firma.telefon}</p>
             </div>
           </div>
           <div className="text-right flex-shrink-0 text-gray-700">

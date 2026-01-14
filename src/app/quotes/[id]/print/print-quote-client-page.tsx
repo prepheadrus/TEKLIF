@@ -223,10 +223,11 @@ export function PrintQuoteClientPage() {
     
     const firmaData = {
         logo: "/logo.png",
-        ad: "Regnum Prime Mühendislik San.Tic.Ltd.Şti,",
+        ad: "Regnum Prime Mühendislik San.Tic.Ltd.Şti.",
         altBaslik: "Isıtma-Soğutma ve Mekanik Tesisat Çözümleri",
         adres: "Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA",
-        email: "ims.m.muhendislik@gmail.com",
+        email: "info@regnumprime.com",
+        web: "www.regnumprime.com",
         telefon: "(553) 469 75 01",
         kase: "/kase.png"
     };
