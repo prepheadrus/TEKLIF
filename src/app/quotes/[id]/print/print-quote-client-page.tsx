@@ -223,7 +223,7 @@ export function PrintQuoteClientPage() {
     
     const firmaData = {
         logo: "/logo.png",
-        ad: "İMS Mühendislik",
+        ad: "Regnum Prime Mühendislik San.Tic.Ltd.Şti,",
         altBaslik: "Isıtma-Soğutma ve Mekanik Tesisat Çözümleri",
         adres: "Hacı Bayram Mah. Rüzgarlı Cad. Uçar2 İşhanı No:26/46 Altındağ/ANKARA",
         email: "ims.m.muhendislik@gmail.com",
@@ -268,5 +268,3 @@ export function PrintQuoteClientPage() {
         </div>
     );
 }
-
-    
