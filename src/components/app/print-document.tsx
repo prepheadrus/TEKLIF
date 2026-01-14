@@ -114,7 +114,7 @@ export const PrintDocument = forwardRef<HTMLDivElement, PrintDocumentProps>(
     const formattedAddress = formatAddress(customer.address);
 
     return (
-      <div ref={ref} className="bg-white p-8 max-w-[210mm] mx-auto text-[10pt] leading-relaxed screen:shadow-lg screen:my-8 print:p-0">
+      <div ref={ref} className="bg-white p-8 max-w-[210mm] mx-auto text-[9pt] leading-snug screen:shadow-lg screen:my-8 print:p-0">
         
         <header className="flex justify-between items-start pb-3 border-b mb-4">
           <div className="flex items-start gap-3">
@@ -133,47 +133,47 @@ export const PrintDocument = forwardRef<HTMLDivElement, PrintDocumentProps>(
           </div>
         </header>
 
-        <section className="grid grid-cols-2 gap-6 mb-6 text-xs">
-          <div className="border rounded p-3 bg-slate-50/50">
-            <h3 className="font-bold border-b pb-1 mb-2 text-gray-800">MÜŞTERİ BİLGİLERİ</h3>
+        <section className="grid grid-cols-2 gap-6 mb-4 text-xs">
+          <div className="border rounded p-2 bg-slate-50/50">
+            <h3 className="font-bold border-b pb-1 mb-1 text-gray-800">MÜŞTERİ BİLGİLERİ</h3>
             <p className="font-semibold text-primary">{customer.name}</p>
             {formattedAddress && <p className="text-gray-600">{formattedAddress}</p>}
             {(customer.email || customer.phone) && <p className="text-gray-600">{customer.email} {customer.email && customer.phone && '|'} {customer.phone}</p>}
             {customer.taxNumber && <p className="text-gray-500">Vergi No: {customer.taxNumber}</p>}
           </div>
-          <div className="border rounded p-3 bg-slate-50/50">
-            <h3 className="font-bold border-b pb-1 mb-2 text-gray-800">PROJE BİLGİSİ</h3>
+          <div className="border rounded p-2 bg-slate-50/50">
+            <h3 className="font-bold border-b pb-1 mb-1 text-gray-800">PROJE BİLGİSİ</h3>
             <p className="text-gray-700">{teklif.projectName}</p>
           </div>
         </section>
 
         {sortedGroups.map(([groupName, items], ki) => (
-          <section key={ki} className="mb-6">
-            <h3 className="font-bold text-base mb-2 p-2 bg-slate-100 border-b-2 border-slate-300 text-gray-800">{groupName}</h3>
-            <table className="w-full border-collapse text-xs">
+          <section key={ki} className="mb-4">
+            <h3 className="font-bold text-base mb-1 p-1 bg-slate-100 border-b-2 border-slate-300 text-gray-800">{groupName}</h3>
+            <table className="w-full border-collapse text-[8pt]">
               <thead className="bg-gray-100">
                 <tr>
-                  <th className="border p-1 w-8 text-center font-semibold text-gray-600">#</th>
+                  <th className="border p-1 w-6 text-center font-semibold text-gray-600">#</th>
                   <th className="border p-1 text-left font-semibold text-gray-600">Açıklama</th>
                   <th className="border p-1 w-20 text-center font-semibold text-gray-600">Marka</th>
                   <th className="border p-1 w-20 text-center font-semibold text-gray-600">Model</th>
-                  <th className="border p-1 w-16 text-right font-semibold text-gray-600">Miktar</th>
-                  <th className="border p-1 w-16 text-center font-semibold text-gray-600">Birim</th>
-                  <th className="border p-1 w-24 text-right font-semibold text-gray-600">Birim Fiyat</th>
-                  <th className="border p-1 w-24 text-right font-semibold text-gray-600">Toplam</th>
+                  <th className="border p-1 w-12 text-right font-semibold text-gray-600">Miktar</th>
+                  <th className="border p-1 w-12 text-center font-semibold text-gray-600">Birim</th>
+                  <th className="border p-1 w-20 text-right font-semibold text-gray-600">Birim Fiyat</th>
+                  <th className="border p-1 w-20 text-right font-semibold text-gray-600">Toplam</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((item: any, i: number) => (
                   <tr key={item.id} className="print-avoid-break even:bg-slate-50/50">
-                    <td className="border p-1.5 text-center text-gray-600">{i + 1}</td>
-                    <td className="border p-1.5 text-gray-800 font-medium">{item.name}</td>
-                    <td className="border p-1.5 text-center text-gray-700">{item.brand}</td>
-                    <td className="border p-1.5 text-center text-gray-700">{item.model}</td>
-                    <td className="border p-1.5 text-right text-gray-700">{item.quantity.toLocaleString('tr-TR')}</td>
-                    <td className="border p-1.5 text-center text-gray-700">{item.unit}</td>
-                    <td className="border p-1.5 text-right font-mono text-gray-700">{formatCurrency(item.unitPrice)}</td>
-                    <td className="border p-1.5 text-right font-mono font-semibold text-black">{formatCurrency(item.total)}</td>
+                    <td className="border p-1 text-center text-gray-600">{i + 1}</td>
+                    <td className="border p-1 text-gray-800 font-medium">{item.name}</td>
+                    <td className="border p-1 text-center text-gray-700">{item.brand}</td>
+                    <td className="border p-1 text-center text-gray-700">{item.model}</td>
+                    <td className="border p-1 text-right text-gray-700">{item.quantity.toLocaleString('tr-TR')}</td>
+                    <td className="border p-1 text-center text-gray-700">{item.unit}</td>
+                    <td className="border p-1 text-right font-mono text-gray-700">{formatCurrency(item.unitPrice)}</td>
+                    <td className="border p-1 text-right font-mono font-semibold text-black">{formatCurrency(item.total)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -182,8 +182,8 @@ export const PrintDocument = forwardRef<HTMLDivElement, PrintDocumentProps>(
         ))}
 
         <footer className="pt-4 border-t-2 border-slate-300">
-            <div className="flex justify-end mb-8 print-avoid-break">
-                 <div className="w-[350px] space-y-2 text-sm">
+            <div className="flex justify-end mb-6 print-avoid-break">
+                 <div className="w-[300px] space-y-1 text-sm">
                     <div className="flex justify-between">
                         <span className="font-semibold text-gray-700">Ara Toplam:</span>
                         <span className="font-mono text-gray-800">{formatCurrency(teklif.grandTotal)}</span>
@@ -192,7 +192,7 @@ export const PrintDocument = forwardRef<HTMLDivElement, PrintDocumentProps>(
                         <span className="font-semibold text-gray-700">KDV (%20):</span>
                         <span className="font-mono text-gray-800">{formatCurrency(teklif.vatAmount)}</span>
                     </div>
-                    <div className="flex justify-between text-xl font-bold pt-2 border-t mt-2 text-black">
+                    <div className="flex justify-between text-lg font-bold pt-2 border-t mt-2 text-black">
                         <span>Genel Toplam:</span>
                         <span className="font-mono">{formatCurrency(teklif.grandTotalWithVAT)}</span>
                     </div>
@@ -200,14 +200,14 @@ export const PrintDocument = forwardRef<HTMLDivElement, PrintDocumentProps>(
             </div>
             
             {teklif.termsAndConditions && (
-                <div className="text-xs mt-8 print-avoid-break">
+                <div className="text-xs mt-6 print-avoid-break">
                     <h3 className="font-bold mb-1 text-gray-800">Notlar ve Koşullar</h3>
                     <p className="whitespace-pre-wrap text-gray-600">{teklif.termsAndConditions}</p>
                 </div>
             )}
 
             {firma.kase && (
-              <section className="flex justify-end mt-8 print-avoid-break">
+              <section className="flex justify-end mt-6 print-avoid-break">
                 <div className="text-center">
                   <img src={firma.kase} className="h-20 w-auto" alt="Kaşe" />
                 </div>
@@ -220,3 +220,5 @@ export const PrintDocument = forwardRef<HTMLDivElement, PrintDocumentProps>(
 );
 
 PrintDocument.displayName = 'PrintDocument';
+
+    
