@@ -101,7 +101,6 @@ body:has([data-print-page]) .print-hidden-on-print-page {
   @page {
     size: A4;
     margin: 10mm;
-    background: white;
   }
 
   html, body {
