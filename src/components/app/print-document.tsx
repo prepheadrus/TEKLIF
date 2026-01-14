@@ -117,17 +117,19 @@ export const PrintDocument = forwardRef<HTMLDivElement, PrintDocumentProps>(
       <div ref={ref} className="bg-white p-8 max-w-[210mm] mx-auto text-[9pt] leading-snug screen:shadow-lg screen:my-8 print:p-0">
         
         <header className="flex justify-between items-start pb-3 border-b mb-4">
-          <div className="flex items-start gap-3">
-            <img src={firma.logo} className="h-12 w-auto" alt="Firma Logosu" />
-            <div className="text-xs text-gray-700">
-              <p className="font-bold text-sm text-black">{firma.ad}</p>
-              <p className="text-gray-600">{firma.altBaslik}</p>
-              <p className="text-gray-500 mt-1">{firma.adres}</p>
-              <p className="text-gray-500">{firma.email} | {firma.web} | {firma.telefon}</p>
+          <div className="flex items-start gap-4">
+            <img src={firma.logo} className="h-16 w-auto" alt="Firma Logosu" />
+            <div className="text-gray-700">
+              <p className="font-bold text-base text-black">{firma.ad}</p>
+              <div className="text-[8pt] text-gray-500 mt-1 space-y-px">
+                <p>{firma.altBaslik}</p>
+                <p>{firma.adres}</p>
+                <p>{firma.email} | {firma.web} | {firma.telefon}</p>
+              </div>
             </div>
           </div>
           <div className="text-right flex-shrink-0 text-gray-700">
-            <p className="text-2xl font-bold text-gray-800">TEKLİF</p>
+            <p className="text-xl font-bold text-gray-800">TEKLİF</p>
             <p className="text-sm">Teklif No: {teklif.quoteNumber}</p>
             <p className="text-sm">Tarih: {formatDate(teklif.createdAt)}</p>
           </div>
@@ -220,5 +222,3 @@ export const PrintDocument = forwardRef<HTMLDivElement, PrintDocumentProps>(
 );
 
 PrintDocument.displayName = 'PrintDocument';
-
-    
