@@ -118,10 +118,10 @@ export const PrintDocument = forwardRef<HTMLDivElement, PrintDocumentProps>(
         
         <header className="flex justify-between items-start pb-3 border-b mb-4">
           <div className="flex items-start gap-4">
-            <img src={firma.logo} className="h-16 w-auto" alt="Firma Logosu" />
+            <img src={firma.logo} className="h-20 w-auto" alt="Firma Logosu" />
             <div className="text-gray-700">
-              <p className="font-bold text-base text-black">{firma.ad}</p>
-              <div className="text-[8pt] text-gray-500 mt-1 space-y-px">
+              <p className="font-bold text-sm text-black">{firma.ad}</p>
+              <div className="text-[7pt] text-gray-500 mt-1 space-y-px">
                 <p>{firma.altBaslik}</p>
                 <p>{firma.adres}</p>
                 <p>{firma.email} | {firma.web} | {firma.telefon}</p>
@@ -222,3 +222,5 @@ export const PrintDocument = forwardRef<HTMLDivElement, PrintDocumentProps>(
 );
 
 PrintDocument.displayName = 'PrintDocument';
+
+    
